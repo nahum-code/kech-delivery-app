@@ -1,16 +1,16 @@
 # Kech Delivery App - MVP Scope (Phase 1)
 
-This document defines the implementation scope for Phase 1 (MVP). It also lists features explicitly deferred to Phase 2 to keep delivery focused, testable, and launch-ready.
+This document defines the implementation scope for Phase 1 (MVP). It also lists features explicitly deferred to Phase 2 and Phase 3 to keep delivery focused, testable, and launch-ready.
 
 ## Table of Contents
 - [1. Product Scope and Assumptions](#1-product-scope-and-assumptions)
-- [2. MVP vs Phase 2 Boundaries](#2-mvp-vs-phase-2-boundaries)
+- [2. Roadmap Boundaries (MVP, Phase 2, Phase 3)](#2-roadmap-boundaries-mvp-phase-2-phase-3)
 - [3. System Modules (MVP)](#3-system-modules-mvp)
 - [4. Roles and Permissions (MVP)](#4-roles-and-permissions-mvp)
 - [5. Core Data Model (MVP)](#5-core-data-model-mvp)
 - [6. Key Workflows (MVP)](#6-key-workflows-mvp)
 - [7. User Flows by Role (MVP)](#7-user-flows-by-role-mvp)
-- [8. MVP Cut Lines (Explicitly Out of Scope)](#8-mvp-cut-lines-explicitly-out-of-scope)
+- [8. Postponed Features by Release Phase](#8-postponed-features-by-release-phase)
 
 ## 1. Product Scope and Assumptions
 - **Applications**
@@ -30,7 +30,7 @@ This document defines the implementation scope for Phase 1 (MVP). It also lists 
   - Distance computed from pickup to drop-off coordinates
   - Address geocoding required
 
-## 2. MVP vs Phase 2 Boundaries
+## 2. Roadmap Boundaries (MVP, Phase 2, Phase 3)
 
 ### Included in MVP (Phase 1)
 - In-app order lifecycle tracking
@@ -43,12 +43,20 @@ This document defines the implementation scope for Phase 1 (MVP). It also lists 
   - `platform_fee`
 
 ### Deferred to Phase 2
-- Rating and feedback system (`Rating(orderId, customerId, driverId, score, comment)`)
-- Driver earnings summary dashboard (beyond basic delivery history)
-- Advanced notifications (Push + SMS/Email fallback)
-- Reorder flow from order history
-- Audit log system
+- Basic real-time driver tracking
+- Enhanced notification system (Push + Email/SMS fallback)
+- Driver earnings dashboard (Driver App)
+- Order re-ordering
+- Ratings and reviews system (`Rating(orderId, customerId, driverId, score, comment)`)
+- Audit log system (basic)
 - Commission/profit engine with configurable commission percentages and payout rules
+
+### Deferred to Phase 3
+- Advanced analytics dashboard (driver performance, restaurant performance, delivery success rates, customer retention, geographic demand)
+- Automated driver payout system
+- Smart dispatch optimization (driver ranking, best-driver auto-selection, demand-based dispatch)
+- Advanced real-time delivery route tracking
+- Advanced audit logs
 
 ## 3. System Modules (MVP)
 
@@ -176,11 +184,22 @@ This document defines the implementation scope for Phase 1 (MVP). It also lists 
 - Configure pricing (`perKmRate`, `minFee`)
 - View operational and basic financial reports
 
-## 8. MVP Cut Lines (Explicitly Out of Scope)
-The following are intentionally excluded from Phase 1 and will be considered in Phase 2:
-- Ratings and customer feedback
-- Reorder capability
-- Driver earnings summary module
-- Push notifications and SMS/Email notification fallback
-- Audit logging module
-- Commission engine, profit engine, and payout rules configuration
+## 8. Postponed Features by Release Phase
+
+The following capabilities are intentionally excluded from Phase 1 (MVP) and planned for future phases.
+
+### Phase 2
+- Basic real-time driver tracking
+- Enhanced notification system (Push + Email/SMS fallback)
+- Driver earnings dashboard (Driver App)
+- Order re-ordering
+- Ratings and reviews
+- Audit log system (basic)
+- Commission and profit engine with payout rules
+
+### Phase 3
+- Advanced analytics dashboard (driver performance metrics, restaurant performance, delivery success rates, customer retention, geographic demand analysis)
+- Automated driver payout system
+- Smart dispatch optimization (performance-based ranking, automatic best-driver selection, demand-based dispatch)
+- Advanced real-time delivery route tracking
+- Advanced audit logs
