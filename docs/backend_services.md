@@ -1,50 +1,57 @@
-# Backend Services (Django Apps) — Day 2
+# Backend Services (Django Apps) — Day 2 (Refined)
 
-This document defines the **logical backend services** as **Django apps** (not microservices), derived from `README.md` plus your chosen stack (DRF, Channels, Celery, Redis).
+This document defines the **backend service architecture** as **Django apps** (not microservices), aligned to the MVP scope in `README.md` and your refined backend layout recommendation.
 
 ## Service List (Logical Modules)
 
-| Service (Django app) | Primary responsibility | Key models / data | Key API surfaces (examples) |
+| Service (Django app) | Responsibility | Key models / data | Key API surfaces (examples) |
 |---|---|---|---|
-| **identity** | Auth, login, JWT, role claims | tokens/claims | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/me` |
-| **users** | Customer profiles + addresses | `CustomerProfile`, `Address` | `/customers/me`, `/customers/addresses` |
-| **drivers** | Driver onboarding + docs + approval status + availability | `DriverProfile`, `DriverDocument` | `/drivers/register`, `/drivers/docs`, `/drivers/availability` |
-| **restaurants** | Restaurant CRUD + activation + opening hours | `Restaurant`, `OpeningHours` | `/restaurants`, `/restaurants/{id}` |
-| **menus** | Categories/items CRUD + images + availability | `MenuCategory`, `MenuItem` | `/restaurants/{id}/menu` |
-| **orders** | Order creation/validation + snapshots + cancellation rules | `Order`, `OrderItem` | `/orders`, `/orders/{id}`, `/orders/{id}/cancel` |
-| **dispatch** | Manual assign + driver self-accept + eligibility | assignment records | `/orders/available`, `/orders/{id}/assign`, `/orders/{id}/accept` |
-| **tracking** | Status transitions + immutable event timeline | `DeliveryEvent` | `/orders/{id}/events`, `/orders/{id}/status` |
-| **payments** | Chapa init + webhook verify + payment ledger | `Payment`, webhook logs | `/payments/init`, `/payments/webhook/chapa` |
-| **pricing** | Fee estimate (distance-based) + financial snapshot helpers | pricing config | `/pricing/estimate` |
-| **notifications** | Push + in-app notifications pipeline | `Notification`, device tokens | `/notifications`, `/devices/register` |
-| **analytics** | Revenue, payouts, platform profit rollups | aggregates/views | `/analytics/revenue`, `/analytics/driver-payouts`, `/analytics/profit` |
-| **config** | Admin-managed operational configs (dynamic) | `OperationalConfig` | `/config`, `/config/{key}` |
-| **media** (optional) | Storage abstraction + signed uploads | media metadata | `/media/upload-url` |
+| **accounts** | Authentication, user model, JWT issuance/refresh, role claims | `User`, tokens/claims | `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/me` |
+| **drivers** | Driver profiles, documents, approval workflow, availability | `DriverProfile`, `DriverDocument` | `/drivers/register`, `/drivers/docs`, `/drivers/availability` |
+| **restaurants** | Restaurants CRUD, activation, opening hours, images metadata | `Restaurant`, `OpeningHours` | `/restaurants`, `/restaurants/{id}` |
+| **menus** | Menu categories/items CRUD, item availability, images metadata | `MenuCategory`, `MenuItem` | `/restaurants/{id}/menu` |
+| **orders** | Orders + state machine + event timeline + snapshots + cancel/modify rules | `Order`, `OrderItem`, `OrderEvent` | `/orders`, `/orders/{id}`, `/orders/{id}/cancel`, `/orders/{id}/events` |
+| **dispatch** | Driver assignment: manual assign + driver self-accept, eligibility filters | assignment records/events | `/orders/available`, `/orders/{id}/assign`, `/orders/{id}/accept` |
+| **payments** | Chapa integration: init checkout, webhook verification, payment ledger | `Payment`, webhook logs | `/payments/init`, `/payments/webhook/chapa` |
+| **pricing** | Distance-based fee estimate + channel-based pricing configs + financial snapshot helpers | `OperationalConfig` (pricing/policy) | `/pricing/estimate`, (admin) `/pricing/config` |
+| **notifications** | Device tokens + push notification pipeline (FCM) | `DeviceToken`, `Notification` | `/devices/register`, `/notifications` |
+| **analytics** | Revenue, driver payout summaries, platform profit reports | aggregates/views | `/analytics/revenue`, `/analytics/driver-payouts`, `/analytics/profit` |
 
-## Recommended Django App Structure
+Notes:
+- The previous `tracking` app is folded into **`orders`** for MVP (order events + allowed state transitions). You can split it later if it grows.
+- Operational config storage from the previous `config` app is folded into **`pricing`** to match the refined layout (still admin-managed, dynamic).
+- File storage flows are **direct client → Firebase Storage**, so no dedicated `media` app is required in MVP (backend only stores URLs/metadata).
 
-```
+## Recommended Django App Structure (Refined)
+
+```text
 backend/
   manage.py
-  config/                 # settings, urls, asgi/wsgi
+
+  config/
+    settings/
+    urls.py
+    asgi.py
+    wsgi.py
+
   apps/
-    identity/
-    users/
-    drivers/
-    restaurants/
-    menus/
-    orders/
-    dispatch/
-    tracking/
-    payments/
-    pricing/
-    notifications/
-    analytics/
-    config/
-    media/
+    accounts/        # authentication + user model
+    drivers/         # driver profiles + approval
+    restaurants/     # restaurants CRUD
+    menus/           # menu categories + items
+    orders/          # orders + state machine (+ event timeline)
+    dispatch/        # driver assignment logic
+    payments/        # chapa integration
+    pricing/         # delivery fee calculation + operational pricing config
+    notifications/   # push notifications
+    analytics/       # reports & metrics
+
   shared/
     permissions/
     utils/
+    constants/
+    exceptions/
+    validators/
 ```
 
 ## Cross-Cutting Rules (from README.md)
@@ -60,9 +67,8 @@ backend/
 
 ## Ownership Boundaries
 
-- `orders` owns order creation and cart validation.
+- `orders` owns order creation and cart validation, and enforces allowed state transitions.
 - `pricing` computes estimates and produces pricing snapshots consumed by `orders`.
 - `payments` is the only module allowed to mark payment confirmed (after webhook verification).
 - `dispatch` manages assignment and driver accept flows.
-- `tracking` manages the event timeline and validates allowed state transitions.
 
