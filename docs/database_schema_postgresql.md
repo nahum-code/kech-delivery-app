@@ -30,6 +30,11 @@ This document defines the **MVP PostgreSQL schema** for the Kech Delivery App. I
 - `rejected`
 - `suspended`
 
+### `driver_document_status`
+- `submitted`
+- `approved`
+- `rejected`
+
 ### `restaurant_status`
 - `active`
 - `inactive`
@@ -120,7 +125,7 @@ Fields:
 - `user_id` (uuid, fk → `users.id`, unique, not null)
 - `vehicle_type` (text, null)  (e.g., bike, motorbike, car)
 - `approval_status` (`driver_approval_status`, not null, default `registered`)
-- `rating_avg` (numeric(3,2), null)
+- `rating_avg` (numeric(3,2) CHECK (rating_avg >= 1.0 AND rating_avg <= 5.0), null)
 - `rating_count` (int, not null, default 0)
 - `is_online` (boolean, not null, default false)
 - `last_seen_at` (timestamptz, null)
@@ -130,6 +135,10 @@ Indexes:
 - index: `(approval_status)`
 - index: `(is_online)`
 
+Rating invariant (recommended):
+- Keep `rating_avg` **NULL** when `rating_count = 0` (unknown/no ratings yet). Do not store `0.00` as a sentinel.
+- When a new rating is added, update both `rating_count` and `rating_avg` in the same transaction.
+
 ### 2.4 `driver_documents`
 Stores driver KYC documents metadata (files live in Firebase Storage).
 
@@ -138,7 +147,7 @@ Fields:
 - `driver_profile_id` (uuid, fk → `driver_profiles.id`, not null)
 - `doc_type` (text, not null) (e.g., national_id, license, profile_photo)
 - `file_url` (text, not null)
-- `status` (text, not null, default `submitted`) (simple MVP: submitted/approved/rejected)
+- `status` (`driver_document_status`, not null, default `submitted`)
 - `submitted_at` (timestamptz, not null)
 - `reviewed_by_user_id` (uuid, fk → `users.id`, null)
 - `reviewed_at` (timestamptz, null)
@@ -155,8 +164,8 @@ Fields:
 - `label` (text, null) (e.g., Home, Work)
 - `address_text` (text, not null)
 - `formatted_address` (text, null)
-- `latitude` (numeric(9,6), null)
-- `longitude` (numeric(9,6), null)
+- `latitude` (numeric(9,6) CHECK (latitude >= -90 AND latitude <= 90), null)
+- `longitude` (numeric(9,6) CHECK (longitude >= -180 AND longitude <= 180), null)
 - `created_at`, `updated_at` (timestamptz)
 
 Indexes:
@@ -170,14 +179,27 @@ Fields:
 - `description` (text, null)
 - `phone` (text, null)
 - `address_text` (text, null)
-- `latitude` (numeric(9,6), not null)
-- `longitude` (numeric(9,6), not null)
+- `latitude` (numeric(9,6) CHECK (latitude >= -90 AND latitude <= 90), not null)
+- `longitude` (numeric(9,6) CHECK (longitude >= -180 AND longitude <= 180), not null)
+- `location` (geography(Point,4326), not null) (PostGIS point; derived from latitude/longitude)
 - `status` (`restaurant_status`, not null, default `active`)
 - `created_at`, `updated_at` (timestamptz)
 
 Indexes:
 - index: `(status)`
-- index: `(latitude, longitude)` (for nearby queries)
+- spatial index (recommended): GiST index on `location` for radius/KNN queries
+
+PostGIS note:
+- Enable PostGIS with: `CREATE EXTENSION IF NOT EXISTS postgis;`
+- Prefer distance queries using `location` (e.g., `ST_DWithin`, `ST_Distance`, and KNN operator `<->`) rather than B-tree `(latitude, longitude)`.
+
+Example spatial index:
+
+```sql
+CREATE INDEX idx_restaurants_location_gist
+ON restaurants
+USING gist (location);
+```
 
 ### 2.7 `restaurant_images`
 Fields:
@@ -193,13 +215,17 @@ Per-day restaurant schedule (recommended). If you want MVP-simple, you can store
 Fields:
 - `id` (uuid, pk)
 - `restaurant_id` (uuid, fk → `restaurants.id`, not null)
-- `day_of_week` (smallint, not null) (0=Sun..6=Sat)
+- `day_of_week` (smallint CHECK (day_of_week >= 0 AND day_of_week <= 6), not null) (0=Sun..6=Sat)
 - `open_time` (time, not null)
 - `close_time` (time, not null)
 - `is_closed` (boolean, not null, default false)
 
 Constraints:
 - unique: `(restaurant_id, day_of_week)`
+- check: `(is_closed = true) OR (close_time > open_time)`
+
+Overnight-hours note:
+- If you plan to support overnight spans (e.g., `22:00 → 02:00`), revise the time-range rule (common options: add a `spans_midnight` flag, or store full timestamps per day window).
 
 ### 2.9 `menu_categories`
 Fields:
@@ -219,7 +245,7 @@ Fields:
 - `category_id` (uuid, fk → `menu_categories.id`, not null)
 - `name` (text, not null)
 - `description` (text, null)
-- `price` (numeric(12,2), not null)
+- `price` (numeric(12,2) CHECK (price >= 0), not null)
 - `currency` (text, not null, default `ETB`)
 - `is_available` (boolean, not null, default true)
 - `created_at`, `updated_at` (timestamptz)
@@ -260,23 +286,23 @@ Fields:
 
 Pricing + delivery snapshot:
 - `pricing_channel` (`pricing_channel`, not null) (customer/sales)
-- `distance_km` (numeric(8,3), not null)
-- `duration_min` (numeric(8,2), null)
+- `distance_km` (numeric(8,3) CHECK (distance_km >= 0), not null)
+- `duration_min` (numeric(8,2) CHECK (duration_min >= 0), null)
 
 - `pickup_name` (text, null) (restaurant name snapshot optional)
 - `pickup_address_text` (text, null)
-- `pickup_latitude` (numeric(9,6), not null)
-- `pickup_longitude` (numeric(9,6), not null)
+- `pickup_latitude` (numeric(9,6) CHECK (pickup_latitude >= -90 AND pickup_latitude <= 90), not null)
+- `pickup_longitude` (numeric(9,6) CHECK (pickup_longitude >= -180 AND pickup_longitude <= 180), not null)
 
 - `dropoff_address_text` (text, not null)
 - `dropoff_formatted_address` (text, null)
-- `dropoff_latitude` (numeric(9,6), not null)
-- `dropoff_longitude` (numeric(9,6), not null)
+- `dropoff_latitude` (numeric(9,6) CHECK (dropoff_latitude >= -90 AND dropoff_latitude <= 90), not null)
+- `dropoff_longitude` (numeric(9,6) CHECK (dropoff_longitude >= -180 AND dropoff_longitude <= 180), not null)
 
 Financial snapshot fields (MVP):
-- `delivery_fee` (numeric(12,2), not null)
-- `driver_payout` (numeric(12,2), not null)
-- `platform_fee` (numeric(12,2), not null)
+- `delivery_fee` (numeric(12,2) CHECK (delivery_fee >= 0), not null)
+- `driver_payout` (numeric(12,2) CHECK (driver_payout >= 0), not null)
+- `platform_fee` (numeric(12,2) CHECK (platform_fee >= 0), not null)
 - `currency` (text, not null, default `ETB`)
 
 Order notes:
@@ -305,9 +331,9 @@ Fields:
 
 Snapshot fields:
 - `item_name` (text, not null)
-- `unit_price` (numeric(12,2), not null)
-- `quantity` (int, not null)
-- `line_total` (numeric(12,2), not null)
+- `unit_price` (numeric(12,2) CHECK (unit_price >= 0), not null)
+- `quantity` (int CHECK (quantity > 0), not null)
+- `line_total` (numeric(12,2) CHECK (line_total >= 0), not null)
 - `currency` (text, not null, default `ETB`)
 
 Indexes:
@@ -321,7 +347,7 @@ Fields:
 - `order_id` (uuid, fk → `orders.id`, not null)
 - `provider` (`payment_provider`, not null, default `chapa`)
 - `status` (`payment_status`, not null)
-- `amount` (numeric(12,2), not null)
+- `amount` (numeric(12,2) CHECK (amount >= 0), not null)
 - `currency` (text, not null, default `ETB`)
 
 - `provider_reference` (text, not null) (unique id from Chapa, or your generated tx ref)
@@ -355,6 +381,39 @@ Indexes:
 - index: `(order_id, created_at asc)`
 - index: `(event_type, created_at desc)`
 
+Immutability enforcement (recommended):
+- Treat this table as **append-only**: allow `INSERT`, block `UPDATE`/`DELETE` at the DB level.
+
+Example PostgreSQL safeguard:
+
+```sql
+-- 1) Reduce accidental modification via privileges (default is already limited,
+--    but being explicit prevents surprises in shared environments).
+REVOKE UPDATE, DELETE ON TABLE delivery_events FROM PUBLIC;
+
+-- Optional: if you use a dedicated application role, grant only what you need.
+-- GRANT SELECT, INSERT ON TABLE delivery_events TO app_role;
+-- REVOKE UPDATE, DELETE ON TABLE delivery_events FROM app_role;
+
+-- 2) Enforce immutability even for roles that still have UPDATE/DELETE privileges.
+CREATE OR REPLACE FUNCTION prevent_delivery_events_modification()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'delivery_events is append-only (UPDATE/DELETE not allowed)';
+END;
+$$;
+
+CREATE TRIGGER delivery_events_immutable_trg
+BEFORE UPDATE OR DELETE ON delivery_events
+FOR EACH ROW
+EXECUTE FUNCTION prevent_delivery_events_modification();
+```
+
+Bypass note:
+- Only the **table owner / database superuser / dedicated migration role** should be able to bypass this (e.g., during data migrations or legally required corrections). For operational admin users, keep the table append-only and store corrections as new `delivery_events` rows (e.g., `admin_note`) rather than edits.
+
 ### 2.16 `device_tokens`
 Required for FCM push notifications.
 
@@ -362,7 +421,9 @@ Fields:
 - `id` (uuid, pk)
 - `user_id` (uuid, fk → `users.id`, not null)
 - `platform` (text, not null) (`android`, `ios`, `web`)
-- `token` (text, not null)
+Verify each finding against the current code and only fix it if needed.
+
+In @docs/database_schema_postgresql.md around lines 85 - 430, The doc is missing explicit ON DELETE/ON UPDATE rules for FK relationships; update the schema docs to list cascade behavior for each FK (e.g., orders.customer_user_id and orders.assigned_driver_user_id → ON DELETE RESTRICT or note soft-delete via users.status='deleted'; order_items.order_id, payments.order_id, delivery_events.order_id → ON DELETE CASCADE; customer_profiles.default_address_id → ON DELETE SET NULL; driver_documents.driver_profile_id → ON DELETE CASCADE; addresses.user_id → ON DELETE CASCADE/RESTRICT as agreed), and state whether ON UPDATE CASCADE is used for uuid primary key changes; add a short rationale line per FK and a summary table of the chosen rules next to the existing field definitions (refer to specific columns like orders.id, order_items.order_id, payments.order_id, delivery_events.order_id, customer_profiles.default_address_id, driver_documents.driver_profile_id, addresses.user_id, users.id).- `token` (text, not null)
 - `is_active` (boolean, not null, default true)
 - `last_seen_at` (timestamptz, null)
 - `created_at` (timestamptz, not null)
@@ -408,10 +469,19 @@ Fields:
 - `created_at` (timestamptz, not null)
 
 Constraints:
-- index-only rule: only one active config per channel at a time (enforce in app logic or partial unique index)
+- only one active config per channel at a time (enforced via partial unique index)
 
 Indexes:
 - index: `(channel, is_active, effective_from desc)`
+- unique partial index: `idx_pricing_configs_one_active_per_channel` on `(channel)` where `(is_active = true)`
+
+Example PostgreSQL enforcement:
+
+```sql
+CREATE UNIQUE INDEX idx_pricing_configs_one_active_per_channel
+ON pricing_configs (channel)
+WHERE (is_active = true);
+```
 
 ### 2.19 `operational_configs`
 Simple dynamic configuration store for non-pricing policies (driver wait minutes, cancellation rules, etc.).
@@ -419,14 +489,16 @@ Simple dynamic configuration store for non-pricing policies (driver wait minutes
 Fields:
 - `id` (uuid, pk)
 - `key` (text, unique, not null)
-- `value` (text, not null)
-- `value_type` (text, not null) (`int`, `decimal`, `bool`, `time`, `json`, `string`)
+- `value` (jsonb, not null) (typed storage; store the native JSON type: number/bool/string/object)
 - `updated_by_user_id` (uuid, fk → `users.id`, null)
 - `updated_at` (timestamptz, not null)
 
 Examples:
 - `driver_wait_minutes = 30`
 - `customer_can_cancel = false` (MVP)
+
+Query note:
+- Using `jsonb` enables safe typed reads and querying (e.g., `(value->>''driver_wait_minutes'')::int` if stored as an object, or direct casts if stored as a scalar).
 
 ## 3) Relationships Summary
 

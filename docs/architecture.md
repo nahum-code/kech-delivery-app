@@ -145,6 +145,20 @@ flowchart TB
 - **Sentry** (MVP minimum): capture backend exceptions, dashboard frontend errors, and performance traces.
 - Future: Prometheus/Grafana for metrics, centralized log shipping.
 
+### CORS configuration
+- Use **`django-cors-headers`** and configure **`CORS_ALLOWED_ORIGINS`** (or `CORS_ORIGIN_WHITELIST`) to explicitly whitelist your Next.js dashboard domains.
+- Avoid `*` wildcards in production; whitelist only trusted origins (e.g., Admin/Sales dashboard hosts).
+- Ensure `CorsMiddleware` is enabled early in `MIDDLEWARE` (above common middleware that may generate responses).
+
+### Backup and disaster recovery
+- Automate **daily PostgreSQL backups**, and enable **WAL archiving / PITR (point-in-time recovery)** for production.
+- Store backups **offsite** (separate volume/bucket) and define a retention policy (e.g., 7–30 daily snapshots + longer-term monthly).
+- Perform regular **restore drills** to verify backups are actually usable.
+- Common tooling options:
+  - `pgbackrest` (recommended for PITR)
+  - `pg_dump` (logical backups)
+  - continuous WAL archive for recovery windows
+
 ## Core Data Ownership (PostgreSQL)
 
 - Users and role claims

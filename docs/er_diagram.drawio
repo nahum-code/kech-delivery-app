@@ -73,7 +73,7 @@
           <mxGeometry x="1020" y="370" width="320" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="operational_configs" value="operational_configs&#xa;- key (unique)&#xa;- value&#xa;- value_type" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="operational_configs" value="operational_configs&#xa;- id (PK)&#xa;- key (unique)&#xa;- value&#xa;- value_type" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1020" y="520" width="320" height="110" as="geometry"/>
         </mxCell>
 
@@ -114,7 +114,21 @@
         <mxCell id="e12" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="users" target="device_tokens">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-      </root>
+        <mxCell id="e13" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="customer_profiles" target="addresses">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="orders" target="users">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e15" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="orders" target="restaurants">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e16" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="delivery_events" target="users">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e17" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="order_items" target="menu_items">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>      </root>
     </mxGraphModel>
   </diagram>
 </mxfile>

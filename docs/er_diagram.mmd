@@ -7,7 +7,6 @@ erDiagram
     text status
     timestamptz created_at
   }
-
   CUSTOMER_PROFILES {
     uuid id PK
     uuid user_id FK
@@ -144,19 +143,23 @@ erDiagram
   USERS ||--|| DRIVER_PROFILES : has
   DRIVER_PROFILES ||--o{ DRIVER_DOCUMENTS : uploads
   USERS ||--o{ ADDRESSES : saves
+  CUSTOMER_PROFILES }o--|| ADDRESSES : default_address
 
   RESTAURANTS ||--o{ OPENING_HOURS : has
   RESTAURANTS ||--o{ MENU_CATEGORIES : has
   MENU_CATEGORIES ||--o{ MENU_ITEMS : has
 
+  MENU_ITEMS ||--o{ ORDER_ITEMS : references
+
   USERS ||--o{ ORDERS : creates
+  USERS ||--o{ ORDERS : places
   RESTAURANTS ||--o{ ORDERS : receives
   USERS ||--o{ ORDERS : delivers
 
   ORDERS ||--o{ ORDER_ITEMS : contains
   ORDERS ||--o{ PAYMENTS : paid_by
   ORDERS ||--o{ DELIVERY_EVENTS : logs
+  DELIVERY_EVENTS }o--|| USERS : actor
 
   USERS ||--o{ DEVICE_TOKENS : registers
   USERS ||--o{ NOTIFICATIONS : receives
-

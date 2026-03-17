@@ -31,7 +31,12 @@ See: `docs/database_schema_postgresql.md`
 The ER diagram is exported to:
 - `docs/er_diagram.png`
 
-Editable sources (optional, for future edits):
-- `docs/er_diagram.drawio`
-- `docs/er_diagram.mmd`
+Source of truth:
+- **`docs/er_diagram.drawio`** is the authoritative ER diagram file.
+
+Derived/secondary formats:
+- `docs/er_diagram.png` is a rendered artifact used for quick viewing in Git.
+  - Regenerate with: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate_er_diagram_png.ps1`
+- `docs/er_diagram.mmd` is a Mermaid ER version for text-based review and discussions.
+  - Keep it in sync with the draw.io diagram when relationships change.
 

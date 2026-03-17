@@ -14,6 +14,7 @@ This document defines the implementation scope for Phase 1 (MVP). It includes fu
 - [9. Order Financial Breakdown (MVP)](#9-order-financial-breakdown-mvp)
 - [10. Postponed Features by Release Phase](#10-postponed-features-by-release-phase)
 - [11. Database Design](#11-database-design)
+- [12. Dispatch Design (MVP)](#12-dispatch-design-mvp)
 
 ## 1. Product Scope and Assumptions
 - **Applications**
@@ -363,10 +364,15 @@ The following capabilities are intentionally excluded from Phase 1 (MVP) and pla
 
 ## 11. Database Design
 
-The MVP database design is documented in:
-- `docs/database_design.md`
+Main design document:
+- `docs/database_design.md` — primary/index document that summarizes the MVP database design and links to the deliverables below (`docs/data_model_overview.md`, `docs/database_schema_postgresql.md`, `docs/er_diagram.png`).
 
 Deliverables:
-- **Core entities list**: `docs/data_model_overview.md`
+- **Core entities list**: `docs/data_model_overview.md` — implementation-ready entity catalog (Section 5 is the high-level overview).
 - **Full PostgreSQL schema**: `docs/database_schema_postgresql.md`
 - **ER diagram**: `docs/er_diagram.png` (sources: `docs/er_diagram.drawio`, `docs/er_diagram.mmd`)
+
+## 12. Dispatch Design (MVP)
+
+Main design document:
+- [`docs/dispatch_design.md`](docs/dispatch_design.md) — dispatch rules and flows (driver availability, eligibility, fixed dispatch radius, self-accept broadcast with first-accept-wins locking, and manual assignment/reassignment).

@@ -4,30 +4,38 @@ This document lists the **core entities** for the MVP, extracted from `README.md
 
 ## Core Entities (MVP)
 
-```
-User
-CustomerProfile
-DriverProfile
-DriverDocument
-Address
-Restaurant
-RestaurantImage
-OpeningHours
-MenuCategory
-MenuItem
-MenuItemImage
-Order
-OrderItem
-Payment
-DeliveryEvent
-Notification
-DeviceToken
-PricingConfig
-OperationalConfig
-```
+| Entity | Description (MVP) |
+|---|---|
+| **User** | Authentication identity and role holder (Customer, Driver, Sales Agent, Admin). |
+| **CustomerProfile** | Customer-specific profile data (linked 1:1 to `User` when role = Customer). |
+| **DriverProfile** | Driver-specific operational data (approval status, availability; linked 1:1 to `User` when role = Driver). |
+| **DriverDocument** | Driver KYC/document metadata (file URL + review status), stored outside DB in Firebase Storage. |
+| **Address** | Saved delivery addresses (address text + optional geocoded coordinates). |
+| **Restaurant** | Merchant/restaurants with location, activation status, and basic contact metadata. |
+| **RestaurantImage** | Restaurant image metadata (URL + ordering). |
+| **OpeningHours** | Restaurant schedule (per-day open/close times + closed flag). |
+| **MenuCategory** | Restaurant menu grouping (e.g., Burgers, Drinks). |
+| **MenuItem** | Orderable item with price, availability, and optional images. |
+| **MenuItemImage** | Menu item image metadata (URL + ordering). |
+| **Order** | Purchase + delivery request record, including pricing channel selection and immutable financial snapshots. |
+| **OrderItem** | Order line items with immutable snapshot fields (name, unit price, qty, line total). |
+| **Payment** | Payment ledger entries (Chapa references, amount, status), supports retries. |
+| **DeliveryEvent** | Append-only order timeline events (status changes, assignment, customer unreachable, admin note). |
+| **Notification** | Notification inbox/audit records (in-app + push metadata). |
+| **DeviceToken** | Device registration tokens for FCM push delivery. |
+| **PricingConfig** | Versioned channel-based delivery pricing configuration (Customer vs Sales). |
+| **OperationalConfig** | Dynamic operational policies/config values (e.g., driver wait minutes, cancellation rules). |
 
 Notes:
-- MVP stores **order snapshots**: menu item name/price and pricing breakdown at order creation time.
-- MVP pricing is **channel-based** (Customer channel vs Sales channel).
-- Uploads are **direct client → Firebase Storage**, so database stores file URLs + metadata (not blobs).
+- MVP stores **order snapshots** (immutable once created) to preserve history when menus/pricing change. Capture at minimum:
+  - **OrderItem snapshot**: `item_name`, `unit_price`, `quantity`, `line_total`, `currency`
+  - **Order pricing snapshot**: `pricing_channel`, `distance_km`, `delivery_fee`, `driver_payout`, `platform_fee`, `currency`, `created_at` (timestamp)
+  - Optional (future-proof): `pricing_breakdown` (e.g., base fee, per-km rate, service charge) and `snapshot_id`/version reference to the applied pricing config.
+- MVP pricing is **channel-based**:
+  - **Customer channel**: customer-facing pricing rules
+  - **Sales/Admin channel**: internal or negotiated/promotional pricing rules
+  - Channel selection is stored on the order as **`pricing_channel`**.
+- Uploads are **direct client → Firebase Storage**. The DB stores **file URL + metadata**, not blobs. Expected file types include:
+  - `restaurantImages`, `menuItemImages`, `driverDocuments` (KYC), optional `receipts`
+  - Persist metadata such as: `file_url`, `content_type`, `size_bytes`, `uploaded_by`, `uploaded_at` (plus a document/image type).
 
