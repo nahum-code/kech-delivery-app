@@ -1,4 +1,4 @@
-# System Architecture (Day 2)
+# System Architecture
 
 This document defines the **high-level platform architecture** for the Kech Delivery App MVP, based on the MVP scope in `README.md`.
 

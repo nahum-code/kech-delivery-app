@@ -13,6 +13,7 @@ This document defines the implementation scope for Phase 1 (MVP). It includes fu
 - [8. Operational Policies (MVP)](#8-operational-policies-mvp)
 - [9. Order Financial Breakdown (MVP)](#9-order-financial-breakdown-mvp)
 - [10. Postponed Features by Release Phase](#10-postponed-features-by-release-phase)
+- [11. Database Design](#11-database-design)
 
 ## 1. Product Scope and Assumptions
 - **Applications**
@@ -359,3 +360,13 @@ The following capabilities are intentionally excluded from Phase 1 (MVP) and pla
 - Smart dispatch optimization (performance-based ranking, automatic best-driver selection, demand-based dispatch)
 - Advanced real-time delivery route tracking
 - Advanced audit logs
+
+## 11. Database Design
+
+The MVP database design is documented in:
+- `docs/database_design.md`
+
+Deliverables:
+- **Core entities list**: `docs/data_model_overview.md`
+- **Full PostgreSQL schema**: `docs/database_schema_postgresql.md`
+- **ER diagram**: `docs/er_diagram.png` (sources: `docs/er_diagram.drawio`, `docs/er_diagram.mmd`)

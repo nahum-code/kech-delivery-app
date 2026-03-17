@@ -1,0 +1,162 @@
+erDiagram
+  USERS {
+    uuid id PK
+    text phone "unique"
+    text email "unique nullable"
+    text role
+    text status
+    timestamptz created_at
+  }
+
+  CUSTOMER_PROFILES {
+    uuid id PK
+    uuid user_id FK
+    uuid default_address_id FK
+  }
+
+  DRIVER_PROFILES {
+    uuid id PK
+    uuid user_id FK
+    text approval_status
+    boolean is_online
+  }
+
+  DRIVER_DOCUMENTS {
+    uuid id PK
+    uuid driver_profile_id FK
+    text doc_type
+    text file_url
+  }
+
+  ADDRESSES {
+    uuid id PK
+    uuid user_id FK
+    text address_text
+    decimal latitude
+    decimal longitude
+  }
+
+  RESTAURANTS {
+    uuid id PK
+    text name
+    decimal latitude
+    decimal longitude
+    text status
+  }
+
+  OPENING_HOURS {
+    uuid id PK
+    uuid restaurant_id FK
+    int day_of_week
+    time open_time
+    time close_time
+    boolean is_closed
+  }
+
+  MENU_CATEGORIES {
+    uuid id PK
+    uuid restaurant_id FK
+    text name
+    boolean is_active
+  }
+
+  MENU_ITEMS {
+    uuid id PK
+    uuid category_id FK
+    text name
+    decimal price
+    boolean is_available
+  }
+
+  ORDERS {
+    uuid id PK
+    bigint order_number "unique"
+    uuid created_by_user_id FK
+    uuid customer_user_id FK
+    uuid restaurant_id FK
+    uuid assigned_driver_user_id FK
+    text status
+    decimal distance_km
+    decimal delivery_fee
+    decimal driver_payout
+    decimal platform_fee
+    timestamptz created_at
+  }
+
+  ORDER_ITEMS {
+    uuid id PK
+    uuid order_id FK
+    uuid menu_item_id FK "nullable"
+    text item_name "snapshot"
+    decimal unit_price "snapshot"
+    int quantity
+  }
+
+  PAYMENTS {
+    uuid id PK
+    uuid order_id FK
+    text provider_reference "unique"
+    decimal amount
+    text status
+  }
+
+  DELIVERY_EVENTS {
+    uuid id PK
+    uuid order_id FK
+    text event_type
+    uuid actor_user_id FK
+    timestamptz created_at
+  }
+
+  DEVICE_TOKENS {
+    uuid id PK
+    uuid user_id FK
+    text token "unique"
+    text platform
+  }
+
+  NOTIFICATIONS {
+    uuid id PK
+    uuid user_id FK
+    text channel
+    text title
+    boolean is_read
+    timestamptz created_at
+  }
+
+  PRICING_CONFIGS {
+    uuid id PK
+    text channel
+    decimal base_fee
+    decimal per_km_rate
+    decimal min_fee
+    decimal service_charge
+  }
+
+  OPERATIONAL_CONFIGS {
+    uuid id PK
+    text key "unique"
+    text value
+    text value_type
+  }
+
+  USERS ||--|| CUSTOMER_PROFILES : has
+  USERS ||--|| DRIVER_PROFILES : has
+  DRIVER_PROFILES ||--o{ DRIVER_DOCUMENTS : uploads
+  USERS ||--o{ ADDRESSES : saves
+
+  RESTAURANTS ||--o{ OPENING_HOURS : has
+  RESTAURANTS ||--o{ MENU_CATEGORIES : has
+  MENU_CATEGORIES ||--o{ MENU_ITEMS : has
+
+  USERS ||--o{ ORDERS : creates
+  RESTAURANTS ||--o{ ORDERS : receives
+  USERS ||--o{ ORDERS : delivers
+
+  ORDERS ||--o{ ORDER_ITEMS : contains
+  ORDERS ||--o{ PAYMENTS : paid_by
+  ORDERS ||--o{ DELIVERY_EVENTS : logs
+
+  USERS ||--o{ DEVICE_TOKENS : registers
+  USERS ||--o{ NOTIFICATIONS : receives
+
