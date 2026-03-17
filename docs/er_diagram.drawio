@@ -9,67 +9,67 @@
              Open in draw.io and use Arrange → Layout to tidy.
              Export as PNG to docs/er_diagram.png. -->
 
-        <mxCell id="users" value="users&#xa;- id (uuid PK)&#xa;- phone (unique)&#xa;- email (unique nullable)&#xa;- role&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="users" value="users&#xa;- id (PK)&#xa;- phone (unique)&#xa;- email (unique nullable)&#xa;- role&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="40" y="40" width="260" height="170" as="geometry"/>
         </mxCell>
 
-        <mxCell id="customer_profiles" value="customer_profiles&#xa;- id&#xa;- user_id (unique FK users)&#xa;- default_address_id (FK addresses)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="customer_profiles" value="customer_profiles&#xa;- id (PK)&#xa;- user_id (unique FK users)&#xa;- default_address_id (FK addresses)" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="340" y="40" width="300" height="140" as="geometry"/>
         </mxCell>
 
-        <mxCell id="driver_profiles" value="driver_profiles&#xa;- id&#xa;- user_id (unique FK users)&#xa;- approval_status&#xa;- is_online" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="driver_profiles" value="driver_profiles&#xa;- id (PK)&#xa;- user_id (unique FK users)&#xa;- approval_status&#xa;- is_online" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="340" y="210" width="300" height="140" as="geometry"/>
         </mxCell>
 
-        <mxCell id="driver_documents" value="driver_documents&#xa;- id&#xa;- driver_profile_id (FK)&#xa;- doc_type&#xa;- file_url" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="driver_documents" value="driver_documents&#xa;- id (PK)&#xa;- driver_profile_id (FK)&#xa;- doc_type&#xa;- file_url" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="680" y="210" width="300" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="addresses" value="addresses&#xa;- id&#xa;- user_id (FK users)&#xa;- address_text&#xa;- lat/lng" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="addresses" value="addresses&#xa;- id (PK)&#xa;- user_id (FK users)&#xa;- address_text&#xa;- lat/lng" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="680" y="40" width="300" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="restaurants" value="restaurants&#xa;- id&#xa;- name&#xa;- lat/lng&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="restaurants" value="restaurants&#xa;- id (PK)&#xa;- name&#xa;- lat/lng&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="40" y="310" width="260" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="opening_hours" value="opening_hours&#xa;- id&#xa;- restaurant_id (FK)&#xa;- day_of_week&#xa;- open/close" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="opening_hours" value="opening_hours&#xa;- id (PK)&#xa;- restaurant_id (FK)&#xa;- day_of_week&#xa;- open/close" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="340" y="370" width="300" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="menu_categories" value="menu_categories&#xa;- id&#xa;- restaurant_id (FK)&#xa;- name" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="menu_categories" value="menu_categories&#xa;- id (PK)&#xa;- restaurant_id (FK)&#xa;- name" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="340" y="520" width="300" height="110" as="geometry"/>
         </mxCell>
 
-        <mxCell id="menu_items" value="menu_items&#xa;- id&#xa;- category_id (FK)&#xa;- name&#xa;- price&#xa;- is_available" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="menu_items" value="menu_items&#xa;- id (PK)&#xa;- category_id (FK)&#xa;- name&#xa;- price&#xa;- is_available" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="680" y="520" width="300" height="130" as="geometry"/>
         </mxCell>
 
-        <mxCell id="orders" value="orders&#xa;- id&#xa;- customer_user_id (FK users)&#xa;- restaurant_id (FK)&#xa;- assigned_driver_user_id (FK users)&#xa;- status&#xa;- delivery_fee/driver_payout/platform_fee" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="orders" value="orders&#xa;- id (PK)&#xa;- customer_user_id (FK users)&#xa;- restaurant_id (FK)&#xa;- assigned_driver_user_id (FK users)&#xa;- status&#xa;- delivery_fee/driver_payout/platform_fee" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="40" y="470" width="260" height="170" as="geometry"/>
         </mxCell>
 
-        <mxCell id="order_items" value="order_items&#xa;- id&#xa;- order_id (FK)&#xa;- menu_item_id (nullable FK)&#xa;- snapshot: item_name, unit_price, qty" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="order_items" value="order_items&#xa;- id (PK)&#xa;- order_id (FK)&#xa;- menu_item_id (nullable FK)&#xa;- snapshot: item_name, unit_price, qty" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="40" y="660" width="260" height="140" as="geometry"/>
         </mxCell>
 
-        <mxCell id="payments" value="payments&#xa;- id&#xa;- order_id (FK)&#xa;- provider_reference (unique)&#xa;- amount&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="payments" value="payments&#xa;- id (PK)&#xa;- order_id (FK)&#xa;- provider_reference (unique)&#xa;- amount&#xa;- status" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="340" y="680" width="300" height="130" as="geometry"/>
         </mxCell>
 
-        <mxCell id="delivery_events" value="delivery_events&#xa;- id&#xa;- order_id (FK)&#xa;- event_type&#xa;- actor_user_id (FK users)&#xa;- created_at" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="delivery_events" value="delivery_events&#xa;- id (PK)&#xa;- order_id (FK)&#xa;- event_type&#xa;- actor_user_id (FK users)&#xa;- created_at" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="680" y="680" width="300" height="140" as="geometry"/>
         </mxCell>
 
-        <mxCell id="notifications" value="notifications&#xa;- id&#xa;- user_id (FK users)&#xa;- channel&#xa;- title/body&#xa;- is_read" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="notifications" value="notifications&#xa;- id (PK)&#xa;- user_id (FK users)&#xa;- channel&#xa;- title/body&#xa;- is_read" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1020" y="40" width="320" height="140" as="geometry"/>
         </mxCell>
 
-        <mxCell id="device_tokens" value="device_tokens&#xa;- id&#xa;- user_id (FK users)&#xa;- token (unique)&#xa;- platform" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="device_tokens" value="device_tokens&#xa;- id (PK)&#xa;- user_id (FK users)&#xa;- token (unique)&#xa;- platform" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1020" y="210" width="320" height="120" as="geometry"/>
         </mxCell>
 
-        <mxCell id="pricing_configs" value="pricing_configs&#xa;- id&#xa;- channel&#xa;- base_fee&#xa;- per_km_rate&#xa;- min_fee" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="pricing_configs" value="pricing_configs&#xa;- id (PK)&#xa;- channel&#xa;- base_fee&#xa;- per_km_rate&#xa;- min_fee" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="1020" y="370" width="320" height="120" as="geometry"/>
         </mxCell>
 

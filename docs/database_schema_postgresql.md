@@ -193,6 +193,30 @@ PostGIS note:
 - Enable PostGIS with: `CREATE EXTENSION IF NOT EXISTS postgis;`
 - Prefer distance queries using `location` (e.g., `ST_DWithin`, `ST_Distance`, and KNN operator `<->`) rather than B-tree `(latitude, longitude)`.
 
+Location population strategy (MVP):
+- Use a **DB trigger** so `location` is always derived from `latitude` + `longitude` on write.
+- This keeps app code simple and guarantees the `location` (`geography(Point,4326), not null) constraint is satisfied.
+
+Example trigger-based implementation:
+
+```sql
+CREATE OR REPLACE FUNCTION update_restaurant_location()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.location := ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER restaurants_location_sync_trg
+BEFORE INSERT OR UPDATE OF latitude, longitude
+ON restaurants
+FOR EACH ROW
+EXECUTE FUNCTION update_restaurant_location();
+```
+
 Example spatial index:
 
 ```sql
@@ -421,9 +445,7 @@ Fields:
 - `id` (uuid, pk)
 - `user_id` (uuid, fk → `users.id`, not null)
 - `platform` (text, not null) (`android`, `ios`, `web`)
-Verify each finding against the current code and only fix it if needed.
-
-In @docs/database_schema_postgresql.md around lines 85 - 430, The doc is missing explicit ON DELETE/ON UPDATE rules for FK relationships; update the schema docs to list cascade behavior for each FK (e.g., orders.customer_user_id and orders.assigned_driver_user_id → ON DELETE RESTRICT or note soft-delete via users.status='deleted'; order_items.order_id, payments.order_id, delivery_events.order_id → ON DELETE CASCADE; customer_profiles.default_address_id → ON DELETE SET NULL; driver_documents.driver_profile_id → ON DELETE CASCADE; addresses.user_id → ON DELETE CASCADE/RESTRICT as agreed), and state whether ON UPDATE CASCADE is used for uuid primary key changes; add a short rationale line per FK and a summary table of the chosen rules next to the existing field definitions (refer to specific columns like orders.id, order_items.order_id, payments.order_id, delivery_events.order_id, customer_profiles.default_address_id, driver_documents.driver_profile_id, addresses.user_id, users.id).- `token` (text, not null)
+- `token` (text, not null)
 - `is_active` (boolean, not null, default true)
 - `last_seen_at` (timestamptz, null)
 - `created_at` (timestamptz, not null)

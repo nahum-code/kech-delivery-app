@@ -12,17 +12,16 @@ $g = [System.Drawing.Graphics]::FromImage($bmp)
 $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $g.Clear([System.Drawing.Color]::White)
 
-$g.Dispose()
-$bmp.Dispose()
-$titleFont.Dispose()
-$font.Dispose()
-$headerFont.Dispose()
-$borderPen.Dispose()
-$linePen.Dispose()
-$boxBrush.Dispose()
-$headerBrush.Dispose()
+$titleFont = New-Object System.Drawing.Font('Segoe UI', 13, [System.Drawing.FontStyle]::Bold)
+$font = New-Object System.Drawing.Font('Segoe UI', 9)
+$headerFont = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
 
-Write-Output "Wrote $outPath"
+$borderPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(55, 55, 55), 2)
+$linePen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(130, 130, 130), 1)
+$boxBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(248, 248, 248))
+$headerBrush = New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb(230, 240, 255))
+$textBrush = [System.Drawing.Brushes]::Black
+
 function New-Box {
   param(
     [Parameter(Mandatory)] [string] $Id,
@@ -214,6 +213,14 @@ $g.DrawString('ER Diagram (MVP) — Kech Delivery App', $titleFont, $textBrush, 
 $bmp.Save($outPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose()
 $bmp.Dispose()
+
+$titleFont.Dispose()
+$font.Dispose()
+$headerFont.Dispose()
+$borderPen.Dispose()
+$linePen.Dispose()
+$boxBrush.Dispose()
+$headerBrush.Dispose()
 
 Write-Output "Wrote $outPath"
 

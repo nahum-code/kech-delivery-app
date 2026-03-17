@@ -365,10 +365,10 @@ The following capabilities are intentionally excluded from Phase 1 (MVP) and pla
 ## 11. Database Design
 
 Main design document:
-- `docs/database_design.md` — primary/index document that summarizes the MVP database design and links to the deliverables below (`docs/data_model_overview.md`, `docs/database_schema_postgresql.md`, `docs/er_diagram.png`).
+- [`docs/database_design.md`](docs/database_design.md) — primary/index document that summarizes the MVP database design and links to the deliverables below (`docs/data_model_overview.md`, `docs/database_schema_postgresql.md`, `docs/er_diagram.png`).
 
 Deliverables:
-- **Core entities list**: `docs/data_model_overview.md` — implementation-ready entity catalog (Section 5 is the high-level overview).
+- **Core entities list**: `docs/data_model_overview.md` — implementation-ready entity catalog (Section 5 of this README (5. Core Data Model (MVP)) is the high-level overview).
 - **Full PostgreSQL schema**: `docs/database_schema_postgresql.md`
 - **ER diagram**: `docs/er_diagram.png` (sources: `docs/er_diagram.drawio`, `docs/er_diagram.mmd`)
 
