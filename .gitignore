@@ -1,0 +1,100 @@
+# -----------------------------
+# OS / Editor
+# -----------------------------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+.vscode/
+.idea/
+.cursor/
+
+# -----------------------------
+# Secrets / Environment
+# -----------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.crt
+*.cer
+secrets.*
+
+# -----------------------------
+# Python / Django (backend)
+# -----------------------------
+backend/.venv/
+backend/venv/
+backend/env/
+backend/__pycache__/
+backend/**/*.py[cod]
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.coverage
+backend/htmlcov/
+backend/db.sqlite3
+backend/*.sqlite3
+backend/staticfiles/
+backend/media/
+backend/.env
+backend/.env.*
+
+# -----------------------------
+# Celery / Redis local artifacts
+# -----------------------------
+backend/celerybeat-schedule
+backend/celerybeat.pid
+*.pid
+
+# -----------------------------
+# Node / Next.js (dashboard)
+# -----------------------------
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+dashboard/.turbo/
+dashboard/.env.local
+dashboard/.env.development.local
+dashboard/.env.test.local
+dashboard/.env.production.local
+dashboard/npm-debug.log*
+dashboard/yarn-debug.log*
+dashboard/yarn-error.log*
+dashboard/pnpm-debug.log*
+
+# -----------------------------
+# Flutter / Dart (mobile)
+# -----------------------------
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/android/**/*.jks
+mobile/android/**/*.keystore
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/ephemeral/
+mobile/macos/Pods/
+
+# -----------------------------
+# Logs / Runtime
+# -----------------------------
+*.log
+logs/
+
+# -----------------------------
+# Archives / backups
+# -----------------------------
+*.zip
+*.tar
+*.tar.gz
+*.bak
