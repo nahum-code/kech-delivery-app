@@ -2,14 +2,16 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    ports:
+      - "5433:5432"
     environment:
-      POSTGRES_DB: kech_delivery
-      POSTGRES_USER: kech_app
-      POSTGRES_PASSWORD: kech_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kech_app -d kech_delivery"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -17,6 +19,9 @@ services:
   redis:
     image: redis:7.2-alpine
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
 
   web:
     build: .
@@ -26,9 +31,18 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://kech_app:kech_password@db:5432/kech_delivery
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DB_SSL_REQUIRE: ${DB_SSL_REQUIRE:-False}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       db:
         condition: service_healthy
@@ -41,9 +55,18 @@ services:
     volumes:
       - .:/app
     environment:
-      DATABASE_URL: postgresql://kech_app:kech_password@db:5432/kech_delivery
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DB_SSL_REQUIRE: ${DB_SSL_REQUIRE:-False}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       db:
         condition: service_healthy
@@ -52,13 +75,23 @@ services:
 
   beat:
     build: .
-    command: celery -A config beat -l info
+    command: celery -A config beat -l info --schedule /app/celerybeat/celerybeat-schedule
     volumes:
       - .:/app
+      - celerybeat_data:/app/celerybeat
     environment:
-      DATABASE_URL: postgresql://kech_app:kech_password@db:5432/kech_delivery
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DB_SSL_REQUIRE: ${DB_SSL_REQUIRE:-False}
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:
       db:
         condition: service_healthy
@@ -67,3 +100,5 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
+  celerybeat_data:
