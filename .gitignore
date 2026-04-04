@@ -16,6 +16,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.envrc
 *.pem
 *.key
 *.p12
@@ -78,11 +79,13 @@ mobile/android/local.properties
 mobile/android/key.properties
 mobile/android/**/*.jks
 mobile/android/**/*.keystore
+mobile/android/app/google-services.json
 mobile/ios/Pods/
 mobile/ios/.symlinks/
 mobile/ios/Flutter/Flutter.podspec
 mobile/ios/Flutter/Generated.xcconfig
 mobile/ios/Flutter/ephemeral/
+mobile/ios/Runner/GoogleService-Info.plist
 mobile/macos/Pods/
 
 # -----------------------------

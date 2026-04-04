@@ -149,7 +149,7 @@ erDiagram
   RESTAURANTS ||--o{ MENU_CATEGORIES : has
   MENU_CATEGORIES ||--o{ MENU_ITEMS : has
 
-  MENU_ITEMS |o--o{ ORDER_ITEMS : references
+  MENU_ITEMS ||--o{ ORDER_ITEMS : references
 
   USERS ||--o{ ORDERS : creates
   USERS ||--o{ ORDERS : places

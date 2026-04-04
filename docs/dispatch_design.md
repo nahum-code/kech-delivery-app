@@ -31,7 +31,7 @@ A driver is considered **available** if all are true:
 - **Online**: `driver_profiles.is_online = true`
 - **Not suspended**: driver account not suspended
 - **Not busy**: driver has **no active delivery**
-  - Active delivery means any order in: `assigned`, `accepted`, `picked_up`, and `delivered`; drivers become available again only after `completed`.
+  - Active delivery means any order in: `assigned`, `accepted`, `picked_up` (and optionally `delivered` until `completed`)
 - **Fresh location**: driver has a recent location update (e.g., `last_seen_at` within X minutes)
 
 ### 3.2 Dispatch radius
@@ -79,11 +79,10 @@ Manual assignment is permitted when:
 - order is not yet `picked_up`
 
 Manual assignment action:
-- must run as an **atomic check-and-set transaction** (same atomicity guarantee as Section 7 self-accept):
-  - verify order is still assignable (`searching_driver` or `assigned` for reassignment), and not `picked_up`
-  - verify driver is still eligible/not busy at commit time
-  - perform assignment update (`assigned_driver_user_id`, `assigned_at`, `status = assigned`) and append `delivery_events.driver_assigned` in the same transaction
-  - use row lock (`SELECT ... FOR UPDATE`) or optimistic compare-and-set (e.g., guarded `status`/`updated_at`/`version` condition)
+- set `orders.assigned_driver_user_id = <driver_user_id>`
+- set `orders.assigned_at = now()`
+- set `orders.status = assigned`
+- append a `delivery_events` row: `driver_assigned` (actor = Admin/Sales)
 - notify driver + customer (push/in-app)
 
 ### 6.3 Branch B — Driver self-accept (broadcast)
@@ -103,8 +102,8 @@ Accept request (driver → API):
 - Backend must atomically assign the order (Section 7).
 
 Success outcome:
-- order transitions **atomically** from `searching_driver` directly to `accepted` (single-step state change to avoid race windows)
-- append `delivery_events`: `driver_assigned`, `driver_accepted` in the same transaction
+- order transitions to `assigned` then `accepted`
+- append `delivery_events`: `driver_assigned`, `driver_accepted`
 - notify customer/sales/admin
 
 Failure outcome:

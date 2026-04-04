@@ -28,7 +28,7 @@ See: `docs/database_schema_postgresql.md`
 
 ## 3. ER Diagram
 
-The ER diagram is available in the following formats:
+The ER diagram is exported to:
 - `docs/er_diagram.png`
 
 Source of truth:
