@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from datetime import timedelta
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
@@ -64,50 +65,57 @@ if not DEBUG and not ALLOWED_HOSTS:
         "ALLOWED_HOSTS must be set via environment when DEBUG is False"
     )
 
+if env_bool("BEHIND_REVERSE_PROXY", default=not DEBUG):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'apps.users.apps.UsersConfig',
-    'apps.drivers.apps.DriversConfig',
-    'core.apps.CoreConfig',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",
+    "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
+    "drf_spectacular",
+    "apps.users.apps.UsersConfig",
+    "apps.drivers.apps.DriversConfig",
+    "core.apps.CoreConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'config.urls'
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'config.wsgi.application'
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
@@ -132,22 +140,47 @@ else:
         }
     }
 
+# Local `manage.py test` should not require Docker Postgres when DATABASE_URL targets compose hostnames.
+if any(arg == "test" for arg in sys.argv):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+
+# Cache: Redis for DRF throttling across Gunicorn workers (LocMem in unit tests only).
+if any(arg == "test" for arg in sys.argv):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+else:
+    _redis_cache_url = os.getenv("REDIS_CACHE_URL", "redis://127.0.0.1:6379/2")
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_cache_url,
+        }
+    }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
 
@@ -155,9 +188,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -167,33 +200,113 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "core.User"
 
-# API auth configuration: JWT is the default auth backend for DRF endpoints.
+# CORS (Next.js dashboard + mobile web; architecture: explicit origins in production)
+_cors_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
+CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+if DEBUG and not CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ]
+
+CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", default=True)
+
+# HTTPS / cookies (admin session + CSRF). Enable in production behind TLS.
+if DEBUG:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+else:
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=True)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
+
+# API auth: JWT default; require auth unless a view sets AllowAny (architecture: RBAC at DRF).
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.users.api.exceptions.auth_safe_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_token": os.getenv("THROTTLE_AUTH_TOKEN", "60/hour"),
+        "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH", "120/hour"),
+        "auth_verify": os.getenv("THROTTLE_AUTH_VERIFY", "120/hour"),
+        "auth_register": os.getenv("THROTTLE_AUTH_REGISTER", "20/hour"),
+        "auth_logout": os.getenv("THROTTLE_AUTH_LOGOUT", "60/hour"),
+        "auth_staff": os.getenv("THROTTLE_AUTH_STAFF", "200/hour"),
+    },
 }
 
-# JWT settings are env-driven to keep secrets and lifetimes configurable per environment.
+if DEBUG:
+    _jwt_rotate = env_bool("JWT_ROTATE_REFRESH_TOKENS", False)
+    _jwt_blacklist_after = env_bool("JWT_BLACKLIST_AFTER_ROTATION", False)
+else:
+    _jwt_rotate = env_bool("JWT_ROTATE_REFRESH_TOKENS", True)
+    _jwt_blacklist_after = env_bool("JWT_BLACKLIST_AFTER_ROTATION", True)
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("JWT_ACCESS_TOKEN_MINUTES", 60)),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("JWT_REFRESH_TOKEN_DAYS", 7)),
-    "ROTATE_REFRESH_TOKENS": env_bool("JWT_ROTATE_REFRESH_TOKENS", False),
-    "BLACKLIST_AFTER_ROTATION": env_bool("JWT_BLACKLIST_AFTER_ROTATION", False),
+    "ROTATE_REFRESH_TOKENS": _jwt_rotate,
+    "BLACKLIST_AFTER_ROTATION": _jwt_blacklist_after,
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Kech Delivery API",
+    "VERSION": "1.0.0",
+    "DESCRIPTION": "REST API for Kech Delivery (auth and platform services).",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
+    "SECURITY": [{"bearerAuth": []}],
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+
+# When True, GET /ready pings Redis (broker URL). Disable in dev/test if Redis is not running.
+READINESS_CHECK_REDIS = env_bool("READINESS_CHECK_REDIS", default=not DEBUG)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "kech.auth": {
+            "handlers": ["console"],
+            "level": os.getenv("AUTH_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+    },
+}

@@ -1,0 +1,142 @@
+from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APIClient
+
+from apps.drivers.models import DriverProfile
+from core.models import User
+
+
+class AuthApiTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def _obtain_token(self, phone: str, password: str):
+        return self.client.post(
+            "/api/v1/auth/token/",
+            {"phone": phone, "password": password},
+            format="json",
+        )
+
+    def test_health_and_ready(self):
+        r = self.client.get("/health")
+        self.assertEqual(r.status_code, status.HTTP_200_OK)
+        self.assertEqual(r.json().get("status"), "ok")
+
+        r2 = self.client.get("/ready")
+        self.assertEqual(r2.status_code, status.HTTP_200_OK)
+        self.assertEqual(r2.json().get("status"), "ready")
+
+    def test_customer_register_token_me(self):
+        reg = self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "+10000000001", "password": "ComplexPass1!", "name": "Ada"},
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+
+        bad = self._obtain_token("+10000000001", "wrong")
+        self.assertIn(bad.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED))
+        self.assertEqual(bad.json().get("detail"), "Invalid credentials.")
+
+        pair = self._obtain_token("+10000000001", "ComplexPass1!")
+        self.assertEqual(pair.status_code, status.HTTP_200_OK)
+        body = pair.json()
+        self.assertIn("access", body)
+        self.assertIn("refresh", body)
+        self.assertEqual(body.get("role"), "customer")
+        self.assertEqual(body.get("user_id"), reg.json()["user_id"])
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {body['access']}")
+        me = self.client.get("/api/v1/auth/me")
+        self.assertEqual(me.status_code, status.HTTP_200_OK)
+        self.assertEqual(me.json()["phone"], "+10000000001")
+        self.assertEqual(me.json()["profile"]["full_name"], "Ada")
+
+    def test_phone_normalization_duplicate_blocked(self):
+        self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "+10000000005", "password": "ComplexPass1!", "name": "A"},
+            format="json",
+        )
+        dup = self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "10000000005", "password": "ComplexPass1!", "name": "B"},
+            format="json",
+        )
+        self.assertEqual(dup.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(dup.json().get("detail"), "Invalid credentials.")
+
+    def test_driver_pending_cannot_obtain_tokens(self):
+        reg = self.client.post(
+            "/api/v1/auth/register/driver",
+            {"phone": "+20000000002", "password": "ComplexPass1!", "name": "Bob"},
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(reg.json()["approval_status"], "pending")
+
+        pair = self._obtain_token("+20000000002", "ComplexPass1!")
+        self.assertIn(pair.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED))
+        self.assertEqual(pair.json().get("detail"), "Invalid credentials.")
+
+    def test_driver_approved_token_refresh_logout(self):
+        self.client.post(
+            "/api/v1/auth/register/driver",
+            {"phone": "+20000000003", "password": "ComplexPass1!", "name": "Cara"},
+            format="json",
+        )
+        user = User.objects.get(phone="+20000000003")
+        dp = user.driver_profile
+        dp.approval_status = DriverProfile.ApprovalStatus.APPROVED
+        dp.save(update_fields=["approval_status"])
+
+        pair = self._obtain_token("+20000000003", "ComplexPass1!")
+        self.assertEqual(pair.status_code, status.HTTP_200_OK)
+        refresh = pair.json()["refresh"]
+        access = pair.json()["access"]
+
+        ref = self.client.post(
+            "/api/v1/auth/token/refresh/",
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertEqual(ref.status_code, status.HTTP_200_OK)
+        self.assertIn("access", ref.json())
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        out = self.client.post("/api/v1/auth/logout", {"refresh": refresh}, format="json")
+        self.assertEqual(out.status_code, status.HTTP_204_NO_CONTENT)
+
+        ref2 = self.client.post(
+            "/api/v1/auth/token/refresh/",
+            {"refresh": refresh},
+            format="json",
+        )
+        self.assertIn(
+            ref2.status_code,
+            (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED),
+        )
+        self.assertEqual(ref2.json().get("detail"), "Invalid credentials.")
+
+    def test_staff_ops_check_role_gate(self):
+        User.objects.create_user(
+            phone="+30000000001",
+            password="ComplexPass1!",
+            role=User.Role.SALES,
+        )
+        pair = self._obtain_token("+30000000001", "ComplexPass1!")
+        self.assertEqual(pair.status_code, status.HTTP_200_OK)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.json()['access']}")
+        ok = self.client.get("/api/v1/auth/staff/ops-check")
+        self.assertEqual(ok.status_code, status.HTTP_200_OK)
+        self.assertTrue(ok.json().get("ok"))
+
+        User.objects.create_user(
+            phone="+30000000002",
+            password="ComplexPass1!",
+            role=User.Role.CUSTOMER,
+        )
+        pair_c = self._obtain_token("+30000000002", "ComplexPass1!")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair_c.json()['access']}")
+        denied = self.client.get("/api/v1/auth/staff/ops-check")
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)

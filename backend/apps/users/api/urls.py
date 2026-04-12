@@ -1,23 +1,22 @@
+from django.conf import settings
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView
 
 from .views import (
     CustomerRegisterView,
     DriverRegisterView,
-    LoginView,
+    LogoutView,
+    MeView,
     PhoneTokenObtainPairView,
+    RestrictedTokenRefreshView,
+    StaffOpsCheckView,
+    ThrottledTokenVerifyView,
     test_auth,
 )
 
 urlpatterns = [
-    # Login: returns access + refresh token pair.
     path("token/", PhoneTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    # Refresh: exchange refresh token for a new access token.
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    # Verify: validate token integrity/expiry.
-    path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
-
-    # Registration endpoints (MVP).
+    path("token/refresh/", RestrictedTokenRefreshView.as_view(), name="token_refresh"),
+    path("token/verify/", ThrottledTokenVerifyView.as_view(), name="token_verify"),
     path(
         "register/customer",
         CustomerRegisterView.as_view(),
@@ -28,8 +27,10 @@ urlpatterns = [
         DriverRegisterView.as_view(),
         name="register_driver",
     ),
-
-    # Login endpoint returning access token + role + user_id.
-    path("login", LoginView.as_view(), name="login"),
-    path("test-auth", test_auth, name="test_auth"),
+    path("logout", LogoutView.as_view(), name="logout"),
+    path("me", MeView.as_view(), name="me"),
+    path("staff/ops-check", StaffOpsCheckView.as_view(), name="staff_ops_check"),
 ]
+
+if settings.DEBUG:
+    urlpatterns.append(path("test-auth", test_auth, name="test_auth"))
