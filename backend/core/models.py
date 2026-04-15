@@ -3,6 +3,8 @@ from django.contrib.auth.models import PermissionsMixin
 from django.db import models
 from django.utils import timezone
 
+from apps.users.phone_utils import normalize_phone
+
 
 class UserManager(BaseUserManager):
     """Custom manager for phone-based authentication users."""
@@ -11,7 +13,7 @@ class UserManager(BaseUserManager):
         if not phone:
             raise ValueError("Phone is required.")
 
-        user = self.model(phone=phone, **extra_fields)
+        user = self.model(phone=normalize_phone(phone), **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user

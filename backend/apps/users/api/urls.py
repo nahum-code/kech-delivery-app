@@ -2,6 +2,8 @@ from django.conf import settings
 from django.urls import path
 
 from .views import (
+    AdminUsersListView,
+    CreateSalesAgentView,
     CustomerRegisterView,
     DriverRegisterView,
     LogoutView,
@@ -26,6 +28,16 @@ urlpatterns = [
         "register/driver",
         DriverRegisterView.as_view(),
         name="register_driver",
+    ),
+    path(
+        "create-sales-agent/",
+        CreateSalesAgentView.as_view(),
+        name="create_sales_agent",
+    ),
+    path(
+        "users/",
+        AdminUsersListView.as_view(),
+        name="admin_users_list",
     ),
     path("logout", LogoutView.as_view(), name="logout"),
     path("me", MeView.as_view(), name="me"),

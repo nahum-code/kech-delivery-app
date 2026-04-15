@@ -45,3 +45,9 @@ class IsAdminOrSales(IsPlatformStaff):
 
 class IsAdministrator(HasAnyUserRole):
     allowed_roles = (User.Role.ADMIN,)
+
+
+class IsAdminUserRole(HasAnyUserRole):
+    """Explicit permission class for endpoints that require admin role only."""
+
+    allowed_roles = (User.Role.ADMIN,)

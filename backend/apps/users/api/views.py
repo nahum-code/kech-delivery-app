@@ -9,7 +9,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 from apps.users import auth_logging
-from apps.users.permissions import IsAdminOrSales
+from apps.users.permissions import IsAdminOrSales, IsAdminUserRole
+from core.models import User
 
 from .serializers import (
     CustomerRegisterSerializer,
@@ -17,6 +18,8 @@ from .serializers import (
     MeSerializer,
     PhoneTokenObtainPairSerializer,
     RestrictedTokenRefreshSerializer,
+    SalesAgentCreateSerializer,
+    UserListSerializer,
 )
 
 
@@ -107,6 +110,28 @@ class DriverRegisterView(APIView):
         )
 
 
+class CreateSalesAgentView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_admin_create_sales"
+
+    def post(self, request, *args, **kwargs):
+        serializer = SalesAgentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        auth_logging.log_sales_agent_create(request.user.id, user.id, user.phone)
+
+        return Response(
+            {
+                "user_id": user.id,
+                "phone": user.phone,
+                "role": str(user.role),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -157,3 +182,11 @@ class StaffOpsCheckView(APIView):
                 "role": request.user.role,
             }
         )
+
+
+class AdminUsersListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def get(self, request, *args, **kwargs):
+        users = User.objects.all().order_by("-created_at")
+        return Response(UserListSerializer(users, many=True).data)

@@ -246,6 +246,7 @@ REST_FRAMEWORK = {
         "auth_refresh": os.getenv("THROTTLE_AUTH_REFRESH", "120/hour"),
         "auth_verify": os.getenv("THROTTLE_AUTH_VERIFY", "120/hour"),
         "auth_register": os.getenv("THROTTLE_AUTH_REGISTER", "20/hour"),
+        "auth_admin_create_sales": os.getenv("THROTTLE_AUTH_ADMIN_CREATE_SALES", "120/hour"),
         "auth_logout": os.getenv("THROTTLE_AUTH_LOGOUT", "60/hour"),
         "auth_staff": os.getenv("THROTTLE_AUTH_STAFF", "200/hour"),
     },
