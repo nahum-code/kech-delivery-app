@@ -68,6 +68,35 @@ dashboard/yarn-error.log*
 dashboard/pnpm-debug.log*
 
 # -----------------------------
+# Node / Next.js (web admin + sales)
+# -----------------------------
+web/admin/node_modules/
+web/admin/.next/
+web/admin/out/
+web/admin/.turbo/
+web/admin/.env.local
+web/admin/.env.development.local
+web/admin/.env.test.local
+web/admin/.env.production.local
+web/admin/npm-debug.log*
+web/admin/yarn-debug.log*
+web/admin/yarn-error.log*
+web/admin/pnpm-debug.log*
+
+web/sales/node_modules/
+web/sales/.next/
+web/sales/out/
+web/sales/.turbo/
+web/sales/.env.local
+web/sales/.env.development.local
+web/sales/.env.test.local
+web/sales/.env.production.local
+web/sales/npm-debug.log*
+web/sales/yarn-debug.log*
+web/sales/yarn-error.log*
+web/sales/pnpm-debug.log*
+
+# -----------------------------
 # Flutter / Dart (mobile)
 # -----------------------------
 mobile/.dart_tool/

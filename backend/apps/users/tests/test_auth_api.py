@@ -1,4 +1,5 @@
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -140,3 +141,126 @@ class AuthApiTests(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair_c.json()['access']}")
         denied = self.client.get("/api/v1/auth/staff/ops-check")
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create_sales_agent(self):
+        admin = User.objects.create_user(
+            phone="+40000000001",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        self.client.force_authenticate(user=admin)
+
+        res = self.client.post(
+            "/api/v1/auth/create-sales-agent/",
+            {"phone": "+40000000002", "password": "ComplexPass1!"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        body = res.json()
+        self.assertEqual(body["role"], User.Role.SALES)
+        self.assertEqual(body["phone"], "+40000000002")
+        self.assertIn("user_id", body)
+        self.assertNotIn("password", body)
+
+        created = User.objects.get(id=body["user_id"])
+        self.assertEqual(created.role, User.Role.SALES)
+        self.assertTrue(created.check_password("ComplexPass1!"))
+
+    def test_non_admin_cannot_create_sales_agent(self):
+        sales_user = User.objects.create_user(
+            phone="+40000000003",
+            password="ComplexPass1!",
+            role=User.Role.SALES,
+        )
+        self.client.force_authenticate(user=sales_user)
+
+        res = self.client.post(
+            "/api/v1/auth/create-sales-agent/",
+            {"phone": "+40000000004", "password": "ComplexPass1!"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_create_sales_agent_duplicate_phone_returns_specific_error(self):
+        admin = User.objects.create_user(
+            phone="+40000000005",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        User.objects.create_user(
+            phone="+40000000006",
+            password="ComplexPass1!",
+            role=User.Role.SALES,
+        )
+        self.client.force_authenticate(user=admin)
+
+        res = self.client.post(
+            "/api/v1/auth/create-sales-agent/",
+            {"phone": "40000000006", "password": "ComplexPass1!"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res.json().get("phone"), ["User already exists."])
+
+    def test_create_sales_agent_weak_password_returns_password_error(self):
+        admin = User.objects.create_user(
+            phone="+40000000007",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        self.client.force_authenticate(user=admin)
+
+        res = self.client.post(
+            "/api/v1/auth/create-sales-agent/",
+            {"phone": "+40000000008", "password": "123"},
+            format="json",
+        )
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", res.json())
+
+    def test_admin_can_list_users_newest_first(self):
+        admin = User.objects.create_user(
+            phone="+50000000001",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        older = User.objects.create_user(
+            phone="+50000000002",
+            password="ComplexPass1!",
+            role=User.Role.CUSTOMER,
+        )
+        newer = User.objects.create_user(
+            phone="+50000000003",
+            password="ComplexPass1!",
+            role=User.Role.SALES,
+        )
+        older.created_at = timezone.now() - timezone.timedelta(hours=1)
+        older.save(update_fields=["created_at"])
+        newer.created_at = timezone.now()
+        newer.save(update_fields=["created_at"])
+        self.client.force_authenticate(user=admin)
+
+        res = self.client.get("/api/v1/auth/users/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        body = res.json()
+        self.assertGreaterEqual(len(body), 3)
+        ordered_ids = [item["user_id"] for item in body]
+        self.assertIn(newer.id, ordered_ids)
+        self.assertIn(older.id, ordered_ids)
+        self.assertLess(ordered_ids.index(newer.id), ordered_ids.index(older.id))
+        newer_payload = next(item for item in body if item["user_id"] == newer.id)
+        self.assertEqual(newer_payload["status"], "active")
+
+    def test_non_admin_cannot_list_users(self):
+        customer = User.objects.create_user(
+            phone="+50000000004",
+            password="ComplexPass1!",
+            role=User.Role.CUSTOMER,
+        )
+        self.client.force_authenticate(user=customer)
+        res = self.client.get("/api/v1/auth/users/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

@@ -1,8 +1,8 @@
 """
 Phone normalization for auth and storage (single canonical form per account).
 
-Basic rule: strip non-digits, require at least one digit, store as +<digits>.
-Clients should send country code; local leading zeros are not stripped (add later if needed).
+Accepted format is international E.164-like: +<digits> (max 15 digits).
+Examples: +251983204356, +14155552671.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ _ENUM_MSG = "Invalid credentials."
 def normalize_phone(phone: str | None) -> str:
     if phone is None or not str(phone).strip():
         raise ValidationError(_ENUM_MSG)
-    digits = re.sub(r"\D", "", str(phone))
-    if not digits or len(digits) > 15:
+    value = str(phone).strip()
+    if not re.fullmatch(r"\+[1-9]\d{7,14}", value):
         raise ValidationError(_ENUM_MSG)
-    return f"+{digits}"
+    return value

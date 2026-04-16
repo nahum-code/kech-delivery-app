@@ -116,6 +116,36 @@ class DriverRegisterSerializer(serializers.Serializer):
             return user
 
 
+class SalesAgentCreateSerializer(serializers.Serializer):
+    """Create a sales-agent user account; callable only from admin-protected view."""
+
+    phone = serializers.CharField(max_length=32)
+    password = serializers.CharField(write_only=True)
+
+    def validate_phone(self, value: str) -> str:
+        return normalize_phone(value)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if User.objects.filter(phone=attrs["phone"]).exists():
+            raise ValidationError({"phone": ["User already exists."]})
+        return attrs
+
+    def validate_password(self, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise ValidationError(list(e.messages)) from e
+        return value
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            phone=validated_data["phone"],
+            password=validated_data["password"],
+            role=User.Role.SALES,
+        )
+
+
 class MeSerializer(serializers.ModelSerializer):
     """Current user + role-specific profile snippet for /auth/me."""
 
@@ -146,3 +176,18 @@ class MeSerializer(serializers.ModelSerializer):
             }
 
         return {"type": str(obj.role)}
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    """Admin-facing user list serializer."""
+
+    user_id = serializers.IntegerField(source="id", read_only=True)
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("user_id", "phone", "role", "status", "created_at")
+        read_only_fields = fields
+
+    def get_status(self, obj: User) -> str:
+        return "active" if obj.is_active else "inactive"

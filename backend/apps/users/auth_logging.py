@@ -39,3 +39,14 @@ def log_register_failure(phone: str | None, status_code: int) -> None:
         "auth.register.failure",
         extra={"masked_phone": mask_phone(phone), "status_code": status_code},
     )
+
+
+def log_sales_agent_create(actor_user_id: int | None, created_user_id: int, phone: str | None) -> None:
+    logger.info(
+        "auth.sales_agent.create",
+        extra={
+            "actor_user_id": actor_user_id,
+            "created_user_id": created_user_id,
+            "masked_phone": mask_phone(phone),
+        },
+    )
