@@ -59,7 +59,8 @@ if not SECRET_KEY:
 
 ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split(",") if host.strip()]
 if DEBUG and not ALLOWED_HOSTS:
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+    # 10.0.2.2 is the Android emulator alias for the host machine loopback.
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "10.0.2.2"]
 if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured(
         "ALLOWED_HOSTS must be set via environment when DEBUG is False"
