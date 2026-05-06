@@ -59,9 +59,9 @@ class _BrandedRingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..shader = SweepGradient(
         colors: <Color>[
-          AppColors.accent.withOpacity(0.05),
+          AppColors.accent.withValues(alpha: 0.05),
           AppColors.accent,
-          AppColors.accent.withOpacity(0.05),
+          AppColors.accent.withValues(alpha: 0.05),
         ],
         stops: const <double>[0.0, 0.55, 1.0],
         startAngle: -math.pi / 2,
@@ -79,6 +79,7 @@ class _BrandedRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _BrandedRingPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.strokeWidth != strokeWidth;
+    return oldDelegate.progress != progress ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }

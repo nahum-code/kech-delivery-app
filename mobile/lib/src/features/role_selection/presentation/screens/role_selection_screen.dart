@@ -11,6 +11,8 @@ import '../../../../shared/widgets/role_selection/role_selection_or_divider.dart
 import '../../../../shared/widgets/role_selection/role_selection_watermark.dart';
 
 /// Shared role selection UI for customer and driver entry (actions supplied by app shell).
+/// Clean single-screen design: watermark positioned at bottom-right.
+
 class RoleSelectionScreen extends StatelessWidget {
   const RoleSelectionScreen({super.key, required this.actions});
 
@@ -28,7 +30,16 @@ class RoleSelectionScreen extends StatelessWidget {
       child: Scaffold(
         body: Stack(
           children: <Widget>[
-            const RoleSelectionWatermark(),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.12,
+                  child: const RoleSelectionWatermark(),
+                ),
+              ),
+            ),
             SafeArea(
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -41,16 +52,18 @@ class RoleSelectionScreen extends StatelessWidget {
                       0,
                     ),
                     sliver: SliverList(
-                      delegate: SliverChildListDelegate(
-                        <Widget>[
-                          const RoleSelectionHeaderBlock(),
-                          const SizedBox(height: 28),
-                          RoleSelectionCustomerTile(onPressed: actions.onContinueAsCustomer),
-                          const RoleSelectionOrDivider(),
-                          RoleSelectionDriverTile(onPressed: actions.onContinueAsDriver),
-                          const SizedBox(height: 36),
-                        ],
-                      ),
+                      delegate: SliverChildListDelegate(<Widget>[
+                        const RoleSelectionHeaderBlock(),
+                        const SizedBox(height: 28),
+                        RoleSelectionCustomerTile(
+                          onPressed: actions.onContinueAsCustomer,
+                        ),
+                        const RoleSelectionOrDivider(),
+                        RoleSelectionDriverTile(
+                          onPressed: actions.onContinueAsDriver,
+                        ),
+                        const SizedBox(height: 36),
+                      ]),
                     ),
                   ),
                   SliverFillRemaining(

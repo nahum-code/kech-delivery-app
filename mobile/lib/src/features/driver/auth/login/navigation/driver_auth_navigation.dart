@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../home/presentation/screens/driver_home_placeholder_screen.dart';
+import '../../../home/presentation/screens/driver_home_placeholder_screen.dart';
 import '../presentation/screens/driver_login_screen.dart';
 
 abstract final class DriverAuthNavigation {

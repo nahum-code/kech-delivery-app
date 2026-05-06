@@ -15,7 +15,7 @@ import '../../../../../shared/widgets/customer_home/customer_home_search_bar.dar
 import '../../../../../shared/widgets/customer_home/customer_home_section_header.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_service_category_strip.dart';
 import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
-import '../../../auth/data/auth_repository.dart';
+import '../../../../auth/data/auth_repository.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({
@@ -197,7 +197,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: _kTopRated.length,
-                        separatorBuilder: (BuildContext _, int __) => const SizedBox(width: 14),
+                        separatorBuilder: (BuildContext _, int _) => const SizedBox(width: 14),
                         itemBuilder: (BuildContext _, int index) {
                           final CustomerHomeRestaurantPreview preview = _kTopRated[index];
                           return CustomerHomeRestaurantHighlightCard(

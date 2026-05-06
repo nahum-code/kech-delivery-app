@@ -23,27 +23,21 @@ class SplashLoadingIndicator extends StatefulWidget {
 
 class _SplashLoadingIndicatorState extends State<SplashLoadingIndicator>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  Duration _elapsed = Duration.zero;
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker((Duration elapsed) {
-      setState(() => _elapsed = elapsed);
-    })..start();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  double _ringProgress(Duration elapsed) {
-    const Duration period = Duration(milliseconds: 1400);
-    final int ms = elapsed.inMilliseconds % period.inMilliseconds;
-    return ms / period.inMilliseconds;
   }
 
   @override
@@ -51,7 +45,7 @@ class _SplashLoadingIndicatorState extends State<SplashLoadingIndicator>
     return Column(
       children: <Widget>[
         BrandedLoadingRing(
-          progress: _ringProgress(_elapsed),
+          progress: _controller.value,
           size: widget.ringSize,
           strokeWidth: widget.ringStrokeWidth,
         ),

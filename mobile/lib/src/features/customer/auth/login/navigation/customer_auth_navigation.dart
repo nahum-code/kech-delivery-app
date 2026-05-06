@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../location_access/presentation/screens/customer_location_access_screen.dart';
-import '../../home/presentation/screens/customer_home_screen.dart';
+import '../../../home/presentation/screens/customer_home_screen.dart';
 import '../presentation/screens/customer_login_screen.dart';
 
 abstract final class CustomerAuthNavigation {

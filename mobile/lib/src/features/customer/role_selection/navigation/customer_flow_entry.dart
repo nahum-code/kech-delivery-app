@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../splash/presentation/screens/customer_splash_screen.dart';
+import '../../auth/login/navigation/customer_auth_navigation.dart';
 
 /// Customer-app navigation targets after role selection (keeps routing out of shared UI).
 abstract final class CustomerFlowEntry {
@@ -16,12 +16,6 @@ abstract final class CustomerFlowEntry {
     if (!context.mounted) {
       return;
     }
-    navigator.pushReplacement<void, void>(
-      MaterialPageRoute<void>(
-        builder: (BuildContext _) => const CustomerSplashScreen(
-          navigateToOnboardingAfter: Duration(seconds: 2),
-        ),
-      ),
-    );
+    CustomerAuthNavigation.replaceWithCustomerLogin(context);
   }
 }
