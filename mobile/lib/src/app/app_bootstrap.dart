@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../features/auth/data/auth_repository.dart';
+import '../core/auth/auth_session_snapshot.dart';
 import '../features/customer/home/presentation/screens/customer_home_screen.dart';
 import '../features/driver/home/presentation/screens/driver_home_placeholder_screen.dart';
 import '../shared/widgets/loading/splash_loading_indicator.dart';
@@ -53,6 +54,14 @@ class _AppBootstrapState extends State<AppBootstrap> {
     _initializationFuture = _initializeApp();
   }
 
+  /// Retry initialization if a previous attempt failed.
+  void _retryInitialization() {
+    if (!mounted) return;
+    setState(() {
+      _initializationFuture = _initializeApp();
+    });
+  }
+
   /// Initializes app: determines auth state + enforces minimum splash duration.
   ///
   /// Returns destination widget to render based on:
@@ -61,6 +70,8 @@ class _AppBootstrapState extends State<AppBootstrap> {
   /// - Driver role → driver home (authenticated)
   /// - Other → role selection (safe fallback)
   Future<_AppInitDestination> _initializeApp() async {
+    final AuthRepository authRepository = context.read<AuthRepository>();
+
     // Ensure splash is visible for minimum 2 seconds (good UX practice)
     await Future<void>.delayed(const Duration(seconds: 2));
 
@@ -69,21 +80,19 @@ class _AppBootstrapState extends State<AppBootstrap> {
       return const _DestinationRoleSelection();
     }
 
-    final AuthRepository authRepository = context.read<AuthRepository>();
     final session = authRepository.currentSession;
 
     if (session == null) {
       return const _DestinationRoleSelection();
     }
 
-    // Route based on role
-    return switch (session.role) {
-      'customer' => const _DestinationCustomerHome(),
-      'driver' => const _DestinationDriverHome(),
+    // Route based on typed role enum (safer than string literals)
+    return switch (session.roleEnum) {
+      Role.customer => const _DestinationCustomerHome(),
+      Role.driver => const _DestinationDriverHome(),
       _ => const _DestinationRoleSelection(), // unknown role fallback
     };
   }
-
   /// Builds destination widget without navigation—purely widget tree.
   Widget _buildDestination(_AppInitDestination destination) {
     return switch (destination) {
@@ -99,7 +108,63 @@ class _AppBootstrapState extends State<AppBootstrap> {
       future: _initializationFuture,
       builder:
           (BuildContext context, AsyncSnapshot<_AppInitDestination> snapshot) {
-            // While initializing or if error, show splash screen
+            // Handle initialization errors
+            if (snapshot.hasError) {
+              debugPrint('App initialization error: ${snapshot.error}');
+              debugPrint('Stack trace: ${snapshot.stackTrace}');
+              return Scaffold(
+                body: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, Colors.grey[50]!],
+                    ),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40),
+                        Icon(
+                          Icons.error_outline,
+                          size: 80,
+                          color: Colors.red[400],
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Initialization Failed',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red[700],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'An error occurred while initializing the app. Please tap retry to try again.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        FilledButton.icon(
+                          onPressed: _retryInitialization,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            // While initializing, show splash screen
             if (!snapshot.hasData) {
               return Scaffold(
                 body: Container(

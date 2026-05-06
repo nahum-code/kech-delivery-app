@@ -35,7 +35,7 @@ class RoleSelectionScreen extends StatelessWidget {
               bottom: 0,
               child: IgnorePointer(
                 child: Opacity(
-                  opacity: 0.12,
+                  opacity: RoleSelectionTokens.watermarkOpacity,
                   child: const RoleSelectionWatermark(),
                 ),
               ),

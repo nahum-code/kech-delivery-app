@@ -151,7 +151,7 @@ final class AuthRepository {
 
   static String _mapLoginHttpFailure(String expectedRole, String body, int status) {
     final String? detail = _readDetail(body);
-    if (expectedRole == 'driver') {
+    if (RoleHelper.fromString(expectedRole) == Role.driver) {
       return detail ??
           'Sign-in failed. If you just registered, your driver account may still be pending approval.';
     }

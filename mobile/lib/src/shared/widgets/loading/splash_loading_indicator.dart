@@ -44,12 +44,16 @@ class _SplashLoadingIndicatorState extends State<SplashLoadingIndicator>
   Widget build(BuildContext context) {
     return Column(
       children: <Widget>[
-        BrandedLoadingRing(
-          progress: _controller.value,
-          size: widget.ringSize,
-          strokeWidth: widget.ringStrokeWidth,
-        ),
-        const SizedBox(height: 22),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return BrandedLoadingRing(
+              progress: _controller.value,
+              size: widget.ringSize,
+              strokeWidth: widget.ringStrokeWidth,
+            );
+          },
+        ),        const SizedBox(height: 22),
         Text(
           widget.title,
           textAlign: TextAlign.center,

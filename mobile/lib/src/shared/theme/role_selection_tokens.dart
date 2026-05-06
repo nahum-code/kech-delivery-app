@@ -15,4 +15,5 @@ abstract final class RoleSelectionTokens {
 
   static const double horizontalPadding = 24;
   static const double cardRadius = 28;
+  static const double watermarkOpacity = 0.12;
 }

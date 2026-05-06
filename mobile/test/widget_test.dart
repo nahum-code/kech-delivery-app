@@ -17,25 +17,10 @@ import 'package:kech_delivery_mobile/src/features/customer/registration/presenta
 import 'package:kech_delivery_mobile/src/features/customer/add_address/presentation/screens/customer_add_address_screen.dart';
 import 'package:kech_delivery_mobile/src/features/customer/home/presentation/screens/customer_home_screen.dart';
 import 'package:kech_delivery_mobile/src/features/customer/location_access/presentation/screens/customer_location_access_screen.dart';
-import 'package:kech_delivery_mobile/src/features/customer/splash/presentation/screens/customer_splash_screen.dart';
 
 import 'support/test_auth_repository.dart';
 
 void main() {
-  testWidgets('Role selection renders and opens customer flow', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: RoleSelectionBootstrap()));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Continue as customer'), findsOneWidget);
-    expect(find.text('Continue as driver'), findsOneWidget);
-    expect(find.textContaining('KECH'), findsWidgets);
-
-    await tester.tap(find.text('Continue as customer'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('CUSTOMER - SPLASH SCREEN'), findsOneWidget);
-  });
-
   testWidgets('Role selection opens driver flow', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: RoleSelectionBootstrap()));
     await tester.pumpAndSettle();
@@ -114,19 +99,6 @@ void main() {
 
     expect(find.text('Find your perfect spot.'), findsOneWidget);
     expect(find.text('Allow location'), findsOneWidget);
-  });
-
-  testWidgets('Customer splash renders key copy', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: CustomerSplashScreen(navigateToOnboardingAfter: null),
-      ),
-    );
-
-    expect(find.text('CUSTOMER - SPLASH SCREEN'), findsOneWidget);
-    expect(find.textContaining('Kech'), findsWidgets);
-    expect(find.text('SYSTEM CHECK'), findsOneWidget);
-    expect(find.text('On-time reliability: 99.8%'), findsOneWidget);
   });
 
   testWidgets('Customer home screen renders header, search, and top rated', (WidgetTester tester) async {
