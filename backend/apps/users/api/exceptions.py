@@ -9,7 +9,7 @@ from __future__ import annotations
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler as drf_exception_handler
-from rest_framework.exceptions import Throttled
+from rest_framework.exceptions import Throttled, ValidationError
 
 from apps.users import auth_logging
 
@@ -55,6 +55,14 @@ def auth_safe_exception_handler(exc, context):
         phone = request.data.get("phone")
 
     sub = _auth_subpath(request.path)
+    
+    # Allow field-specific validation errors to pass through for register only
+    # (e.g., {"password": ["too common"], "phone": ["already exists"]}).
+    if sub.startswith("register") and isinstance(exc, ValidationError) and isinstance(exc.detail, dict):
+        auth_logging.log_register_failure(phone, response.status_code)
+        return response
+    
+    # Mask all other errors as generic "Invalid credentials."
     if sub.startswith("register"):
         auth_logging.log_register_failure(phone, response.status_code)
     else:

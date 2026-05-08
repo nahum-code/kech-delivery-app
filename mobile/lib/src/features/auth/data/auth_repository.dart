@@ -29,7 +29,26 @@ final class AuthRepository {
   AuthSessionSnapshot? get currentSession => _memorySession;
 
   Future<void> restoreSession() async {
-    _memorySession = await _persistence.load();
+    final snap = await _persistence.load();
+
+    // Production-grade safety: only keep a restored session if the API still accepts it.
+    // This prevents "stale token" boots that skip role selection but fail later.
+    if (snap != null) {
+      try {
+        final http.Response me = await _api.me(accessToken: snap.accessToken);
+        if (me.statusCode == 200) {
+          _memorySession = snap;
+          return;
+        }
+      } on Object catch (_) {
+        // Network errors should not trap the user in a broken "authenticated" state.
+        // Fall through to clearing session.
+      }
+
+      await _persistence.clear();
+    }
+
+    _memorySession = null;
   }
 
   Future<LoginResult> signIn({
@@ -161,8 +180,25 @@ final class AuthRepository {
   static String? _readDetail(String body) {
     try {
       final Object? decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic> && decoded['detail'] is String) {
-        return decoded['detail'] as String;
+      if (decoded is Map<String, dynamic>) {
+        // Try to get the 'detail' field first (generic errors)
+        if (decoded['detail'] is String) {
+          return decoded['detail'] as String;
+        }
+        // If no 'detail', try to extract the first field error (field-level validation)
+        for (final entry in decoded.entries) {
+          if (entry.key != 'detail') {
+            final value = entry.value;
+            // Handle list of error messages: {"password": ["error1", "error2"]}
+            if (value is List && value.isNotEmpty && value.first is String) {
+              return '${entry.key}: ${value.first}';
+            }
+            // Handle single error message: {"field": "error"}
+            if (value is String) {
+              return '${entry.key}: $value';
+            }
+          }
+        }
       }
     } on Object catch (_) {
       /* ignore */

@@ -1,9 +1,11 @@
 import { clearSession, getAccessToken, getRefreshToken, setSessionTokens } from "@/lib/auth-storage";
 
 export function getApiBase(): string {
-  const base = process.env.NEXT_PUBLIC_API_URL;
+  const base = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (!base) {
-    throw new Error("NEXT_PUBLIC_API_URL is not set (e.g. http://127.0.0.1:8000)");
+    throw new Error(
+      "NEXT_PUBLIC_API_URL is not set. Add it to web/admin/.env.local (e.g. NEXT_PUBLIC_API_URL=http://127.0.0.1:8000) — not backend/.env — then restart npm run dev."
+    );
   }
   return base.replace(/\/$/, "");
 }

@@ -12,8 +12,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className="min-h-full">{children}</body>
+    // Extensions (e.g. ColorZilla inject `cz-shortcut-listen`) and some theme scripts
+    // mutate <html>/<body> before hydrate; suppressHydrationWarning only silences
+    // mismatch warnings for these nodes, not their descendants.
+    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+      <body className="min-h-full" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node scripts/run-next-cli.js dev",
+    "build": "node scripts/run-next-cli.js build",
+    "start": "node scripts/run-next-cli.js start",
     "lint": "eslint"
   },
   "dependencies": {

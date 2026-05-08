@@ -61,11 +61,11 @@ class AuthApiTests(TestCase):
         )
         dup = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "10000000005", "password": "ComplexPass1!", "name": "B"},
+            {"phone": "+10000000005", "password": "ComplexPass1!", "name": "B"},
             format="json",
         )
         self.assertEqual(dup.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(dup.json().get("detail"), "Invalid credentials.")
+        self.assertEqual(dup.json().get("phone"), ["A user with this phone number already exists."])
 
     def test_driver_pending_cannot_obtain_tokens(self):
         reg = self.client.post(
@@ -198,7 +198,7 @@ class AuthApiTests(TestCase):
 
         res = self.client.post(
             "/api/v1/auth/create-sales-agent/",
-            {"phone": "40000000006", "password": "ComplexPass1!"},
+            {"phone": "+40000000006", "password": "ComplexPass1!"},
             format="json",
         )
 

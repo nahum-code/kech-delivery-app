@@ -15,7 +15,8 @@ class CustomerAddAddressScreen extends StatefulWidget {
   const CustomerAddAddressScreen({super.key});
 
   @override
-  State<CustomerAddAddressScreen> createState() => _CustomerAddAddressScreenState();
+  State<CustomerAddAddressScreen> createState() =>
+      _CustomerAddAddressScreenState();
 }
 
 class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
@@ -33,7 +34,9 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
   }
 
   void _toast(String message) {
-    final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
+    final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
     if (messenger == null) {
       debugPrint(message);
       return;
@@ -111,114 +114,111 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final double mapHeight = MediaQuery.sizeOf(context).shortestSide * 0.34;
+    final Size size = MediaQuery.sizeOf(context);
+    final double mapHeight = (size.width * 0.46).clamp(170, 260);
 
     return Scaffold(
       backgroundColor: CustomerAddAddressTokens.canvas,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: CustomerMainBottomNavBar(
+          current: CustomerMainTab.profile,
+          onTabSelected: _onBottomTab,
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Center(
-              child: Text(
-                'Customer – Add Address',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+            AddAddressScreenTopBar(
+              onBack: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE4E4E4)),
+            Expanded(
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.fromLTRB(
+                  CustomerAddAddressTokens.screenHorizontalPadding,
+                  16,
+                  CustomerAddAddressTokens.screenHorizontalPadding,
+                  24,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    AddAddressMapPreviewCard(
+                      height: mapHeight,
+                      onRecenterPressed: _onRecenterMap,
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'Where should we deliver?',
+                      style: TextStyle(
+                        color: CustomerAddAddressTokens.ink,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Enter your precise location for faster delivery.',
+                      style: TextStyle(
+                        color: CustomerAddAddressTokens.labelGray,
+                        fontSize: 14,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    AddAddressLabeledTextField(
+                      label: 'Street address',
+                      hint: 'e.g. 123 Kinetic Ave',
+                      controller: _streetController,
+                      textInputAction: TextInputAction.next,
+                      suffix: const Icon(
+                        Icons.search_rounded,
+                        color: CustomerAddAddressTokens.hintGray,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AddAddressLabeledTextField(
+                      label: 'Apartment / suite / floor',
+                      hint: 'Floor 4, Apt 42B',
+                      controller: _unitController,
+                      textInputAction: TextInputAction.done,
+                      suffix: null,
+                    ),
+                    const SizedBox(height: 22),
+                    AddAddressSaveAsSelector(
+                      selected: _saveAs,
+                      onChanged: (CustomerAddressSaveAs value) =>
+                          setState(() => _saveAs = value),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-          AddAddressScreenTopBar(
-            onBack: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE4E4E4)),
-          Expanded(
-            child: SingleChildScrollView(
+            Padding(
               padding: const EdgeInsets.fromLTRB(
                 CustomerAddAddressTokens.screenHorizontalPadding,
-                16,
+                0,
                 CustomerAddAddressTokens.screenHorizontalPadding,
-                12,
+                10,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  AddAddressMapPreviewCard(
-                    height: mapHeight.clamp(160, 260),
-                    onRecenterPressed: _onRecenterMap,
-                  ),
-                  const SizedBox(height: 22),
-                  const Text(
-                    'Where should we deliver?',
-                    style: TextStyle(
-                      color: CustomerAddAddressTokens.ink,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Enter your precise location for faster delivery.',
-                    style: TextStyle(
-                      color: CustomerAddAddressTokens.labelGray,
-                      fontSize: 14,
-                      height: 1.35,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  AddAddressLabeledTextField(
-                    label: 'Street address',
-                    hint: 'e.g. 123 Kinetic Ave',
-                    controller: _streetController,
-                    textInputAction: TextInputAction.next,
-                    suffix: const Icon(Icons.search_rounded, color: CustomerAddAddressTokens.hintGray, size: 22),
-                  ),
-                  const SizedBox(height: 16),
-                  AddAddressLabeledTextField(
-                    label: 'Apartment / suite / floor',
-                    hint: 'Floor 4, Apt 42B',
-                    controller: _unitController,
-                    textInputAction: TextInputAction.done,
-                    suffix: null,
-                  ),
-                  const SizedBox(height: 22),
-                  AddAddressSaveAsSelector(
-                    selected: _saveAs,
-                    onChanged: (CustomerAddressSaveAs value) => setState(() => _saveAs = value),
-                  ),
-                  const SizedBox(height: 24),
-                ],
+              child: AddAddressSaveButton(
+                loading: _saving,
+                onPressed: _onSaveAddress,
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              CustomerAddAddressTokens.screenHorizontalPadding,
-              0,
-              CustomerAddAddressTokens.screenHorizontalPadding,
-              8,
-            ),
-            child: AddAddressSaveButton(
-              loading: _saving,
-              onPressed: _onSaveAddress,
-            ),
-          ),
-          CustomerMainBottomNavBar(
-            current: CustomerMainTab.profile,
-            onTabSelected: _onBottomTab,
-          ),
-        ],
+          ],
         ),
       ),
     );

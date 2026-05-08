@@ -16,7 +16,7 @@ class CustomerHomeExclusivePromoBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(CustomerHomeTokens.promoCardRadius),
       child: SizedBox(
         width: double.infinity,
-        height: 168,
+        height: 191,
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[

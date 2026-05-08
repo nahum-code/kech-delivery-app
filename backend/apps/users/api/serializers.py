@@ -24,7 +24,7 @@ class PhoneTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
 
     def validate_phone(self, value: str) -> str:
-        return normalize_phone(value)
+        return normalize_phone(value, obscure_invalid_format=True)
 
     @classmethod
     def get_token(cls, user):
@@ -62,13 +62,16 @@ class CustomerRegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
 
     def validate_phone(self, value: str) -> str:
-        return normalize_phone(value)
+        normalized = normalize_phone(value)
+        if User.objects.filter(phone=normalized).exists():
+            raise ValidationError("A user with this phone number already exists.")
+        return normalized
 
     def validate_password(self, value: str) -> str:
         try:
             validate_password(value)
         except DjangoValidationError as e:
-            raise ValidationError(_ENUM) from e
+            raise ValidationError(list(e.messages)) from e
         return value
 
     def create(self, validated_data):
@@ -77,9 +80,6 @@ class CustomerRegisterSerializer(serializers.Serializer):
         name = validated_data["name"]
 
         with transaction.atomic():
-            if User.objects.filter(phone=phone).exists():
-                raise ValidationError(_ENUM)
-
             user = User.objects.create_user(phone=phone, password=password, role=User.Role.CUSTOMER)
             CustomerProfile.objects.create(user=user, full_name=name)
             return user
@@ -93,13 +93,16 @@ class DriverRegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
 
     def validate_phone(self, value: str) -> str:
-        return normalize_phone(value)
+        normalized = normalize_phone(value)
+        if User.objects.filter(phone=normalized).exists():
+            raise ValidationError("A user with this phone number already exists.")
+        return normalized
 
     def validate_password(self, value: str) -> str:
         try:
             validate_password(value)
         except DjangoValidationError as e:
-            raise ValidationError(_ENUM) from e
+            raise ValidationError(list(e.messages)) from e
         return value
 
     def create(self, validated_data):
@@ -108,9 +111,6 @@ class DriverRegisterSerializer(serializers.Serializer):
         name = validated_data["name"]
 
         with transaction.atomic():
-            if User.objects.filter(phone=phone).exists():
-                raise ValidationError(_ENUM)
-
             user = User.objects.create_user(phone=phone, password=password, role=User.Role.DRIVER)
             DriverProfile.objects.create(user=user, full_name=name, approval_status=DriverProfile.ApprovalStatus.PENDING)
             return user

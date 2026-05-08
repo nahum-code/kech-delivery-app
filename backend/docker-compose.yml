@@ -2,8 +2,6 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
-    ports:
-      - "5433:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -41,6 +39,7 @@ services:
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
       DB_SSL_REQUIRE: ${DB_SSL_REQUIRE:-False}
+      REDIS_CACHE_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
       CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@redis:6379/1
     depends_on:

@@ -10,7 +10,6 @@ import '../../../../../shared/theme/customer_home_tokens.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_deliver_header.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_exclusive_promo_banner.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_restaurant_highlight_card.dart';
-import '../../../../../shared/widgets/customer_home/customer_home_screen_caption.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_search_bar.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_section_header.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_service_category_strip.dart';
@@ -18,10 +17,7 @@ import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
 import '../../../../auth/data/auth_repository.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
-  const CustomerHomeScreen({
-    super.key,
-    this.deliverAddressLine = 'Home',
-  });
+  const CustomerHomeScreen({super.key, this.deliverAddressLine = 'Home'});
 
   final String deliverAddressLine;
 
@@ -34,20 +30,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   CustomerHomeServiceCategory _category = CustomerHomeServiceCategory.food;
 
-  static const List<CustomerHomeRestaurantPreview> _kTopRated = <CustomerHomeRestaurantPreview>[
-    CustomerHomeRestaurantPreview(
-      id: 'luigi',
-      displayName: "Luigi's",
-      imageAssetPath: CustomerHomeAssets.featuredRestaurantPng,
-      ratingValue: 4.8,
-    ),
-    CustomerHomeRestaurantPreview(
-      id: 'atlas',
-      displayName: 'Atlas Grill',
-      imageAssetPath: CustomerHomeAssets.featuredRestaurantPng,
-      ratingValue: 4.6,
-    ),
-  ];
+  static const List<CustomerHomeRestaurantPreview> _kTopRated =
+      <CustomerHomeRestaurantPreview>[
+        CustomerHomeRestaurantPreview(
+          id: 'luigi',
+          displayName: "Luigi's",
+          imageAssetPath: CustomerHomeAssets.featuredRestaurantPng,
+          ratingValue: 4.8,
+        ),
+        CustomerHomeRestaurantPreview(
+          id: 'atlas',
+          displayName: 'Atlas Grill',
+          imageAssetPath: CustomerHomeAssets.featuredRestaurantPng,
+          ratingValue: 4.6,
+        ),
+      ];
 
   @override
   void dispose() {
@@ -56,7 +53,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   void _toast(String message) {
-    final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
+    final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(
+      context,
+    );
     if (messenger == null) {
       debugPrint(message);
       return;
@@ -85,7 +84,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       return;
     }
     Navigator.of(context).pushAndRemoveUntil<void>(
-      MaterialPageRoute<void>(builder: (BuildContext _) => const RoleSelectionBootstrap()),
+      MaterialPageRoute<void>(
+        builder: (BuildContext _) => const RoleSelectionBootstrap(),
+      ),
       (Route<dynamic> route) => false,
     );
   }
@@ -127,10 +128,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         }
       },
       itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
-          value: 'sign_out',
-          child: Text('Sign out'),
-        ),
+        const PopupMenuItem<String>(value: 'sign_out', child: Text('Sign out')),
       ],
       child: CircleAvatar(
         radius: 22,
@@ -138,7 +136,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         child: Text(
           'K',
           style: TextStyle(
-            color: Colors.white.withOpacity(0.95),
+            color: Colors.white.withValues(alpha: 0.95),
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -149,16 +147,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final Size size = MediaQuery.sizeOf(context);
+    final double topCardWidth =
+        (size.width - (CustomerHomeTokens.screenHorizontalPadding * 2) - 8) *
+        0.74;
+    final double topCardHeight = topCardWidth.clamp(250, 320) * 0.68;
+
     return Scaffold(
       backgroundColor: CustomerHomeTokens.canvas,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: CustomerMainBottomNavBar(
+          current: CustomerMainTab.home,
+          uppercaseLabels: true,
+          onTabSelected: _onBottomTab,
+        ),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const CustomerHomeScreenCaption(),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: CustomerHomeTokens.screenHorizontalPadding),
+              padding: const EdgeInsets.symmetric(
+                horizontal: CustomerHomeTokens.screenHorizontalPadding,
+              ),
               child: CustomerHomeDeliverHeader(
                 addressLine: widget.deliverAddressLine,
                 trailing: _profileAvatarMenu(),
@@ -167,7 +180,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: CustomerHomeTokens.screenHorizontalPadding),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CustomerHomeTokens.screenHorizontalPadding,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -178,31 +193,38 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     const SizedBox(height: CustomerHomeTokens.blockSpacing),
                     CustomerHomeServiceCategoryStrip(
                       selected: _category,
-                      onCategoryChanged: (CustomerHomeServiceCategory c) => setState(() => _category = c),
+                      onCategoryChanged: (CustomerHomeServiceCategory c) =>
+                          setState(() => _category = c),
                     ),
                     const SizedBox(height: CustomerHomeTokens.blockSpacing),
                     CustomerHomeExclusivePromoBanner(
-                      onClaimPressed: () => _toast('Promo checkout (coming soon).'),
+                      onClaimPressed: () =>
+                          _toast('Promo checkout (coming soon).'),
                     ),
                     const SizedBox(height: CustomerHomeTokens.blockSpacing + 4),
                     CustomerHomeSectionHeader(
                       title: 'Top rated',
                       subtitle: 'Fastest delivery in your area',
                       actionLabel: 'See all',
-                      onActionPressed: () => _toast('Full restaurant list (coming soon).'),
+                      onActionPressed: () =>
+                          _toast('Full restaurant list (coming soon).'),
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
-                      height: 210,
+                      height: topCardHeight,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: _kTopRated.length,
-                        separatorBuilder: (BuildContext _, int _) => const SizedBox(width: 14),
+                        separatorBuilder: (BuildContext context, int index) =>
+                            const SizedBox(width: 14),
                         itemBuilder: (BuildContext _, int index) {
-                          final CustomerHomeRestaurantPreview preview = _kTopRated[index];
+                          final CustomerHomeRestaurantPreview preview =
+                              _kTopRated[index];
                           return CustomerHomeRestaurantHighlightCard(
                             preview: preview,
-                            onTap: () => _toast('${preview.displayName} (coming soon).'),
+                            width: topCardWidth.clamp(240, 320),
+                            onTap: () =>
+                                _toast('${preview.displayName} (coming soon).'),
                           );
                         },
                       ),
@@ -211,11 +233,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ],
                 ),
               ),
-            ),
-            CustomerMainBottomNavBar(
-              current: CustomerMainTab.home,
-              uppercaseLabels: true,
-              onTabSelected: _onBottomTab,
             ),
           ],
         ),

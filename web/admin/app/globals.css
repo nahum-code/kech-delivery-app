@@ -1,0 +1,2 @@
+/* Shared with src/app — root `app/` routes need their own globals next to layout.tsx */
+@import "../src/styles/index.css";

@@ -37,7 +37,9 @@ class AddAddressLabeledTextField extends StatelessWidget {
         DecoratedBox(
           decoration: BoxDecoration(
             color: CustomerAddAddressTokens.fieldFill,
-            borderRadius: BorderRadius.circular(CustomerAddAddressTokens.fieldRadius),
+            borderRadius: BorderRadius.circular(
+              CustomerAddAddressTokens.fieldRadius,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -65,7 +67,7 @@ class AddAddressLabeledTextField extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (suffix != null) suffix!,
+                ?suffix,
               ],
             ),
           ),
