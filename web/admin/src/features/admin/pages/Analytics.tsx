@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { KpiCard } from "../components/KpiCard";
@@ -32,7 +32,8 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Download, TrendingUp, Clock, CheckCircle, XCircle, DollarSign } from "lucide-react";
-import { mockOrders, mockRestaurants } from "../data/mockData";
+import { fetchRestaurants, type RestaurantRecord } from "@/services/restaurants";
+import { mockOrders } from "../data/mockData";
 
 const orderVolumeData = [
   { date: "Mar 13", orders: 45, revenue: 1260 },
@@ -64,26 +65,33 @@ const statusDistributionData = [
 
 export function Analytics() {
   const [dateRange, setDateRange] = useState("7d");
+  const [restaurants, setRestaurants] = useState<RestaurantRecord[]>([]);
+
+  useEffect(() => {
+    void fetchRestaurants()
+      .then(setRestaurants)
+      .catch(() => setRestaurants([]));
+  }, []);
 
   const topRestaurants = useMemo(() => {
-    return mockRestaurants
+    return restaurants
       .map((restaurant) => {
         const restaurantOrders = mockOrders.filter(
           (order) => order.restaurant === restaurant.name,
         );
 
         return {
-          ...restaurant,
+          id: restaurant.id,
+          name: restaurant.name,
+          status: restaurant.is_active ? "Active" : "Inactive",
           orders: restaurantOrders.length,
-          revenue: restaurantOrders.reduce(
-            (sum, order) => sum + order.deliveryFee,
-            0,
-          ),
+          menuItems: restaurant.menu_item_count,
+          revenue: restaurantOrders.reduce((sum, order) => sum + order.deliveryFee, 0),
         };
       })
-      .sort((a, b) => b.orders - a.orders)
+      .sort((a, b) => b.menuItems - a.menuItems || b.orders - a.orders)
       .slice(0, 5);
-  }, []);
+  }, [restaurants]);
 
   return (
     <div className="space-y-6">

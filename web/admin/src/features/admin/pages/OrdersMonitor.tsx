@@ -1,8 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent } from "../components/ui/card";
+import { useCallback, useEffect, useState } from "react";
+import { format } from "date-fns";
+import { Eye, RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import {
+  assignDriver,
+  fetchApprovedDrivers,
+  fetchOrder,
+  fetchOrders,
+  updateOrderStatus,
+  type OrderDetail,
+  type OrderRecord,
+} from "@/services/orders";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import {
   Select,
@@ -12,6 +26,12 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "../components/ui/sheet";
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,253 +39,279 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "../components/ui/sheet";
-import { StatusBadge } from "../components/StatusBadge";
-import { mockOrders, Order } from "../data/mockData";
-import { Search, Filter, Download, Eye, UserPlus, Phone, X } from "lucide-react";
-import { format } from "date-fns";
+
+const STATUS_OPTIONS = [
+  "all",
+  "pending",
+  "confirmed",
+  "preparing",
+  "ready_for_pickup",
+  "assigned",
+  "picked_up",
+  "delivering",
+  "delivered",
+  "cancelled",
+];
+
+function statusLabel(s: string) {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case "delivered":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "cancelled":
+      return "bg-red-100 text-red-800 border-red-200";
+    case "pending":
+      return "bg-gray-100 text-gray-800 border-gray-200";
+    default:
+      return "bg-amber-100 text-amber-800 border-amber-200";
+  }
+}
+
+function paymentLabel(s: string) {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export function OrdersMonitor() {
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<OrderDetail | null>(null);
+  const [drivers, setDrivers] = useState<Array<{ id: number; full_name: string }>>([]);
+  const [assignDriverId, setAssignDriverId] = useState("");
 
-  const filteredOrders = mockOrders.filter((order) => {
-    if (statusFilter !== "all" && order.status !== statusFilter) return false;
-    if (paymentFilter !== "all" && order.paymentState !== paymentFilter)
-      return false;
-    return true;
-  });
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await fetchOrders({
+        status: statusFilter === "all" ? undefined : statusFilter,
+        search: search || undefined,
+      });
+      setOrders(data.results);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load orders";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    const t = setTimeout(() => void load(), 300);
+    return () => clearTimeout(t);
+  }, [load]);
+
+  useEffect(() => {
+    const id = setInterval(() => void load(), 30_000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  useEffect(() => {
+    void fetchApprovedDrivers().then(setDrivers).catch(() => setDrivers([]));
+  }, []);
+
+  useEffect(() => {
+    if (selectedId == null) {
+      setDetail(null);
+      return;
+    }
+    void fetchOrder(selectedId)
+      .then(setDetail)
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load order"));
+  }, [selectedId]);
+
+  const handleAssign = async () => {
+    if (selectedId == null || !assignDriverId) return;
+    try {
+      await assignDriver(selectedId, Number(assignDriverId));
+      toast.success("Driver assigned");
+      await load();
+      const refreshed = await fetchOrder(selectedId);
+      setDetail(refreshed);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Assignment failed");
+    }
+  };
+
+  const handleStatus = async (status: string) => {
+    if (selectedId == null) return;
+    try {
+      await updateOrderStatus(selectedId, status);
+      toast.success("Status updated");
+      await load();
+      setDetail(await fetchOrder(selectedId));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">
-            Orders Monitor
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Real-time control center for all delivery operations
-          </p>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Orders Monitor</h1>
+          <p className="mt-1 text-gray-600">Live operations view</p>
         </div>
-        <Button className="bg-[#800020] hover:bg-[#600018]">
-          <Download className="w-4 h-4 mr-2" />
-          Export
+        <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search by order number, customer, restaurant..."
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="PaymentPending">Payment Pending</SelectItem>
-                <SelectItem value="SearchingDriver">Searching Driver</SelectItem>
-                <SelectItem value="Assigned">Assigned</SelectItem>
-                <SelectItem value="PickedUp">Picked Up</SelectItem>
-                <SelectItem value="Delivered">Delivered</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Payment" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Payments</SelectItem>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Confirmed">Confirmed</SelectItem>
-                <SelectItem value="Failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              More Filters
-            </Button>
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              className="pl-10"
+              placeholder="Search reference, phone, restaurant..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s === "all" ? "All statuses" : statusLabel(s)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
-      {/* Orders Table */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Order Number</TableHead>
+                <TableHead>Reference</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Restaurant</TableHead>
                 <TableHead>Driver</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Distance</TableHead>
-                <TableHead>Fees</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Placed</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
-                    {order.orderNumber}
-                  </TableCell>
-                  <TableCell>{order.customer}</TableCell>
-                  <TableCell>{order.restaurant}</TableCell>
-                  <TableCell>
-                    {order.driver || (
-                      <span className="text-gray-400">Unassigned</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={order.status} type="order" />
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`text-sm ${
-                        order.paymentState === "Confirmed"
-                          ? "text-green-600"
-                          : order.paymentState === "Failed"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                      }`}
-                    >
-                      {order.paymentState}
-                    </span>
-                  </TableCell>
-                  <TableCell>{format(order.createdAt, "HH:mm")}</TableCell>
-                  <TableCell>{order.distance}</TableCell>
-                  <TableCell>{order.deliveryFee} MAD</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {!order.driver && (
-                        <Button variant="ghost" size="sm">
-                          <UserPlus className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm">
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9}>Loading...</TableCell>
+                </TableRow>
+              ) : error ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8">
+                    <p className="text-destructive mb-2">{error}</p>
+                    <Button variant="outline" size="sm" onClick={() => void load()}>
+                      Retry
+                    </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : orders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9}>No orders</TableCell>
+                </TableRow>
+              ) : (
+                orders.map((o) => (
+                  <TableRow key={o.id}>
+                    <TableCell className="font-medium">{o.reference}</TableCell>
+                    <TableCell>
+                      <p className="text-sm">{o.customer_name}</p>
+                      <p className="text-xs text-gray-500">{o.customer_phone}</p>
+                    </TableCell>
+                    <TableCell>{o.restaurant_name}</TableCell>
+                    <TableCell className="text-sm">{o.assigned_driver_name ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusBadgeClass(o.status)}>
+                        {statusLabel(o.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{paymentLabel(o.payment_status)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {o.total_amount} MAD
+                    </TableCell>
+                    <TableCell>{format(new Date(o.placed_at), "MMM d, HH:mm")}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedId(o.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Order Details Drawer */}
-      <Sheet open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-        <SheetContent className="w-[500px] overflow-y-auto">
-          {selectedOrder && (
+      <Sheet open={selectedId != null} onOpenChange={() => setSelectedId(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          {detail && (
             <>
               <SheetHeader>
-                <SheetTitle>{selectedOrder.orderNumber}</SheetTitle>
+                <SheetTitle>{detail.reference}</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 space-y-6">
-                {/* Order Timeline */}
-                <div>
-                  <h3 className="font-medium mb-3">Order Timeline</h3>
-                  <div className="space-y-3">
-                    {selectedOrder.timeline.map((event, index) => (
-                      <div key={index} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="w-3 h-3 rounded-full bg-[#800020]"></div>
-                          {index < selectedOrder.timeline.length - 1 && (
-                            <div className="w-0.5 h-full bg-gray-200 my-1"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 pb-4">
-                          <p className="font-medium">{event.status}</p>
-                          <p className="text-sm text-gray-500">
-                            {format(event.timestamp, "HH:mm:ss")}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Pricing Breakdown */}
-                <div>
-                  <h3 className="font-medium mb-3">Pricing Breakdown</h3>
-                  <div className="space-y-2 bg-gray-50 p-4 rounded-lg">
-                    <div className="flex justify-between">
-                      <span>Delivery Fee</span>
-                      <span className="font-medium">
-                        {selectedOrder.deliveryFee} MAD
+              <div className="mt-6 space-y-4 text-sm">
+                <p>
+                  <span className="text-gray-500">Status:</span> {statusLabel(detail.status)}
+                </p>
+                <p>
+                  <span className="text-gray-500">Customer:</span> {detail.customer_phone}
+                </p>
+                <p>
+                  <span className="text-gray-500">Restaurant:</span> {detail.restaurant_name}
+                </p>
+                <ul className="space-y-2 border-t pt-4">
+                  {detail.items.map((item) => (
+                    <li key={item.id} className="flex justify-between">
+                      <span>
+                        {item.item_name} ×{item.quantity}
                       </span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Driver Payout</span>
-                      <span>{selectedOrder.driverPayout} MAD</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Platform Fee</span>
-                      <span>{selectedOrder.platformFee} MAD</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Pickup & Dropoff */}
-                <div>
-                  <h3 className="font-medium mb-3">Addresses</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm text-gray-600">Pickup</p>
-                      <p className="font-medium">{selectedOrder.restaurant}</p>
-                      <p className="text-sm">{selectedOrder.pickupAddress}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-600">Dropoff</p>
-                      <p className="font-medium">{selectedOrder.customer}</p>
-                      <p className="text-sm">{selectedOrder.dropoffAddress}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setSelectedOrder(null)}
-                  >
-                    Close
-                  </Button>
-                  {selectedOrder.status !== "Cancelled" &&
-                    selectedOrder.status !== "Completed" && (
-                      <Button variant="destructive" className="flex-1">
-                        <X className="w-4 h-4 mr-2" />
-                        Cancel Order
+                      <span>{item.total_price} MAD</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex gap-2 flex-wrap border-t pt-4">
+                  {["confirmed", "preparing", "ready_for_pickup", "delivered", "cancelled"].map(
+                    (s) => (
+                      <Button key={s} size="sm" variant="outline" onClick={() => void handleStatus(s)}>
+                        {statusLabel(s)}
                       </Button>
-                    )}
+                    ),
+                  )}
+                </div>
+                <div className="flex gap-2 border-t pt-4">
+                  <Select value={assignDriverId} onValueChange={setAssignDriverId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Assign driver" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers.map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
+                          {d.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button className="bg-[#800020]" onClick={() => void handleAssign()}>
+                    Assign
+                  </Button>
                 </div>
               </div>
             </>

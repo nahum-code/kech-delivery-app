@@ -6,7 +6,7 @@ Uses a single client-facing error message to reduce account enumeration.
 
 from __future__ import annotations
 
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 
 from apps.drivers.models import DriverProfile
 from core.models import User
@@ -36,3 +36,20 @@ def assert_jwt_eligible(user: User) -> None:
         return
 
     raise ValidationError(_CLIENT_MSG)
+
+
+def enforce_jwt_eligible(user: User) -> None:
+    """
+    Same rules as ``assert_jwt_eligible`` for per-request JWT authentication.
+
+    Raises AuthenticationFailed (401) so clients treat ineligible sessions as logged out.
+    """
+    try:
+        assert_jwt_eligible(user)
+    except ValidationError as exc:
+        detail = exc.detail
+        if isinstance(detail, list):
+            message = str(detail[0]) if detail else _CLIENT_MSG
+        else:
+            message = str(detail)
+        raise AuthenticationFailed(message) from exc

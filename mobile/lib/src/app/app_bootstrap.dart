@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../core/auth/auth_session_snapshot.dart';
 import '../features/customer/home/presentation/screens/customer_home_screen.dart';
+import '../features/driver/data/driver_onboarding_repository.dart';
 import '../features/driver/home/presentation/screens/driver_home_placeholder_screen.dart';
+import '../features/driver/pending/presentation/screens/driver_pending_screen.dart';
 import '../shared/widgets/loading/splash_loading_indicator.dart';
 import 'role_selection_bootstrap.dart';
 
@@ -26,6 +28,11 @@ final class _DestinationCustomerHome extends _AppInitDestination {
 /// User is authenticated as driver, show home.
 final class _DestinationDriverHome extends _AppInitDestination {
   const _DestinationDriverHome();
+}
+
+/// Driver registered but awaiting approval (onboarding token, no JWT).
+final class _DestinationDriverPending extends _AppInitDestination {
+  const _DestinationDriverPending();
 }
 
 /// Production app initialization: auth state check + splash display, then route.
@@ -83,6 +90,10 @@ class _AppBootstrapState extends State<AppBootstrap> {
     final session = authRepository.currentSession;
 
     if (session == null) {
+      final DriverOnboardingRepository onboarding = context.read<DriverOnboardingRepository>();
+      if (onboarding.currentOnboarding != null) {
+        return const _DestinationDriverPending();
+      }
       return const _DestinationRoleSelection();
     }
 
@@ -99,6 +110,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
       _DestinationRoleSelection() => const RoleSelectionBootstrap(),
       _DestinationCustomerHome() => const CustomerHomeScreen(),
       _DestinationDriverHome() => const DriverHomePlaceholderScreen(),
+      _DestinationDriverPending() => const DriverPendingScreen(),
     };
   }
 

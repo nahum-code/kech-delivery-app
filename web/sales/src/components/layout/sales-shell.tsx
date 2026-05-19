@@ -11,6 +11,7 @@ type SalesShellProps = {
 
 const menu = [
   { href: "/create-order", label: "Create Order" },
+  { href: "/catalog", label: "Restaurants & Menus" },
   { href: "/assign-driver", label: "Assign Driver" },
   { href: "/monitor-orders", label: "Monitor Orders" },
 ];

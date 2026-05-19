@@ -17,7 +17,14 @@ export async function authJson<T>(path: string, init: RequestInit = {}): Promise
   const res = await fetch(`${getApiBase()}${path}`, { ...init, headers });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(body || `Request failed (${res.status})`);
+    let message = body || `Request failed (${res.status})`;
+    try {
+      const data = JSON.parse(body) as { detail?: string };
+      if (typeof data.detail === "string") message = data.detail;
+    } catch {
+      /* keep raw body */
+    }
+    throw new Error(message);
   }
   return (await res.json()) as T;
 }

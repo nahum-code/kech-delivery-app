@@ -50,3 +50,24 @@ def log_sales_agent_create(actor_user_id: int | None, created_user_id: int, phon
             "masked_phone": mask_phone(phone),
         },
     )
+
+
+def log_driver_approved(*, admin_id: int, driver_user_id: int) -> None:
+    logger.info(
+        "driver.approved",
+        extra={"admin_id": admin_id, "driver_user_id": driver_user_id, "action": "approved"},
+    )
+
+
+def log_driver_rejected(*, admin_id: int, driver_user_id: int) -> None:
+    logger.info(
+        "driver.rejected",
+        extra={"admin_id": admin_id, "driver_user_id": driver_user_id, "action": "rejected"},
+    )
+
+
+def log_driver_suspended(*, admin_id: int, driver_user_id: int) -> None:
+    logger.info(
+        "driver.suspended",
+        extra={"admin_id": admin_id, "driver_user_id": driver_user_id, "action": "suspended"},
+    )

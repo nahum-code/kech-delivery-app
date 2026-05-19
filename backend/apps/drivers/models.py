@@ -22,13 +22,47 @@ class DriverProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="driver_profile",
     )
+    class VehicleType(models.TextChoices):
+        SEDAN = "sedan", "Sedan"
+        MOTORBIKE = "motorbike", "Motorbike"
+
     full_name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True)
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VehicleType.choices,
+        blank=True,
+    )
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    documents_submitted_at = models.DateTimeField(null=True, blank=True)
     approval_status = models.CharField(
         max_length=20,
         choices=ApprovalStatus.choices,
         default=ApprovalStatus.PENDING,
         db_index=True,
     )
+
+    # Approval workflow audit fields (set by admin APIs, not self-service).
+    approved_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    suspended_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drivers_approved",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="drivers_reviewed",
+    )
+    rejection_reason = models.TextField(blank=True)
+    suspension_reason = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -41,5 +75,58 @@ class DriverProfile(models.Model):
         self.full_clean()
         return super().save(*args, **kwargs)
 
+    @property
+    def reviewed_at(self):
+        """Most recent review timestamp for mobile status UX."""
+        if self.approval_status == self.ApprovalStatus.APPROVED:
+            return self.approved_at
+        if self.approval_status == self.ApprovalStatus.REJECTED:
+            return self.rejected_at
+        if self.approval_status == self.ApprovalStatus.SUSPENDED:
+            return self.suspended_at
+        return None
+
     def __str__(self) -> str:
         return f"DriverProfile<{self.user}> [{self.approval_status}]"
+
+
+def driver_document_upload_to(instance: "DriverDocument", filename: str) -> str:
+    return f"driver_documents/{instance.user_id}/{instance.document_type}/{filename}"
+
+
+class DriverDocument(models.Model):
+    """Uploaded verification documents for driver onboarding."""
+
+    class DocumentType(models.TextChoices):
+        LICENSE = "license", "Driver license"
+        NATIONAL_ID = "national_id", "National ID"
+        VEHICLE_REGISTRATION = "vehicle_registration", "Vehicle registration"
+        PROFILE_PHOTO = "profile_photo", "Profile photo"
+
+    REQUIRED_TYPES = frozenset(
+        {
+            DocumentType.LICENSE,
+            DocumentType.NATIONAL_ID,
+            DocumentType.VEHICLE_REGISTRATION,
+        }
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="driver_documents",
+    )
+    document_type = models.CharField(max_length=32, choices=DocumentType.choices)
+    file = models.FileField(upload_to=driver_document_upload_to)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "document_type"],
+                name="uniq_driver_document_per_type",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"DriverDocument<{self.user_id}:{self.document_type}>"

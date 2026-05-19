@@ -1,9 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent } from "../components/ui/card";
+import { format } from "date-fns";
+import { Edit, Eye, MapPin, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { useRestaurants } from "@/hooks/use-restaurants";
+import type { RestaurantRecord } from "@/services/restaurants";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Switch } from "../components/ui/switch";
 import {
   Table,
   TableBody,
@@ -12,216 +29,244 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from "../components/ui/dialog";
-import { Label } from "../components/ui/label";
-import { Switch } from "../components/ui/switch";
-import { Badge } from "../components/ui/badge";
-import { mockRestaurants, Restaurant } from "../data/mockData";
-import { Search, Plus, Edit, Eye, MapPin } from "lucide-react";
-import { format } from "date-fns";
+
+type FormState = {
+  name: string;
+  phone: string;
+  address_text: string;
+  latitude: string;
+  longitude: string;
+  opening_hours: string;
+  is_active: boolean;
+  description: string;
+  logo: File | null;
+  cover_image: File | null;
+};
+
+const emptyForm = (): FormState => ({
+  name: "",
+  phone: "",
+  address_text: "",
+  latitude: "31.6295",
+  longitude: "-7.9811",
+  opening_hours: "09:00 - 22:00",
+  is_active: true,
+  description: "",
+  logo: null,
+  cover_image: null,
+});
+
+function toForm(r?: RestaurantRecord | null): FormState {
+  if (!r) return emptyForm();
+  return {
+    name: r.name,
+    phone: r.phone,
+    address_text: r.address_text,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    opening_hours: r.opening_hours,
+    is_active: r.is_active,
+    description: r.description,
+    logo: null,
+    cover_image: null,
+  };
+}
 
 export function RestaurantManagement() {
-  const [selectedRestaurant, setSelectedRestaurant] =
-    useState<Restaurant | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const { restaurants, loading, error, search, setSearch, save, remove } = useRestaurants();
+  const [view, setView] = useState<RestaurantRecord | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState<FormState>(emptyForm());
+  const [saving, setSaving] = useState(false);
 
-  const handleEdit = (restaurant: Restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setIsEditing(true);
+  const openCreate = () => {
+    setForm(emptyForm());
+    setEditingId(null);
+    setCreating(true);
+  };
+
+  const openEdit = (r: RestaurantRecord) => {
+    setForm(toForm(r));
+    setEditingId(r.id);
+    setCreating(false);
+    setView(null);
+  };
+
+  const submit = async () => {
+    if (!form.name.trim()) {
+      toast.error("Restaurant name is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await save(
+        {
+          name: form.name.trim(),
+          phone: form.phone,
+          address_text: form.address_text,
+          latitude: form.latitude,
+          longitude: form.longitude,
+          opening_hours: form.opening_hours,
+          is_active: form.is_active,
+          description: form.description,
+          logo: form.logo,
+          cover_image: form.cover_image,
+        },
+        editingId ?? undefined,
+      );
+      toast.success(editingId ? "Restaurant updated" : "Restaurant created");
+      setCreating(false);
+      setEditingId(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">
-            Restaurant Management
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Manage restaurant partners and their information
-          </p>
+          <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">Restaurant Management</h1>
+          <p className="mt-1 text-gray-600">Manage restaurant partners and their information</p>
         </div>
-        <Button
-          className="bg-[#800020] hover:bg-[#600018]"
-          onClick={() => setIsCreating(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
+        <Button className="shrink-0 bg-[#800020] hover:bg-[#600018]" onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
           Add Restaurant
         </Button>
       </div>
 
-      {/* Search */}
       <Card>
         <CardContent className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
-              placeholder="Search restaurants by name, location, or phone..."
+              placeholder="Search restaurants..."
               className="pl-10"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Restaurants Table */}
+      {error && (
+        <Card>
+          <CardContent className="p-4 text-sm text-red-600">{error}</CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Restaurant Name</TableHead>
-                <TableHead>Phone</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="hidden md:table-cell">Phone</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Opening Hours</TableHead>
+                <TableHead className="hidden lg:table-cell">Hours</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Menu Items</TableHead>
-                <TableHead>Last Updated</TableHead>
+                <TableHead className="hidden sm:table-cell">Menu</TableHead>
+                <TableHead className="hidden xl:table-cell">Updated</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockRestaurants.map((restaurant) => (
-                <TableRow key={restaurant.id}>
-                  <TableCell className="font-medium">
-                    {restaurant.name}
-                  </TableCell>
-                  <TableCell>{restaurant.phone}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="max-w-xs truncate">
-                        {restaurant.location}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{restaurant.openingHours}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        restaurant.status === "Active"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-700"
-                      }
-                    >
-                      {restaurant.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{restaurant.menuCount}</TableCell>
-                  <TableCell>
-                    {format(restaurant.lastUpdated, "MMM dd, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedRestaurant(restaurant)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEdit(restaurant)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-8 text-center text-gray-500">
+                    Loading restaurants...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : restaurants.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="py-8 text-center text-gray-500">
+                    No restaurants found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                restaurants.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell className="font-medium">{r.name}</TableCell>
+                    <TableCell className="hidden md:table-cell">{r.phone || "-"}</TableCell>
+                    <TableCell>
+                      <div className="flex max-w-[200px] items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
+                        <span className="truncate">{r.address_text || "-"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">{r.opening_hours || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={r.is_active ? "bg-green-100 text-green-700" : ""}>
+                        {r.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">{r.menu_item_count}</TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      {format(new Date(r.updated_at), "MMM dd, yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setView(r)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            if (!confirm(`Delete ${r.name}?`)) return;
+                            try {
+                              await remove(r.id);
+                              toast.success("Restaurant deleted");
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Delete failed");
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* View Restaurant Dialog */}
-      <Dialog
-        open={!!selectedRestaurant && !isEditing}
-        onOpenChange={() => setSelectedRestaurant(null)}
-      >
-        <DialogContent className="max-w-2xl">
-          {selectedRestaurant && (
+      <Dialog open={!!view} onOpenChange={() => setView(null)}>
+        <DialogContent className="max-w-lg">
+          {view && (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedRestaurant.name}</DialogTitle>
-                <DialogDescription>
-                  View and manage restaurant details
-                </DialogDescription>
+                <DialogTitle>{view.name}</DialogTitle>
+                <DialogDescription>Restaurant details</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-gray-600">Phone</Label>
-                    <p className="font-medium">{selectedRestaurant.phone}</p>
-                  </div>
-                  <div>
-                    <Label className="text-gray-600">Status</Label>
-                    <div className="mt-1">
-                      <Badge
-                        variant="outline"
-                        className={
-                          selectedRestaurant.status === "Active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
-                        }
-                      >
-                        {selectedRestaurant.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-gray-600">Location</Label>
-                    <p className="font-medium">{selectedRestaurant.location}</p>
-                  </div>
-                  <div>
-                    <Label className="text-gray-600">Opening Hours</Label>
-                    <p className="font-medium">
-                      {selectedRestaurant.openingHours}
-                    </p>
-                  </div>
-                  <div>
-                    <Label className="text-gray-600">Menu Items</Label>
-                    <p className="font-medium">{selectedRestaurant.menuCount}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-gray-600">Last Updated</Label>
-                    <p className="font-medium">
-                      {format(selectedRestaurant.lastUpdated, "MMM dd, yyyy 'at' HH:mm")}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Map Placeholder */}
-                <div>
-                  <Label>Location on Map</Label>
-                  <div className="w-full h-48 bg-gray-100 rounded-lg mt-2 flex items-center justify-center">
-                    <MapPin className="w-12 h-12 text-gray-400" />
-                    <p className="text-gray-500 ml-2">Map view placeholder</p>
-                  </div>
-                </div>
+              <div className="space-y-2 text-sm">
+                <p>
+                  <span className="text-gray-500">Phone:</span> {view.phone || "-"}
+                </p>
+                <p>
+                  <span className="text-gray-500">Address:</span> {view.address_text}
+                </p>
+                <p>
+                  <span className="text-gray-500">Hours:</span> {view.opening_hours}
+                </p>
+                <p>
+                  <span className="text-gray-500">Menu items:</span> {view.menu_item_count}
+                </p>
               </div>
               <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedRestaurant(null)}
-                >
+                <Button variant="outline" onClick={() => setView(null)}>
                   Close
                 </Button>
-                <Button
-                  className="bg-[#800020] hover:bg-[#600018]"
-                  onClick={() => handleEdit(selectedRestaurant)}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
+                <Button className="bg-[#800020]" onClick={() => openEdit(view)}>
                   Edit
                 </Button>
               </DialogFooter>
@@ -230,86 +275,101 @@ export function RestaurantManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit/Create Restaurant Dialog */}
       <Dialog
-        open={isEditing || isCreating}
+        open={creating || editingId != null}
         onOpenChange={(open) => {
           if (!open) {
-            setIsEditing(false);
-            setIsCreating(false);
-            setSelectedRestaurant(null);
+            setCreating(false);
+            setEditingId(null);
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {isCreating ? "Add New Restaurant" : "Edit Restaurant"}
-            </DialogTitle>
-            <DialogDescription>
-              {isCreating
-                ? "Add a new restaurant to your management system"
-                : "Edit the details of the selected restaurant"}
-            </DialogDescription>
+            <DialogTitle>{editingId ? "Edit Restaurant" : "Add Restaurant"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Restaurant Name</Label>
-              <Input
-                defaultValue={selectedRestaurant?.name}
-                placeholder="Enter restaurant name"
-                className="mt-2"
-              />
+              <Label>Name</Label>
+              <Input className="mt-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Phone</Label>
-                <Input
-                  defaultValue={selectedRestaurant?.phone}
-                  placeholder="+212 5 24 XX XX XX"
-                  className="mt-2"
-                />
+                <Input className="mt-2" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
               </div>
               <div>
-                <Label>Opening Hours</Label>
+                <Label>Opening hours</Label>
                 <Input
-                  defaultValue={selectedRestaurant?.openingHours}
-                  placeholder="09:00 - 22:00"
                   className="mt-2"
+                  value={form.opening_hours}
+                  onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
                 />
               </div>
             </div>
             <div>
-              <Label>Location Address</Label>
+              <Label>Address</Label>
               <Input
-                defaultValue={selectedRestaurant?.location}
-                placeholder="Enter full address"
                 className="mt-2"
+                value={form.address_text}
+                onChange={(e) => setForm({ ...form, address_text: e.target.value })}
               />
             </div>
-            <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <Label>Operational Status</Label>
-                <p className="text-sm text-gray-600">
-                  Restaurant is accepting orders
-                </p>
+                <Label>Latitude</Label>
+                <Input
+                  className="mt-2"
+                  value={form.latitude}
+                  onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                />
               </div>
-              <Switch defaultChecked={selectedRestaurant?.status === "Active"} />
+              <div>
+                <Label>Longitude</Label>
+                <Input
+                  className="mt-2"
+                  value={form.longitude}
+                  onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>Logo</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="mt-2"
+                  onChange={(e) => setForm({ ...form, logo: e.target.files?.[0] ?? null })}
+                />
+              </div>
+              <div>
+                <Label>Cover image</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  className="mt-2"
+                  onChange={(e) => setForm({ ...form, cover_image: e.target.files?.[0] ?? null })}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <Label>Active</Label>
+              <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
             </div>
           </div>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
-                setIsEditing(false);
-                setIsCreating(false);
-                setSelectedRestaurant(null);
+                setCreating(false);
+                setEditingId(null);
               }}
             >
               Cancel
             </Button>
-            <Button className="bg-[#800020] hover:bg-[#600018]">
-              {isCreating ? "Create Restaurant" : "Save Changes"}
+            <Button className="bg-[#800020]" disabled={saving} onClick={() => void submit()}>
+              {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

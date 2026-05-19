@@ -1,10 +1,12 @@
 from django.conf import settings
 from django.urls import path
 
+from .otp_views import DriverOnboardingOtpSendView, DriverOnboardingOtpVerifyView
 from .views import (
     AdminUsersListView,
     CreateSalesAgentView,
     CustomerRegisterView,
+    CustomerSearchView,
     DriverRegisterView,
     LogoutView,
     MeView,
@@ -29,6 +31,8 @@ urlpatterns = [
         DriverRegisterView.as_view(),
         name="register_driver",
     ),
+    path("otp/driver/send/", DriverOnboardingOtpSendView.as_view(), name="driver_otp_send"),
+    path("otp/driver/verify/", DriverOnboardingOtpVerifyView.as_view(), name="driver_otp_verify"),
     path(
         "create-sales-agent/",
         CreateSalesAgentView.as_view(),
@@ -38,6 +42,11 @@ urlpatterns = [
         "users/",
         AdminUsersListView.as_view(),
         name="admin_users_list",
+    ),
+    path(
+        "customers/search/",
+        CustomerSearchView.as_view(),
+        name="customer_search",
     ),
     path("logout", LogoutView.as_view(), name="logout"),
     path("me", MeView.as_view(), name="me"),

@@ -2,12 +2,19 @@ class CustomerHomeRestaurantPreview {
   const CustomerHomeRestaurantPreview({
     required this.id,
     required this.displayName,
-    required this.imageAssetPath,
-    required this.ratingValue,
-  });
+    this.imageAssetPath,
+    this.imageUrl,
+    this.ratingValue = 0,
+  }) : assert(
+          imageAssetPath != null || imageUrl != null,
+          'Provide imageAssetPath and/or imageUrl',
+        );
 
   final String id;
   final String displayName;
-  final String imageAssetPath;
+  final String? imageAssetPath;
+  final String? imageUrl;
   final double ratingValue;
+
+  bool get hasRating => ratingValue > 0;
 }

@@ -85,6 +85,8 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.users.apps.UsersConfig",
     "apps.drivers.apps.DriversConfig",
+    "apps.restaurants.apps.RestaurantsConfig",
+    "apps.orders.apps.OrdersConfig",
     "core.apps.CoreConfig",
 ]
 
@@ -203,6 +205,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -235,7 +240,7 @@ CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 # API auth: JWT default; require auth unless a view sets AllowAny (architecture: RBAC at DRF).
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.users.authentication.SafeJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -250,6 +255,9 @@ REST_FRAMEWORK = {
         "auth_admin_create_sales": os.getenv("THROTTLE_AUTH_ADMIN_CREATE_SALES", "120/hour"),
         "auth_logout": os.getenv("THROTTLE_AUTH_LOGOUT", "60/hour"),
         "auth_staff": os.getenv("THROTTLE_AUTH_STAFF", "200/hour"),
+        "auth_otp_send": os.getenv("THROTTLE_AUTH_OTP_SEND", "10/hour"),
+        "auth_otp_verify": os.getenv("THROTTLE_AUTH_OTP_VERIFY", "30/hour"),
+        "auth_driver_onboarding": os.getenv("THROTTLE_AUTH_DRIVER_ONBOARDING", "120/hour"),
     },
 }
 

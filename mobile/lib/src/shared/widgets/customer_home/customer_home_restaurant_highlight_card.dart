@@ -15,6 +15,31 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
   final double width;
   final VoidCallback? onTap;
 
+  static Widget _buildImage(CustomerHomeRestaurantPreview preview) {
+    if (preview.imageUrl != null && preview.imageUrl!.isNotEmpty) {
+      return Image.network(
+        preview.imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+          return _placeholder();
+        },
+      );
+    }
+    return Image.asset(
+      preview.imageAssetPath!,
+      fit: BoxFit.cover,
+      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+        return _placeholder();
+      },
+    );
+  }
+
+  static Widget _placeholder() {
+    return Center(
+      child: Icon(Icons.storefront_rounded, size: 48, color: Colors.grey.shade500),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
@@ -31,44 +56,37 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
               children: <Widget>[
                 ColoredBox(
                   color: CustomerHomeTokens.searchFill,
-                  child: Image.asset(
-                    preview.imageAssetPath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                      return Center(
-                        child: Icon(Icons.storefront_rounded, size: 48, color: Colors.grey.shade500),
-                      );
-                    },
-                  ),
+                  child: _buildImage(preview),
                 ),
-                Positioned(
-                  left: 10,
-                  top: 10,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(Icons.star_rounded, size: 16, color: Colors.amber.shade700),
-                          const SizedBox(width: 4),
-                          Text(
-                            preview.ratingValue.toStringAsFixed(1),
-                            style: const TextStyle(
-                              color: CustomerHomeTokens.ink,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                if (preview.hasRating)
+                  Positioned(
+                    left: 10,
+                    top: 10,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.95),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(Icons.star_rounded, size: 16, color: Colors.amber.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              preview.ratingValue.toStringAsFixed(1),
+                              style: const TextStyle(
+                                color: CustomerHomeTokens.ink,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
                 Positioned(
                   left: 0,
                   right: 0,

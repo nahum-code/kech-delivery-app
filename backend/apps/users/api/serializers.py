@@ -91,6 +91,11 @@ class DriverRegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    vehicle_type = serializers.ChoiceField(
+        choices=DriverProfile.VehicleType.choices,
+        required=True,
+    )
 
     def validate_phone(self, value: str) -> str:
         normalized = normalize_phone(value)
@@ -112,7 +117,13 @@ class DriverRegisterSerializer(serializers.Serializer):
 
         with transaction.atomic():
             user = User.objects.create_user(phone=phone, password=password, role=User.Role.DRIVER)
-            DriverProfile.objects.create(user=user, full_name=name, approval_status=DriverProfile.ApprovalStatus.PENDING)
+            DriverProfile.objects.create(
+                user=user,
+                full_name=name,
+                email=validated_data.get("email", ""),
+                vehicle_type=validated_data["vehicle_type"],
+                approval_status=DriverProfile.ApprovalStatus.PENDING,
+            )
             return user
 
 
@@ -191,3 +202,21 @@ class UserListSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj: User) -> str:
         return "active" if obj.is_active else "inactive"
+
+
+class CustomerSearchSerializer(serializers.ModelSerializer):
+    """Lightweight customer row for sales/admin order creation."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", "phone", "name")
+        read_only_fields = fields
+
+    def get_name(self, obj: User) -> str:
+        profile = getattr(obj, "customer_profile", None)
+        if profile and profile.full_name:
+            return profile.full_name
+        return obj.phone

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -32,65 +32,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Mock data
-const mockRestaurants = [
-  {
-    id: "1",
-    name: "Yod Abyssinia",
-    address: "Bole Road, Addis Ababa",
-    isOpen: true,
-  },
-  {
-    id: "2",
-    name: "Kategna Restaurant",
-    address: "Kazanchis, Addis Ababa",
-    isOpen: true,
-  },
-  {
-    id: "3",
-    name: "Habesha 2000",
-    address: "Meskel Square, Addis Ababa",
-    isOpen: false,
-  },
-];
+import {
+  fetchRestaurantMenu,
+  fetchRestaurants,
+  type PublicMenuItem,
+  type RestaurantRecord,
+} from "@/services/catalog";
+import { searchCustomers, type CustomerSearchResult } from "@/services/customers";
+import { createSalesOrder } from "@/services/orders";
+import { parseApiError } from "@/lib/order-utils";
 
-const mockMenuItems = [
-  {
-    id: "1",
-    name: "Doro Wot",
-    price: 350,
-    available: true,
-    category: "Main Dishes",
-  },
-  {
-    id: "2",
-    name: "Kitfo",
-    price: 400,
-    available: true,
-    category: "Main Dishes",
-  },
-  {
-    id: "3",
-    name: "Tibs",
-    price: 320,
-    available: true,
-    category: "Main Dishes",
-  },
-  {
-    id: "4",
-    name: "Injera",
-    price: 50,
-    available: true,
-    category: "Sides",
-  },
-  {
-    id: "5",
-    name: "Shiro",
-    price: 180,
-    available: false,
-    category: "Main Dishes",
-  },
-];
+type CatalogMenuRow = PublicMenuItem & { category: string };
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -114,22 +66,56 @@ export function CreateOrderPage() {
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [customer, setCustomer] = useState<Customer>({ phone: "", name: "" });
   const [customerExists, setCustomerExists] = useState(false);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([]);
+  const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [dropoffAddress, setDropoffAddress] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
-  // Form validation errors
+  const [restaurants, setRestaurants] = useState<RestaurantRecord[]>([]);
+  const [catalogMenu, setCatalogMenu] = useState<CatalogMenuRow[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    void fetchRestaurants()
+      .then(setRestaurants)
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load restaurants"));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedRestaurant) return;
+    const timer = setTimeout(() => setCatalogLoading(true), 0);
+    void fetchRestaurantMenu(Number(selectedRestaurant))
+      .then((payload) => {
+        const rows: CatalogMenuRow[] = [];
+        for (const category of payload.categories) {
+          for (const item of category.items) {
+            rows.push({ ...item, category: category.name });
+          }
+        }
+        setCatalogMenu(rows);
+      })
+      .catch((e) => {
+        setCatalogMenu([]);
+        toast.error(e instanceof Error ? e.message : "Failed to load menu");
+      })
+      .finally(() => setCatalogLoading(false));
+    return () => clearTimeout(timer);
+  }, [selectedRestaurant]);
+
+  const menuItems = useMemo(
+    () => (selectedRestaurant ? catalogMenu : []),
+    [catalogMenu, selectedRestaurant],
+  );
 
   const validateStep = (step: Step): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (step === 1) {
-      if (!customer.phone || customer.phone.length < 10) {
-        newErrors.phone = "Valid phone number is required (10+ digits)";
-      }
-      if (!customer.name.trim()) {
-        newErrors.name = "Customer name is required";
+      if (!customer.id) {
+        newErrors.phone = "Select a registered customer from search results";
       }
     }
 
@@ -140,11 +126,9 @@ export function CreateOrderPage() {
       if (!dropoffAddress.trim()) {
         newErrors.dropoffAddress = "Dropoff address is required";
       }
-      const restaurant = mockRestaurants.find(
-        (r) => r.id === selectedRestaurant
-      );
-      if (restaurant && !restaurant.isOpen) {
-        newErrors.restaurant = "Selected restaurant is currently closed";
+      const restaurant = restaurants.find((r) => String(r.id) === selectedRestaurant);
+      if (restaurant && !restaurant.is_active) {
+        newErrors.restaurant = "Selected restaurant is currently inactive";
       }
     }
 
@@ -168,33 +152,54 @@ export function CreateOrderPage() {
     setCurrentStep((prev) => Math.max(1, prev - 1) as Step);
   };
 
-  const handleLookupCustomer = () => {
-    // Mock lookup - in real app this would be an API call
-    if (customer.phone.length >= 10) {
-      setCustomerExists(true);
-      setCustomer({
-        ...customer,
-        name: "Abebe Kebede",
-        id: "customer-123",
-      });
-      toast.success("Customer found!");
-    } else {
-      setErrors({ phone: "Please enter a valid phone number" });
-    }
+  useEffect(() => {
+    const q = customer.phone.trim();
+    if (q.length < 2) return;
+
+    const timer = setTimeout(() => {
+      setCustomerSearchLoading(true);
+      setCustomerSearchError(null);
+      void searchCustomers(q)
+        .then((data) => {
+          setCustomerResults(data.results);
+          if (data.results.length === 0) {
+            setCustomerSearchError("No customers found. Customer must register in the app first.");
+          }
+        })
+        .catch((e) => {
+          setCustomerResults([]);
+          setCustomerSearchError(parseApiError(e, "Customer search failed"));
+        })
+        .finally(() => setCustomerSearchLoading(false));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [customer.phone]);
+
+  const visibleCustomerResults =
+    customer.phone.trim().length >= 2 && !customerExists ? customerResults : [];
+
+  const handleSelectCustomer = (row: CustomerSearchResult) => {
+    setCustomer({ id: String(row.id), phone: row.phone, name: row.name });
+    setCustomerExists(true);
+    setCustomerResults([]);
+    setErrors({});
+    toast.success("Customer selected");
   };
 
-  const handleAddItem = (item: (typeof mockMenuItems)[0]) => {
-    const existing = orderItems.find((oi) => oi.id === item.id);
+  const handleAddItem = (item: CatalogMenuRow) => {
+    const itemId = String(item.id);
+    const price = Number.parseFloat(item.price) || 0;
+    const existing = orderItems.find((oi) => oi.id === itemId);
     if (existing) {
       setOrderItems(
         orderItems.map((oi) =>
-          oi.id === item.id ? { ...oi, quantity: oi.quantity + 1 } : oi
+          oi.id === itemId ? { ...oi, quantity: oi.quantity + 1 } : oi
         )
       );
     } else {
       setOrderItems([
         ...orderItems,
-        { ...item, quantity: 1, notes: "" },
+        { id: itemId, name: item.name, price, quantity: 1, notes: "" },
       ]);
     }
   };
@@ -224,10 +229,30 @@ export function CreateOrderPage() {
     return { subtotal, deliveryFee, driverPayout, platformFee, total };
   };
 
-  const handleSubmitOrder = () => {
-    if (paymentStatus === "confirmed") {
+  const handleSubmitOrder = async () => {
+    if (paymentStatus !== "confirmed") {
+      toast.error("Please confirm payment before submitting");
+      return;
+    }
+    if (!customer.id) {
+      toast.error("Customer must be registered (set customer ID after lookup)");
+      return;
+    }
+    try {
+      await createSalesOrder({
+        customer_id: Number(customer.id),
+        restaurant_id: Number(selectedRestaurant),
+        items: orderItems.map((item) => ({
+          menu_item_id: Number(item.id),
+          quantity: item.quantity,
+        })),
+        delivery_address: {
+          receiver_name: customer.name,
+          phone: customer.phone,
+          address_line: dropoffAddress,
+        },
+      });
       toast.success("Order created successfully!");
-      // Reset form
       setCurrentStep(1);
       setCustomer({ phone: "", name: "" });
       setCustomerExists(false);
@@ -235,8 +260,8 @@ export function CreateOrderPage() {
       setDropoffAddress("");
       setOrderItems([]);
       setPaymentStatus("pending");
-    } else {
-      toast.error("Please confirm payment before submitting");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Order creation failed");
     }
   };
 
@@ -309,73 +334,71 @@ export function CreateOrderPage() {
             <div>
               <h2 className="text-xl font-semibold mb-1">Customer Information</h2>
               <p className="text-sm text-muted-foreground">
-                Search by phone or create a new customer
+                Search registered customers by phone or name
               </p>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">
-                  Phone Number <span className="text-destructive">*</span>
-                </Label>
-                <div className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="0911234567"
-                      value={customer.phone}
-                      onChange={(e) =>
-                        setCustomer({ ...customer, phone: e.target.value })
-                      }
-                      className={errors.phone ? "border-destructive" : ""}
-                    />
-                    {errors.phone && (
-                      <p className="text-sm text-destructive mt-1 flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" />
-                        {errors.phone}
-                      </p>
-                    )}
-                  </div>
-                  <Button onClick={handleLookupCustomer} variant="outline">
-                    <Search className="h-4 w-4 mr-2" />
-                    Lookup
-                  </Button>
+                <Label htmlFor="customer-search">Customer search</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="customer-search"
+                    type="text"
+                    placeholder="Phone or name (min 2 characters)"
+                    value={customer.phone}
+                    onChange={(e) => {
+                      setCustomerExists(false);
+                      setCustomer({ phone: e.target.value, name: "", id: undefined });
+                    }}
+                    disabled={customerExists}
+                    className={`pl-10 ${errors.phone ? "border-destructive" : ""}`}
+                  />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  Customer Name <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Full name"
-                  value={customer.name}
-                  onChange={(e) =>
-                    setCustomer({ ...customer, name: e.target.value })
-                  }
-                  disabled={customerExists}
-                  className={errors.name ? "border-destructive" : ""}
-                />
-                {errors.name && (
+                {customerSearchLoading && (
+                  <p className="text-sm text-muted-foreground">Searching...</p>
+                )}
+                {customerSearchError && !customerExists && (
                   <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
-                    {errors.name}
+                    {customerSearchError}
                   </p>
+                )}
+                {errors.phone && (
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
+                    {errors.phone}
+                  </p>
+                )}
+                {visibleCustomerResults.length > 0 && (
+                  <ul className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                    {visibleCustomerResults.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-3 text-left hover:bg-muted/50 flex items-center gap-3"
+                          onClick={() => handleSelectCustomer(row)}
+                        >
+                          <User className="h-4 w-4 text-[#800020]" />
+                          <div>
+                            <p className="font-medium">{row.name}</p>
+                            <p className="text-sm text-muted-foreground">{row.phone}</p>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 
-              {customerExists && (
+              {customerExists && customer.id && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                   <Check className="h-5 w-5 text-green-600" />
                   <div>
-                    <p className="font-medium text-green-900">
-                      Existing customer found
-                    </p>
+                    <p className="font-medium text-green-900">{customer.name}</p>
                     <p className="text-sm text-green-700">
-                      Customer ID: {customer.id}
+                      {customer.phone} · ID {customer.id}
                     </p>
                   </div>
                 </div>
@@ -409,11 +432,11 @@ export function CreateOrderPage() {
                     <SelectValue placeholder="Select restaurant" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockRestaurants.map((restaurant) => (
+                    {restaurants.map((restaurant) => (
                       <SelectItem
                         key={restaurant.id}
-                        value={restaurant.id}
-                        disabled={!restaurant.isOpen}
+                        value={String(restaurant.id)}
+                        disabled={!restaurant.is_active}
                       >
                         <div className="flex items-center justify-between w-full">
                           <div>
@@ -422,16 +445,16 @@ export function CreateOrderPage() {
                               <span>{restaurant.name}</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {restaurant.address}
+                              {restaurant.address_text}
                             </div>
                           </div>
-                          {restaurant.isOpen ? (
+                          {restaurant.is_active ? (
                             <Badge variant="outline" className="ml-2 bg-green-50 text-green-700 border-green-300">
-                              Open
+                              Active
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="ml-2 bg-red-50 text-red-700 border-red-300">
-                              Closed
+                              Inactive
                             </Badge>
                           )}
                         </div>
@@ -493,36 +516,31 @@ export function CreateOrderPage() {
               <div className="space-y-4">
                 <h3 className="font-medium">Menu</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {mockMenuItems.map((item) => (
-                    <Card
-                      key={item.id}
-                      className={`p-4 cursor-pointer transition-colors ${
-                        item.available
-                          ? "hover:bg-accent"
-                          : "opacity-50 cursor-not-allowed"
-                      }`}
-                      onClick={() => item.available && handleAddItem(item)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                  {catalogLoading ? (
+                    <p className="text-sm text-muted-foreground">Loading menu...</p>
+                  ) : menuItems.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Select a restaurant with menu items.</p>
+                  ) : (
+                    menuItems.map((item) => (
+                      <Card
+                        key={item.id}
+                        className="p-4 cursor-pointer transition-colors hover:bg-accent"
+                        onClick={() => handleAddItem(item)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
                             <p className="font-medium">{item.name}</p>
-                            {!item.available && (
-                              <Badge variant="destructive" className="text-xs">
-                                Unavailable
-                              </Badge>
-                            )}
+                            <p className="text-sm text-muted-foreground">{item.category}</p>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {item.category}
-                          </p>
+                          <div className="text-right">
+                            <p className="font-medium">
+                              {item.price} {item.currency}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-medium">{item.price} ETB</p>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -628,7 +646,7 @@ export function CreateOrderPage() {
                       <p className="text-sm text-muted-foreground">Restaurant</p>
                       <p className="font-medium">
                         {
-                          mockRestaurants.find((r) => r.id === selectedRestaurant)
+                          restaurants.find((r) => String(r.id) === selectedRestaurant)
                             ?.name
                         }
                       </p>

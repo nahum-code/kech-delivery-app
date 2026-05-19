@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from rest_framework.permissions import BasePermission
 
+from apps.drivers.models import DriverProfile
 from core.models import User
 
 
@@ -29,6 +30,32 @@ class IsCustomer(HasAnyUserRole):
 
 class IsDriver(HasAnyUserRole):
     allowed_roles = (User.Role.DRIVER,)
+
+
+class IsApprovedDriver(BasePermission):
+    """
+    Driver endpoints that require an operational (fleet-ready) account.
+
+    Login-time checks (``assert_jwt_eligible``) are necessary but not sufficient:
+    a suspended driver could otherwise keep using a valid access token until expiry.
+    Combine this permission with ``SafeJWTAuthentication`` on every driver business view.
+    """
+
+    message = "Driver account is not approved for this action."
+
+    def has_permission(self, request, view) -> bool:
+        user = request.user
+        if not user.is_authenticated or not user.is_active:
+            return False
+        if user.role != User.Role.DRIVER:
+            return False
+
+        try:
+            profile = user.driver_profile
+        except DriverProfile.DoesNotExist:
+            return False
+
+        return profile.approval_status == DriverProfile.ApprovalStatus.APPROVED
 
 
 class IsPlatformStaff(HasAnyUserRole):

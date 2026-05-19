@@ -70,7 +70,13 @@ class AuthApiTests(TestCase):
     def test_driver_pending_cannot_obtain_tokens(self):
         reg = self.client.post(
             "/api/v1/auth/register/driver",
-            {"phone": "+20000000002", "password": "ComplexPass1!", "name": "Bob"},
+            {
+                "phone": "+20000000002",
+                "password": "ComplexPass1!",
+                "name": "Bob",
+                "email": "bob@example.com",
+                "vehicle_type": "sedan",
+            },
             format="json",
         )
         self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
@@ -83,7 +89,13 @@ class AuthApiTests(TestCase):
     def test_driver_approved_token_refresh_logout(self):
         self.client.post(
             "/api/v1/auth/register/driver",
-            {"phone": "+20000000003", "password": "ComplexPass1!", "name": "Cara"},
+            {
+                "phone": "+20000000003",
+                "password": "ComplexPass1!",
+                "name": "Cara",
+                "email": "cara@example.com",
+                "vehicle_type": "motorbike",
+            },
             format="json",
         )
         user = User.objects.get(phone="+20000000003")
@@ -263,4 +275,40 @@ class AuthApiTests(TestCase):
         )
         self.client.force_authenticate(user=customer)
         res = self.client.get("/api/v1/auth/users/")
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_sales_can_search_customers_by_phone_and_name(self):
+        reg = self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "+19998887777", "password": "ComplexPass1!", "name": "Zara Customer"},
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        customer_id = reg.json()["user_id"]
+
+        sales = User.objects.create_user(
+            phone="+50000000010",
+            password="ComplexPass1!",
+            role=User.Role.SALES,
+        )
+        self.client.force_authenticate(user=sales)
+
+        by_phone = self.client.get("/api/v1/auth/customers/search/?q=998887")
+        self.assertEqual(by_phone.status_code, status.HTTP_200_OK)
+        results = by_phone.json()["results"]
+        self.assertTrue(any(r["id"] == customer_id for r in results))
+
+        by_name = self.client.get("/api/v1/auth/customers/search/?q=Zara")
+        self.assertEqual(by_name.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(r["name"] == "Zara Customer" for r in by_name.json()["results"]))
+
+    def test_customer_cannot_search_customers(self):
+        reg = self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "+19998887778", "password": "ComplexPass1!", "name": "Bob"},
+            format="json",
+        )
+        pair = self._obtain_token("+19998887778", "ComplexPass1!")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.json()['access']}")
+        res = self.client.get("/api/v1/auth/customers/search/?q=Bob")
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)

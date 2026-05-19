@@ -6,6 +6,7 @@ import '../../../../../../shared/contracts/login_credentials.dart';
 import '../../../../../../shared/contracts/login_result.dart';
 import '../../../../../auth/data/auth_repository.dart';
 import '../../../../../auth/login/presentation/screens/login_screen.dart';
+import '../../../../registration/navigation/driver_registration_navigation.dart';
 import '../../navigation/driver_auth_navigation.dart';
 
 /// Driver shell around the shared [LoginScreen] (wire fleet API / analytics here).
@@ -46,7 +47,7 @@ class DriverLoginScreen extends StatelessWidget {
             onForgotPassword: () => _snack(scoped, 'Forgot password (TODO)'),
             onGoogle: () => _snack(scoped, 'Google sign-in (TODO)'),
             onApple: () => _snack(scoped, 'Apple sign-in (TODO)'),
-            onSignUp: () => _snack(scoped, 'Sign up (TODO)'),
+            onSignUp: () => DriverRegistrationNavigation.open(scoped),
             onPrivacyPolicy: () => _snack(scoped, 'Privacy policy (TODO)'),
             onTerms: () => _snack(scoped, 'Terms (TODO)'),
             onSupport: () => _snack(scoped, 'Support (TODO)'),
