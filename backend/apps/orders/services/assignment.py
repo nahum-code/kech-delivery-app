@@ -39,6 +39,12 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
     if not driver.is_active:
         raise OrderServiceError("Driver account is inactive.", status_code=400)
 
+    if profile.operational_status != DriverProfile.OperationalStatus.ONLINE:
+        raise OrderServiceError(
+            "Only online drivers can receive new assignments.",
+            status_code=409,
+        )
+
     active_count = Order.objects.filter(
         assigned_driver=driver,
         status__in=ACTIVE_DRIVER_STATUSES,
@@ -61,4 +67,8 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
         driver=driver,
         assigned_by=assigned_by,
     )
+
+    from apps.drivers.services.availability import refresh_operational_status
+
+    refresh_operational_status(profile)
     return order

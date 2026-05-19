@@ -65,6 +65,11 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     delivery_address = models.JSONField(default=dict)
     customer_note = models.TextField(blank=True)
+    driver_acknowledged_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the assigned driver acknowledged the manual assignment (no status change).",
+    )
     placed_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -103,6 +108,29 @@ class OrderItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.item_name} x{self.quantity}"
+
+
+class DriverDeliveryEvent(models.Model):
+    """Lightweight audit trail for driver delivery actions (MVP; no dispatch)."""
+
+    class Action(models.TextChoices):
+        ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        PICKED_UP = "picked_up", "Picked up"
+        STARTED_DELIVERY = "started_delivery", "Started delivery"
+        COMPLETED = "completed", "Completed"
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="delivery_events")
+    driver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="delivery_events",
+    )
+    action = models.CharField(max_length=32, choices=Action.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=["order", "-created_at"])]
 
 
 class DriverAssignmentLog(models.Model):

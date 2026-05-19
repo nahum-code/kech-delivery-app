@@ -42,6 +42,7 @@ class OrderApiTests(TestCase):
             user=self.driver,
             full_name="Driver One",
             approval_status=DriverProfile.ApprovalStatus.APPROVED,
+            operational_status=DriverProfile.OperationalStatus.ONLINE,
         )
         self.restaurant = Restaurant.objects.create(
             name="Test Bistro",

@@ -13,6 +13,8 @@ import 'src/features/customer/restaurants/data/restaurant_api.dart';
 import 'src/features/customer/restaurants/data/restaurant_repository.dart';
 import 'src/features/driver/data/driver_onboarding_api.dart';
 import 'src/features/driver/data/driver_onboarding_repository.dart';
+import 'src/features/driver/orders/data/driver_order_api.dart';
+import 'src/features/driver/orders/data/driver_order_repository.dart';
 
 Future<void> main() async {
   await bootstrap(() async {
@@ -28,6 +30,9 @@ Future<void> main() async {
     final OrderRepository orderRepository = OrderRepository(
       apiFactory: (String token) => OrderApi(baseUrl: baseUrl, accessToken: token),
     );
+    final DriverOrderRepository driverOrderRepository = DriverOrderRepository(
+      apiFactory: (String token) => DriverOrderApi(baseUrl: baseUrl, accessToken: token),
+    );
     await authRepository.restoreSession();
     await driverOnboarding.restoreOnboarding();
     await cartRepository.load();
@@ -39,6 +44,7 @@ Future<void> main() async {
           Provider<RestaurantRepository>.value(value: restaurantRepository),
           ChangeNotifierProvider<CartRepository>.value(value: cartRepository),
           Provider<OrderRepository>.value(value: orderRepository),
+          Provider<DriverOrderRepository>.value(value: driverOrderRepository),
         ],
         child: const KechDeliveryApp(),
       ),

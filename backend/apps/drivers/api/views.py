@@ -43,14 +43,17 @@ class ApprovedDriversListView(APIView):
             DriverProfile.objects.filter(approval_status=DriverProfile.ApprovalStatus.APPROVED)
             .select_related("user")
             .filter(user__is_active=True)
-            .order_by("full_name")
         )
+        if request.query_params.get("all") != "true":
+            queryset = queryset.filter(operational_status=DriverProfile.OperationalStatus.ONLINE)
+        queryset = queryset.order_by("full_name")
         data = [
             {
                 "id": p.user_id,
                 "full_name": p.full_name or p.user.phone,
                 "phone": p.user.phone,
                 "vehicle_type": p.vehicle_type,
+                "operational_status": p.operational_status,
             }
             for p in queryset
         ]

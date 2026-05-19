@@ -125,6 +125,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "total_amount",
             "delivery_address",
             "customer_note",
+            "driver_acknowledged_at",
             "placed_at",
             "updated_at",
             "items",

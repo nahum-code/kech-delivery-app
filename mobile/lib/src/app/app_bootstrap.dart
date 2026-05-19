@@ -5,7 +5,7 @@ import '../features/auth/data/auth_repository.dart';
 import '../core/auth/auth_session_snapshot.dart';
 import '../features/customer/home/presentation/screens/customer_home_screen.dart';
 import '../features/driver/data/driver_onboarding_repository.dart';
-import '../features/driver/home/presentation/screens/driver_home_placeholder_screen.dart';
+import '../features/driver/shell/presentation/screens/driver_shell_screen.dart';
 import '../features/driver/pending/presentation/screens/driver_pending_screen.dart';
 import '../shared/widgets/loading/splash_loading_indicator.dart';
 import 'role_selection_bootstrap.dart';
@@ -109,7 +109,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
     return switch (destination) {
       _DestinationRoleSelection() => const RoleSelectionBootstrap(),
       _DestinationCustomerHome() => const CustomerHomeScreen(),
-      _DestinationDriverHome() => const DriverHomePlaceholderScreen(),
+      _DestinationDriverHome() => const DriverShellScreen(),
       _DestinationDriverPending() => const DriverPendingScreen(),
     };
   }

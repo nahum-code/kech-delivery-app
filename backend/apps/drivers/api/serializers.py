@@ -47,6 +47,15 @@ class SuspendDriverSerializer(serializers.Serializer):
         return value.strip()
 
 
+class DriverAvailabilityUpdateSerializer(serializers.Serializer):
+    operational_status = serializers.ChoiceField(
+        choices=[
+            DriverProfile.OperationalStatus.OFFLINE,
+            DriverProfile.OperationalStatus.ONLINE,
+        ],
+    )
+
+
 class DriverStatusSerializer(serializers.ModelSerializer):
     """
     Onboarding status for the authenticated driver (mobile UX).
@@ -67,10 +76,13 @@ class DriverStatusSerializer(serializers.ModelSerializer):
     def get_documents_submitted(self, obj: DriverProfile) -> bool:
         return obj.documents_submitted_at is not None
 
+    operational_status = serializers.CharField(read_only=True)
+
     class Meta:
         model = DriverProfile
         fields = (
             "approval_status",
+            "operational_status",
             "reviewed_at",
             "rejection_reason",
             "suspension_reason",

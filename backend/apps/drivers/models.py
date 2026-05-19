@@ -17,6 +17,11 @@ class DriverProfile(models.Model):
         REJECTED = "rejected", "Rejected"
         SUSPENDED = "suspended", "Suspended"
 
+    class OperationalStatus(models.TextChoices):
+        OFFLINE = "offline", "Offline"
+        ONLINE = "online", "Online"
+        BUSY = "busy", "Busy"
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -39,6 +44,12 @@ class DriverProfile(models.Model):
         max_length=20,
         choices=ApprovalStatus.choices,
         default=ApprovalStatus.PENDING,
+        db_index=True,
+    )
+    operational_status = models.CharField(
+        max_length=16,
+        choices=OperationalStatus.choices,
+        default=OperationalStatus.OFFLINE,
         db_index=True,
     )
 

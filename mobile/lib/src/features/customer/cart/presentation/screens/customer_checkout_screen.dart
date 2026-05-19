@@ -53,9 +53,10 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
             ),
             customerNote: _note.text.trim(),
           );
+      if (!mounted) return;
       await context.read<CartRepository>().clear();
       if (!mounted) return;
-      Navigator.of(context).pushReplacement<void>(
+      Navigator.of(context).pushReplacement<void, void>(
         MaterialPageRoute<void>(
           builder: (_) => CustomerOrderDetailScreen(orderId: placed.id),
         ),
