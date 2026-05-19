@@ -3,30 +3,38 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../../app/role_selection_bootstrap.dart';
 import '../../../../../shared/contracts/customer_home_restaurant_preview.dart';
 import '../../../../../shared/contracts/customer_home_service_category.dart';
-import '../../../../../shared/contracts/customer_main_tab.dart';
 import '../../../../../shared/theme/customer_home_tokens.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_deliver_header.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_exclusive_promo_banner.dart';
+import '../../../../../shared/widgets/customer_home/customer_home_notifications_button.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_restaurant_card_skeleton.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_restaurant_highlight_card.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_search_bar.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_section_header.dart';
 import '../../../../../shared/widgets/customer_home/customer_home_service_category_strip.dart';
-import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
 import '../../../../auth/data/auth_repository.dart';
+import '../../../orders/data/order_repository.dart';
+import '../../../orders/domain/order_models.dart';
+import '../../../orders/presentation/utils/customer_order_navigation.dart';
+import '../../../orders/presentation/utils/customer_order_notification_utils.dart';
 import '../../../restaurants/data/restaurant_repository.dart';
 import '../../../restaurants/domain/restaurant_models.dart';
 import '../../../restaurants/presentation/screens/customer_restaurant_menu_screen.dart';
-import '../../../orders/presentation/screens/customer_orders_list_screen.dart';
 import '../../../restaurants/presentation/screens/customer_restaurants_list_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
-  const CustomerHomeScreen({super.key, this.deliverAddressLine = 'Home'});
+  const CustomerHomeScreen({
+    super.key,
+    this.deliverAddressLine = 'Home',
+    this.embeddedInShell = false,
+    this.onViewAllOrders,
+  });
 
   final String deliverAddressLine;
+  final bool embeddedInShell;
+  final VoidCallback? onViewAllOrders;
 
   @override
   State<CustomerHomeScreen> createState() => _CustomerHomeScreenState();
@@ -38,15 +46,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   CustomerHomeServiceCategory _category = CustomerHomeServiceCategory.food;
 
   List<RestaurantSummary> _topRated = <RestaurantSummary>[];
+  List<OrderSummary> _orderNotifications = <OrderSummary>[];
   bool _restaurantsLoading = true;
+  bool _orderNotificationsLoading = false;
   String? _restaurantsError;
   Timer? _searchDebounce;
+  Timer? _orderNotificationsPoll;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _loadRestaurants();
+    _refreshOrderNotifications();
+    _orderNotificationsPoll = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _refreshOrderNotifications(),
+    );
   }
 
   void _onSearchChanged() {
@@ -86,6 +102,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         builder: (BuildContext _) => CustomerRestaurantMenuScreen(
           restaurantId: r.id,
           restaurantName: r.name,
+          restaurant: r,
         ),
       ),
     );
@@ -97,9 +114,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
+  Future<void> _refreshOrderNotifications() async {
+    final String? token = context.read<AuthRepository>().currentSession?.accessToken;
+    if (token == null) {
+      return;
+    }
+    setState(() => _orderNotificationsLoading = true);
+    try {
+      final List<OrderSummary> orders =
+          await context.read<OrderRepository>().fetchMyOrders(accessToken: token);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _orderNotifications = orders.where(CustomerOrderNotificationUtils.isNotifiable).toList();
+        _orderNotificationsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _orderNotificationsLoading = false);
+    }
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _orderNotificationsPoll?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
@@ -114,34 +156,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       return;
     }
     messenger.showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _signOut() async {
-    try {
-      await context.read<AuthRepository>().signOut();
-    } catch (error, stackTrace) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'customer_home',
-          context: ErrorDescription('while signing out'),
-        ),
-      );
-      if (mounted) {
-        _toast('Could not sign out. Please try again.');
-      }
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    Navigator.of(context).pushAndRemoveUntil<void>(
-      MaterialPageRoute<void>(
-        builder: (BuildContext _) => const RoleSelectionBootstrap(),
-      ),
-      (Route<dynamic> route) => false,
-    );
   }
 
   void _onSearchSubmitted(String raw) {
@@ -169,45 +183,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
   }
 
-  void _onBottomTab(CustomerMainTab tab) {
-    if (tab == CustomerMainTab.home) {
-      return;
-    }
-    if (tab == CustomerMainTab.orders) {
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(builder: (_) => const CustomerOrdersListScreen()),
-      );
-      return;
-    }
-    _toast('${tab.name} is coming soon.');
-  }
-
-  Widget _profileAvatarMenu() {
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 40),
-      onSelected: (String value) async {
-        if (value == 'sign_out') {
-          await _signOut();
-        }
-      },
-      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(value: 'sign_out', child: Text('Sign out')),
-      ],
-      child: CircleAvatar(
-        radius: 22,
-        backgroundColor: const Color(0xFFFFD4C4),
-        child: Text(
-          'K',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.95),
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.sizeOf(context);
@@ -218,14 +193,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
     return Scaffold(
       backgroundColor: CustomerHomeTokens.canvas,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: CustomerMainBottomNavBar(
-          current: CustomerMainTab.home,
-          uppercaseLabels: true,
-          onTabSelected: _onBottomTab,
-        ),
-      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -237,7 +204,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               ),
               child: CustomerHomeDeliverHeader(
                 addressLine: widget.deliverAddressLine,
-                trailing: _profileAvatarMenu(),
+                trailing: CustomerHomeNotificationsButton(
+                  orders: _orderNotifications,
+                  loading: _orderNotificationsLoading,
+                  onOrderSelected: (OrderSummary order) =>
+                      CustomerOrderNavigation.openSummary(context, order),
+                  onViewAllOrders: widget.onViewAllOrders,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -280,8 +253,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           ? ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: 3,
-                              separatorBuilder: (_, __) => const SizedBox(width: 14),
-                              itemBuilder: (_, __) => CustomerHomeRestaurantCardSkeleton(
+                              separatorBuilder: (_, _) => const SizedBox(width: 14),
+                              itemBuilder: (_, _) => CustomerHomeRestaurantCardSkeleton(
                                 width: topCardWidth.clamp(240, 320),
                                 height: topCardHeight,
                               ),

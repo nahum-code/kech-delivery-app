@@ -7,6 +7,8 @@ final class CartLine {
     required this.quantity,
     this.imageUrl,
     this.currency = 'MAD',
+    this.subtitle = '',
+    this.specialInstructions = '',
   });
 
   final int menuItemId;
@@ -15,16 +17,25 @@ final class CartLine {
   final int quantity;
   final String? imageUrl;
   final String currency;
+  final String subtitle;
+  final String specialInstructions;
 
   double get lineTotal => (double.tryParse(unitPrice) ?? 0) * quantity;
 
-  CartLine copyWith({int? quantity}) => CartLine(
+  CartLine copyWith({
+    int? quantity,
+    String? specialInstructions,
+    String? subtitle,
+  }) =>
+      CartLine(
         menuItemId: menuItemId,
         name: name,
         unitPrice: unitPrice,
         quantity: quantity ?? this.quantity,
         imageUrl: imageUrl,
         currency: currency,
+        subtitle: subtitle ?? this.subtitle,
+        specialInstructions: specialInstructions ?? this.specialInstructions,
       );
 }
 

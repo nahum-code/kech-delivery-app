@@ -88,7 +88,7 @@ class _CategoryTile extends StatelessWidget {
                 boxShadow: isOn
                     ? <BoxShadow>[
                         BoxShadow(
-                          color: CustomerHomeTokens.primaryMaroon.withOpacity(0.28),
+                          color: CustomerHomeTokens.primaryMaroon.withValues(alpha: 0.28),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),

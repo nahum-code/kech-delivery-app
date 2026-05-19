@@ -7,32 +7,56 @@ final class DriverOrderSummary {
     required this.id,
     required this.reference,
     required this.restaurantName,
+    required this.restaurantAddress,
     required this.customerName,
     required this.status,
     required this.totalAmount,
+    required this.deliveryFee,
     required this.placedAt,
+    required this.dropoffLine,
+    this.driverAcknowledgedAt,
   });
 
   final int id;
   final String reference;
   final String restaurantName;
+  final String restaurantAddress;
   final String customerName;
   final String status;
   final String totalAmount;
+  final String deliveryFee;
   final String placedAt;
+  final String dropoffLine;
+  final String? driverAcknowledgedAt;
 
-  factory DriverOrderSummary.fromJson(Map<String, dynamic> m) => DriverOrderSummary(
-        id: m['id'] as int,
-        reference: m['reference'] as String? ?? '',
-        restaurantName: m['restaurant_name'] as String? ?? '',
-        customerName: m['customer_name'] as String? ?? '',
-        status: m['status'] as String? ?? '',
-        totalAmount: '${m['total_amount']}',
-        placedAt: m['placed_at'] as String? ?? '',
-      );
+  factory DriverOrderSummary.fromJson(Map<String, dynamic> m) {
+    final Map<String, dynamic> addr =
+        m['delivery_address'] as Map<String, dynamic>? ?? <String, dynamic>{};
+    final String line = addr['address_line'] as String? ?? '';
+    final String landmark = addr['landmark'] as String? ?? '';
+    return DriverOrderSummary(
+      id: m['id'] as int,
+      reference: m['reference'] as String? ?? '',
+      restaurantName: m['restaurant_name'] as String? ?? '',
+      restaurantAddress: m['restaurant_address'] as String? ?? '',
+      customerName: m['customer_name'] as String? ?? '',
+      status: m['status'] as String? ?? '',
+      totalAmount: '${m['total_amount']}',
+      deliveryFee: '${m['delivery_fee']}',
+      placedAt: m['placed_at'] as String? ?? '',
+      dropoffLine: landmark.isNotEmpty ? '$line · $landmark' : line,
+      driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
+    );
+  }
 
-  bool get isActive =>
-      status != 'delivered' && status != 'cancelled';
+  bool get isActive => status != 'delivered' && status != 'cancelled';
+
+  bool get needsAcknowledgment =>
+      status == 'assigned' && (driverAcknowledgedAt == null || driverAcknowledgedAt!.isEmpty);
+
+  bool get isPickupPhase => status == 'assigned' || status == 'picked_up';
+
+  bool get isDeliveringPhase => status == 'delivering';
 }
 
 final class DriverOrderDetail {

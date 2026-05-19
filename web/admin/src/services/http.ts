@@ -65,6 +65,10 @@ export async function requestJson<T>(
 ): Promise<T> {
   const { requireAuth = true, retryOnUnauthorized = true } = options;
   const token = requireAuth ? getAccessToken() : null;
+  if (requireAuth && !token) {
+    clearSession();
+    throw new Error("Not signed in");
+  }
   const headers = new Headers(init.headers || {});
   if (!(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
@@ -81,7 +85,11 @@ export async function requestJson<T>(
   }
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response));
+    const message = await parseErrorMessage(response);
+    if (response.status === 403) {
+      throw new Error(message || "You do not have permission for this action.");
+    }
+    throw new Error(message);
   }
 
   if (response.status === 204) {

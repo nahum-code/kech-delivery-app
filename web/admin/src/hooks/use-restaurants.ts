@@ -23,7 +23,9 @@ export function useRestaurants() {
       const data = await fetchRestaurants(term);
       setRestaurants(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load restaurants");
+      const message = e instanceof Error ? e.message : "Failed to load restaurants";
+      setError(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -31,18 +33,23 @@ export function useRestaurants() {
 
   useEffect(() => {
     const handle = setTimeout(() => {
-      void load(search);
+      void load(search).catch(() => undefined);
     }, 300);
     return () => clearTimeout(handle);
   }, [search, load]);
 
-  const save = async (payload: RestaurantWritePayload, id?: number) => {
-    if (id != null) {
-      await updateRestaurant(id, payload);
-    } else {
-      await createRestaurant(payload);
+  const save = async (
+    payload: RestaurantWritePayload,
+    id?: number,
+  ): Promise<RestaurantRecord> => {
+    const record =
+      id != null ? await updateRestaurant(id, payload) : await createRestaurant(payload);
+    try {
+      await load(search);
+    } catch {
+      // Keep saved record even if list refresh fails; caller already succeeded.
     }
-    await load(search);
+    return record;
   };
 
   const remove = async (id: number) => {

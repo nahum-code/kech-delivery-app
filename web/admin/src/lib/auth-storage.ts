@@ -13,14 +13,45 @@ function clearCookie(name: string): void {
   document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
 }
 
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const prefix = `${name}=`;
+  for (const part of document.cookie.split(";")) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith(prefix)) {
+      return decodeURIComponent(trimmed.slice(prefix.length));
+    }
+  }
+  return null;
+}
+
+/** Copy cookie tokens into sessionStorage (e.g. after a full page reload). */
+export function hydrateSessionFromCookies(): void {
+  if (typeof window === "undefined") return;
+  const access = readCookie(ACCESS_COOKIE);
+  const refresh = readCookie(REFRESH_COOKIE);
+  if (access && !sessionStorage.getItem(ACCESS_KEY)) {
+    sessionStorage.setItem(ACCESS_KEY, access);
+  }
+  if (refresh && !sessionStorage.getItem(REFRESH_KEY)) {
+    sessionStorage.setItem(REFRESH_KEY, refresh);
+  }
+}
+
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(ACCESS_KEY);
+  hydrateSessionFromCookies();
+  return sessionStorage.getItem(ACCESS_KEY) || readCookie(ACCESS_COOKIE);
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  return sessionStorage.getItem(REFRESH_KEY);
+  hydrateSessionFromCookies();
+  return sessionStorage.getItem(REFRESH_KEY) || readCookie(REFRESH_COOKIE);
+}
+
+export function hasClientSession(): boolean {
+  return Boolean(getAccessToken());
 }
 
 export function setSessionTokens(access: string, refresh: string | null): void {

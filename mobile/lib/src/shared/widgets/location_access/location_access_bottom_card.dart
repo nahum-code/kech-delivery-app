@@ -25,7 +25,7 @@ class LocationAccessBottomCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(CustomerLocationAccessTokens.cardRadius),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),

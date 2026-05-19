@@ -20,7 +20,7 @@ class AddAddressSaveButton extends StatelessWidget {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: CustomerAddAddressTokens.primaryMaroon,
-          disabledBackgroundColor: CustomerAddAddressTokens.primaryMaroon.withOpacity(0.55),
+          disabledBackgroundColor: CustomerAddAddressTokens.primaryMaroon.withValues(alpha: 0.55),
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

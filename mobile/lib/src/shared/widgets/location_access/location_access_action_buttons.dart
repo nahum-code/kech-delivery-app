@@ -18,7 +18,7 @@ class LocationAccessPrimaryActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ButtonStyle style = FilledButton.styleFrom(
       backgroundColor: CustomerLocationAccessTokens.primaryMaroon,
-      disabledBackgroundColor: CustomerLocationAccessTokens.primaryMaroon.withOpacity(0.55),
+      disabledBackgroundColor: CustomerLocationAccessTokens.primaryMaroon.withValues(alpha: 0.55),
       foregroundColor: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(

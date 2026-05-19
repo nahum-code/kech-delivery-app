@@ -8,8 +8,8 @@ abstract final class RoleSelectionTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: Colors.white,
-      splashColor: RoleSelectionTokens.primaryBurgundy.withOpacity(0.08),
-      highlightColor: RoleSelectionTokens.primaryBurgundy.withOpacity(0.06),
+      splashColor: RoleSelectionTokens.primaryBurgundy.withValues(alpha: 0.08),
+      highlightColor: RoleSelectionTokens.primaryBurgundy.withValues(alpha: 0.06),
       colorScheme: ColorScheme.fromSeed(
         seedColor: RoleSelectionTokens.primaryBurgundy,
         brightness: Brightness.light,

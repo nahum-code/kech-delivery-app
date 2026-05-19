@@ -10,6 +10,7 @@ import '../../../../../shared/widgets/add_address/add_address_save_button.dart';
 import '../../../../../shared/widgets/add_address/add_address_screen_top_bar.dart';
 import '../../../auth/login/navigation/customer_auth_navigation.dart';
 import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
+import '../../../shell/presentation/screens/customer_shell_screen.dart';
 
 class CustomerAddAddressScreen extends StatefulWidget {
   const CustomerAddAddressScreen({super.key});
@@ -109,7 +110,11 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
     if (tab == CustomerMainTab.profile) {
       return;
     }
-    _toast('${tab.name} is coming soon.');
+    Navigator.of(context).pushReplacement<void, void>(
+      MaterialPageRoute<void>(
+        builder: (BuildContext _) => CustomerShellScreen(initialTab: tab),
+      ),
+    );
   }
 
   @override

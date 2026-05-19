@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../location_access/presentation/screens/customer_location_access_screen.dart';
-import '../../../home/presentation/screens/customer_home_screen.dart';
+import '../../../shell/presentation/screens/customer_shell_screen.dart';
 import '../presentation/screens/customer_login_screen.dart';
 
 abstract final class CustomerAuthNavigation {
@@ -43,7 +43,7 @@ abstract final class CustomerAuthNavigation {
     }
     navigator.pushReplacement<void, void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext _) => const CustomerHomeScreen(),
+        builder: (BuildContext _) => const CustomerShellScreen(),
       ),
     );
   }
@@ -56,7 +56,7 @@ abstract final class CustomerAuthNavigation {
     }
     navigator.pushAndRemoveUntil<void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext _) => const CustomerHomeScreen(),
+        builder: (BuildContext _) => const CustomerShellScreen(),
       ),
       (Route<dynamic> route) => route.isFirst,
     );

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/config/api_base_url.dart';
 import '../../../core/auth/driver_onboarding_storage.dart';
 import '../../../core/auth/phone_normalizer.dart';
 import '../../../shared/contracts/login_result.dart';
@@ -187,7 +188,8 @@ final class DriverOnboardingRepository {
   }
 
   static String _networkHint() {
-    return 'Cannot reach the server. Check your connection and API_BASE_URL.';
+    return 'Cannot reach the server at ${ApiBaseUrl.resolve()}. '
+        'Ensure Django is running and reachable (Docker: port 8000 published).';
   }
 
   static String? _readError(String body) {

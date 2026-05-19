@@ -79,11 +79,21 @@ export function RestaurantManagement() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const dialogOpen = creating || editingId != null;
+
+  const closeDialog = () => {
+    setCreating(false);
+    setEditingId(null);
+    setFormError(null);
+  };
 
   const openCreate = () => {
     setForm(emptyForm());
     setEditingId(null);
     setCreating(true);
+    setFormError(null);
   };
 
   const openEdit = (r: RestaurantRecord) => {
@@ -91,14 +101,18 @@ export function RestaurantManagement() {
     setEditingId(r.id);
     setCreating(false);
     setView(null);
+    setFormError(null);
   };
 
   const submit = async () => {
     if (!form.name.trim()) {
-      toast.error("Restaurant name is required");
+      const message = "Restaurant name is required";
+      setFormError(message);
+      toast.error(message);
       return;
     }
     setSaving(true);
+    setFormError(null);
     try {
       await save(
         {
@@ -116,10 +130,16 @@ export function RestaurantManagement() {
         editingId ?? undefined,
       );
       toast.success(editingId ? "Restaurant updated" : "Restaurant created");
-      setCreating(false);
-      setEditingId(null);
+      closeDialog();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      const message =
+        e instanceof Error
+          ? e.message.includes("403") || e.message.toLowerCase().includes("permission")
+            ? "Only admin accounts can create or edit restaurants. Sign in with an admin user."
+            : e.message
+          : "Save failed";
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -276,11 +296,10 @@ export function RestaurantManagement() {
       </Dialog>
 
       <Dialog
-        open={creating || editingId != null}
+        open={dialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
-            setCreating(false);
-            setEditingId(null);
+          if (!open && !saving) {
+            closeDialog();
           }
         }}
       >
@@ -353,19 +372,26 @@ export function RestaurantManagement() {
                 />
               </div>
             </div>
+            <div>
+              <Label>Description</Label>
+              <Input
+                className="mt-2"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <Label>Active</Label>
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
             </div>
+            {formError ? (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                {formError}
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCreating(false);
-                setEditingId(null);
-              }}
-            >
+            <Button variant="outline" disabled={saving} onClick={closeDialog}>
               Cancel
             </Button>
             <Button className="bg-[#800020]" disabled={saving} onClick={() => void submit()}>

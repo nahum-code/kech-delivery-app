@@ -67,6 +67,7 @@ class _CustomerRestaurantsListScreenState extends State<CustomerRestaurantsListS
         builder: (BuildContext _) => CustomerRestaurantMenuScreen(
           restaurantId: r.id,
           restaurantName: r.name,
+          restaurant: r,
         ),
       ),
     );
@@ -114,7 +115,7 @@ class _CustomerRestaurantsListScreenState extends State<CustomerRestaurantsListS
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                             itemCount: _items.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 14),
+                            separatorBuilder: (_, _) => const SizedBox(height: 14),
                             itemBuilder: (BuildContext context, int index) {
                               final RestaurantSummary r = _items[index];
                               final CustomerHomeRestaurantPreview preview =

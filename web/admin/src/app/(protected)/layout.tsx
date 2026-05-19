@@ -10,22 +10,22 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   const { loading, error, user, logout } = useAuthGuard();
 
   useEffect(() => {
-    if (!loading && error) {
+    if (!loading && (error || !user)) {
       router.replace("/login");
     }
-  }, [error, loading, router]);
+  }, [error, loading, router, user]);
 
-  if (loading) {
-    return <div className="p-8 text-sm text-gray-600">Loading dashboard...</div>;
+  if (!loading && (error || !user)) {
+    return null;
   }
 
-  if (error || !user) {
-    return <div className="p-8 text-sm text-red-600">Redirecting to login...</div>;
+  if (loading) {
+    return <div className="p-8 text-sm text-gray-600">Loading...</div>;
   }
 
   return (
     <AdminShell
-      userLabel={user.phone}
+      userLabel={user!.phone}
       onLogout={async () => {
         await logout();
         router.replace("/login");

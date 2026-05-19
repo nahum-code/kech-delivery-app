@@ -60,6 +60,44 @@ final class CartRepository extends ChangeNotifier {
     return cart;
   }
 
+  Future<void> updateLineQuantity(int menuItemId, int quantity) async {
+    if (_cache == null) return;
+    final List<CartLine> lines = List<CartLine>.from(_cache!.lines);
+    final int index = lines.indexWhere((CartLine l) => l.menuItemId == menuItemId);
+    if (index < 0) return;
+    if (quantity < 1) {
+      lines.removeAt(index);
+    } else {
+      lines[index] = lines[index].copyWith(quantity: quantity);
+    }
+    if (lines.isEmpty) {
+      await clear();
+      return;
+    }
+    await save(
+      CartState(
+        restaurantId: _cache!.restaurantId,
+        restaurantName: _cache!.restaurantName,
+        lines: lines,
+      ),
+    );
+  }
+
+  Future<void> updateLineInstructions(int menuItemId, String instructions) async {
+    if (_cache == null) return;
+    final List<CartLine> lines = List<CartLine>.from(_cache!.lines);
+    final int index = lines.indexWhere((CartLine l) => l.menuItemId == menuItemId);
+    if (index < 0) return;
+    lines[index] = lines[index].copyWith(specialInstructions: instructions);
+    await save(
+      CartState(
+        restaurantId: _cache!.restaurantId,
+        restaurantName: _cache!.restaurantName,
+        lines: lines,
+      ),
+    );
+  }
+
   Future<void> clear() => save(null);
 
   Map<String, dynamic> _toJson(CartState cart) => <String, dynamic>{
@@ -74,6 +112,8 @@ final class CartRepository extends ChangeNotifier {
                 'quantity': l.quantity,
                 'image_url': l.imageUrl,
                 'currency': l.currency,
+                'subtitle': l.subtitle,
+                'special_instructions': l.specialInstructions,
               },
             )
             .toList(),
@@ -93,6 +133,8 @@ final class CartRepository extends ChangeNotifier {
               quantity: e['quantity'] as int? ?? 1,
               imageUrl: e['image_url'] as String?,
               currency: e['currency'] as String? ?? 'MAD',
+              subtitle: e['subtitle'] as String? ?? '',
+              specialInstructions: e['special_instructions'] as String? ?? '',
             ),
           )
           .toList(growable: false),

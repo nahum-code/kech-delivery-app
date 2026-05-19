@@ -184,6 +184,7 @@ class MeSerializer(serializers.ModelSerializer):
                 "type": "driver",
                 "full_name": dp.full_name,
                 "approval_status": dp.approval_status,
+                "vehicle_type": dp.vehicle_type or None,
             }
 
         return {"type": str(obj.role)}

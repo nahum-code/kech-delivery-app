@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PROTECTED_PATHS = [
   "/dashboard",
   "/orders",
+  "/payments",
   "/restaurants",
   "/menus",
   "/drivers",
@@ -11,9 +12,21 @@ const PROTECTED_PATHS = [
   "/sales",
 ];
 
+function isProtectedPath(pathname: string): boolean {
+  return PROTECTED_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get("kech_admin_access_token")?.value;
+
+  if (pathname === "/") {
+    return NextResponse.redirect(
+      new URL(accessToken ? "/dashboard" : "/login", request.url),
+    );
+  }
 
   if (pathname === "/login") {
     return accessToken
@@ -21,11 +34,7 @@ export function middleware(request: NextRequest) {
       : NextResponse.next();
   }
 
-  const isProtected = PROTECTED_PATHS.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`),
-  );
-
-  if (!isProtected) {
+  if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -38,14 +47,16 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
+    "/login",
     "/dashboard/:path*",
     "/orders/:path*",
+    "/payments/:path*",
     "/restaurants/:path*",
     "/menus/:path*",
     "/drivers/:path*",
     "/users/:path*",
     "/customers/:path*",
     "/sales/:path*",
-    "/login",
   ],
 };

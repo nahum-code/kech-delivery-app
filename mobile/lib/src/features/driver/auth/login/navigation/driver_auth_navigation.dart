@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../home/presentation/screens/driver_home_placeholder_screen.dart';
+import '../../../shell/presentation/screens/driver_shell_screen.dart';
 import '../presentation/screens/driver_login_screen.dart';
 
 abstract final class DriverAuthNavigation {
@@ -23,6 +23,7 @@ abstract final class DriverAuthNavigation {
     );
   }
 
+  /// Lands on driver shell (home tab with online/offline toggle + bottom nav).
   static void replaceWithDriverHome(BuildContext context) {
     final NavigatorState? navigator = Navigator.maybeOf(context);
     if (navigator == null || !context.mounted) {
@@ -30,7 +31,7 @@ abstract final class DriverAuthNavigation {
     }
     navigator.pushReplacement<void, void>(
       MaterialPageRoute<void>(
-        builder: (BuildContext _) => const DriverHomePlaceholderScreen(),
+        builder: (BuildContext _) => const DriverShellScreen(),
       ),
     );
   }

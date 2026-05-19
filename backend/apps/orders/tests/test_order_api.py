@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -77,7 +77,29 @@ class OrderApiTests(TestCase):
         res = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(res.json()["status"], Order.Status.PENDING)
+        self.assertEqual(res.json()["payment_status"], Order.PaymentStatus.PENDING)
         self.assertEqual(Decimal(res.json()["subtotal"]), Decimal("170.00"))
+
+    @override_settings(
+        CHAPA_MOCK_MODE=True,
+        CHAPA_CALLBACK_URL="http://127.0.0.1:8000/api/v1/payments/callback/",
+        CHAPA_RETURN_URL="kechdelivery://payment/return",
+        CHAPA_WEBHOOK_SECRET="test",
+    )
+    def test_customer_confirms_payment(self):
+        self.client.force_authenticate(user=self.customer)
+        created = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
+        order_id = created.json()["id"]
+        self.client.post("/api/v1/payments/init/", {"order_id": order_id}, format="json")
+
+        confirm = self.client.post(f"/api/v1/orders/{order_id}/confirm-payment/")
+        self.assertEqual(confirm.status_code, status.HTTP_200_OK)
+        self.assertEqual(confirm.json()["payment_status"], Order.PaymentStatus.PAID)
+        self.assertEqual(confirm.json()["status"], Order.Status.CONFIRMED)
+
+        again = self.client.post(f"/api/v1/orders/{order_id}/confirm-payment/")
+        self.assertEqual(again.status_code, status.HTTP_200_OK)
+        self.assertEqual(again.json()["payment_status"], Order.PaymentStatus.PAID)
 
     def test_customer_cannot_see_other_order(self):
         self.client.force_authenticate(user=self.customer)
@@ -100,6 +122,18 @@ class OrderApiTests(TestCase):
             format="json",
         )
         self.assertEqual(patch.status_code, status.HTTP_409_CONFLICT)
+
+    def test_admin_lists_orders(self):
+        self.client.force_authenticate(user=self.customer)
+        created = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get("/api/v1/orders/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertGreaterEqual(res.json()["count"], 1)
+        refs = [o["reference"] for o in res.json()["results"]]
+        self.assertIn(created.json()["reference"], refs)
 
     def test_assign_approved_driver(self):
         self.client.force_authenticate(user=self.customer)

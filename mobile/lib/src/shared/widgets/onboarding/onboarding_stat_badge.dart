@@ -17,12 +17,12 @@ class OnboardingStatBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: CustomerOnboardingTokens.statBadgeSurface.withOpacity(0.94),
+        color: CustomerOnboardingTokens.statBadgeSurface.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: CustomerOnboardingTokens.statBadgeBorder),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { clearSession, hasClientSession } from "@/lib/auth-storage";
 import { fetchMe, logoutRemote, type MeResponse } from "@/services/auth";
 
 export function useAuthGuard() {
@@ -11,6 +12,15 @@ export function useAuthGuard() {
   useEffect(() => {
     let mounted = true;
 
+    if (!hasClientSession()) {
+      clearSession();
+      setError("Not signed in");
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
     fetchMe()
       .then((me) => {
         if (!mounted) return;
@@ -18,6 +28,7 @@ export function useAuthGuard() {
       })
       .catch((e) => {
         if (!mounted) return;
+        clearSession();
         setError(e instanceof Error ? e.message : "Authentication failed");
       })
       .finally(() => {

@@ -29,6 +29,7 @@ from apps.orders.permissions import (
 )
 from apps.orders.services.assignment import assign_driver_to_order
 from apps.orders.services.order import OrderServiceError, create_order, transition_order_status
+from apps.payments.services.payment import PaymentServiceError, verify_payment_for_order
 from core.models import User
 
 
@@ -168,6 +169,27 @@ class OrderDetailView(APIView):
         order = self.get_object(request, order_id)
         if order is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+
+class ConfirmPaymentView(APIView):
+    permission_classes = [IsAuthenticated, CanCreateCustomerOrder]
+
+    def post(self, request, order_id: int, *args, **kwargs):
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.customer_id != request.user.pk:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            verify_payment_for_order(order_id=order.pk, customer=request.user)
+        except PaymentServiceError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+
+        order = _order_queryset().get(pk=order.pk)
         return Response(OrderDetailSerializer(order, context={"request": request}).data)
 
 

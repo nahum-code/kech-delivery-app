@@ -59,8 +59,9 @@ export async function fetchOrders(params?: {
   if (params?.status) q.set("status", params.status);
   if (params?.search) q.set("search", params.search);
   if (params?.page) q.set("page", String(params.page));
-  const suffix = q.toString() ? `?${q.toString()}` : "";
-  return requestJson<PaginatedOrders>(`/api/v1/orders/${suffix}`);
+  const query = q.toString();
+  const path = query ? `/api/v1/orders/?${query}` : "/api/v1/orders/";
+  return requestJson<PaginatedOrders>(path);
 }
 
 export async function fetchOrder(id: number): Promise<OrderDetail> {

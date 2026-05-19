@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../features/auth/data/auth_repository.dart';
 import '../core/auth/auth_session_snapshot.dart';
-import '../features/customer/home/presentation/screens/customer_home_screen.dart';
+import '../features/customer/shell/presentation/screens/customer_shell_screen.dart';
 import '../features/driver/data/driver_onboarding_repository.dart';
 import '../features/driver/shell/presentation/screens/driver_shell_screen.dart';
 import '../features/driver/pending/presentation/screens/driver_pending_screen.dart';
@@ -108,7 +108,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
   Widget _buildDestination(_AppInitDestination destination) {
     return switch (destination) {
       _DestinationRoleSelection() => const RoleSelectionBootstrap(),
-      _DestinationCustomerHome() => const CustomerHomeScreen(),
+      _DestinationCustomerHome() => const CustomerShellScreen(),
       _DestinationDriverHome() => const DriverShellScreen(),
       _DestinationDriverPending() => const DriverPendingScreen(),
     };

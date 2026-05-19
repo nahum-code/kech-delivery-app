@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/config/api_base_url.dart';
 import '../../../core/auth/auth_session_snapshot.dart';
 import '../../../core/auth/phone_normalizer.dart';
 import '../../../core/auth/token_persistence.dart';
@@ -27,6 +28,14 @@ final class AuthRepository {
   AuthSessionSnapshot? _memorySession;
 
   AuthSessionSnapshot? get currentSession => _memorySession;
+
+  Future<Map<String, dynamic>?> fetchMe({required String accessToken}) async {
+    final http.Response response = await _api.me(accessToken: accessToken);
+    if (response.statusCode != 200) {
+      return null;
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
 
   Future<void> restoreSession() async {
     final snap = await _persistence.load();
@@ -164,8 +173,8 @@ final class AuthRepository {
   }
 
   static String _networkHint() {
-    return 'Cannot reach the server. For Android emulator use '
-        '--dart-define=API_BASE_URL=http://10.0.2.2:8000 and ensure Django is running.';
+    return 'Cannot reach the server at ${ApiBaseUrl.resolve()}. '
+        'Ensure Django is running and reachable (Docker: port 8000 published).';
   }
 
   static String _mapLoginHttpFailure(String expectedRole, String body, int status) {

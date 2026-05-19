@@ -1,1 +1,1 @@
-enum DriverMainTab { home, tasks, activity, profile }
+enum DriverMainTab { home, tasks, alert, profile }

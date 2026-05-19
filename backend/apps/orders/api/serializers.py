@@ -58,6 +58,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class OrderListSerializer(serializers.ModelSerializer):
     restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
+    restaurant_address = serializers.CharField(source="restaurant.address_text", read_only=True)
     customer_phone = serializers.CharField(source="customer.phone", read_only=True)
     customer_name = serializers.SerializerMethodField()
     assigned_driver_name = serializers.SerializerMethodField()
@@ -70,6 +71,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "reference",
             "restaurant",
             "restaurant_name",
+            "restaurant_address",
             "customer_phone",
             "customer_name",
             "assigned_driver",
@@ -79,6 +81,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "subtotal",
             "delivery_fee",
             "total_amount",
+            "delivery_address",
+            "driver_acknowledged_at",
             "placed_at",
             "updated_at",
             "item_count",

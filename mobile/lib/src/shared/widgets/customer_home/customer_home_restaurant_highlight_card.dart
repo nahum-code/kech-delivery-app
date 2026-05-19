@@ -2,43 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../../contracts/customer_home_restaurant_preview.dart';
 import '../../theme/customer_home_tokens.dart';
+import 'customer_restaurant_preview_image.dart';
 
 class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
   const CustomerHomeRestaurantHighlightCard({
     super.key,
     required this.preview,
     this.width = 280,
+    this.height,
     this.onTap,
   });
 
   final CustomerHomeRestaurantPreview preview;
   final double width;
+  final double? height;
   final VoidCallback? onTap;
-
-  static Widget _buildImage(CustomerHomeRestaurantPreview preview) {
-    if (preview.imageUrl != null && preview.imageUrl!.isNotEmpty) {
-      return Image.network(
-        preview.imageUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-          return _placeholder();
-        },
-      );
-    }
-    return Image.asset(
-      preview.imageAssetPath!,
-      fit: BoxFit.cover,
-      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-        return _placeholder();
-      },
-    );
-  }
-
-  static Widget _placeholder() {
-    return Center(
-      child: Icon(Icons.storefront_rounded, size: 48, color: Colors.grey.shade500),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,14 +27,15 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           width: width,
+          height: height,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(CustomerHomeTokens.restaurantCardRadius),
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                ColoredBox(
-                  color: CustomerHomeTokens.searchFill,
-                  child: _buildImage(preview),
+                CustomerRestaurantPreviewImage(
+                  imageUrl: preview.imageUrl,
+                  imageAssetPath: preview.imageAssetPath,
                 ),
                 if (preview.hasRating)
                   Positioned(
@@ -64,7 +43,7 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
                     top: 10,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Padding(
@@ -97,8 +76,8 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: <Color>[
-                          Colors.black.withOpacity(0),
-                          Colors.black.withOpacity(0.55),
+                          Colors.black.withValues(alpha: 0),
+                          Colors.black.withValues(alpha: 0.55),
                         ],
                       ),
                     ),

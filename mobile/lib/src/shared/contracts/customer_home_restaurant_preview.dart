@@ -5,10 +5,7 @@ class CustomerHomeRestaurantPreview {
     this.imageAssetPath,
     this.imageUrl,
     this.ratingValue = 0,
-  }) : assert(
-          imageAssetPath != null || imageUrl != null,
-          'Provide imageAssetPath and/or imageUrl',
-        );
+  });
 
   final String id;
   final String displayName;
@@ -17,4 +14,13 @@ class CustomerHomeRestaurantPreview {
   final double ratingValue;
 
   bool get hasRating => ratingValue > 0;
+
+  bool get hasImage {
+    final String? url = imageUrl?.trim();
+    if (url != null && url.isNotEmpty) {
+      return true;
+    }
+    final String? asset = imageAssetPath?.trim();
+    return asset != null && asset.isNotEmpty;
+  }
 }

@@ -25,6 +25,7 @@ final class OrderSummary {
     required this.reference,
     required this.restaurantName,
     required this.status,
+    required this.paymentStatus,
     required this.totalAmount,
     required this.placedAt,
   });
@@ -33,14 +34,20 @@ final class OrderSummary {
   final String reference;
   final String restaurantName;
   final String status;
+  final String paymentStatus;
   final String totalAmount;
   final String placedAt;
+
+  bool get isPaymentPending => paymentStatus == 'pending';
+  bool get isActiveForTracking =>
+      status != 'delivered' && status != 'cancelled' && paymentStatus == 'paid';
 
   factory OrderSummary.fromJson(Map<String, dynamic> m) => OrderSummary(
         id: m['id'] as int,
         reference: m['reference'] as String? ?? '',
         restaurantName: m['restaurant_name'] as String? ?? '',
         status: m['status'] as String? ?? '',
+        paymentStatus: m['payment_status'] as String? ?? 'pending',
         totalAmount: '${m['total_amount']}',
         placedAt: m['placed_at'] as String? ?? '',
       );
@@ -65,6 +72,7 @@ final class OrderDetail {
     required this.id,
     required this.reference,
     required this.status,
+    required this.paymentStatus,
     required this.restaurantName,
     required this.restaurantAddress,
     required this.subtotal,
@@ -78,6 +86,7 @@ final class OrderDetail {
   final int id;
   final String reference;
   final String status;
+  final String paymentStatus;
   final String restaurantName;
   final String restaurantAddress;
   final String subtotal;
@@ -87,6 +96,10 @@ final class OrderDetail {
   final DeliveryAddress deliveryAddress;
   final List<OrderLineItem> items;
 
+  bool get isPaymentPending => paymentStatus == 'pending';
+  bool get isPaymentPaid => paymentStatus == 'paid';
+  bool get isTerminal => status == 'delivered' || status == 'cancelled';
+
   factory OrderDetail.fromJson(Map<String, dynamic> m) {
     final Map<String, dynamic> addr = m['delivery_address'] as Map<String, dynamic>? ?? <String, dynamic>{};
     final List<dynamic> rawItems = m['items'] as List<dynamic>? ?? <dynamic>[];
@@ -94,6 +107,7 @@ final class OrderDetail {
       id: m['id'] as int,
       reference: m['reference'] as String? ?? '',
       status: m['status'] as String? ?? '',
+      paymentStatus: m['payment_status'] as String? ?? 'pending',
       restaurantName: m['restaurant_name'] as String? ?? '',
       restaurantAddress: m['restaurant_address'] as String? ?? '',
       subtotal: '${m['subtotal']}',

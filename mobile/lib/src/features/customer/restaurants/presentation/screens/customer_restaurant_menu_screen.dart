@@ -1,28 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../../shared/theme/customer_home_tokens.dart';
 import '../../../cart/data/cart_repository.dart';
 import '../../../cart/domain/cart_models.dart';
-import '../../../cart/presentation/screens/customer_checkout_screen.dart';
+import '../../../cart/presentation/screens/customer_cart_review_screen.dart';
 import '../../data/restaurant_repository.dart';
 import '../../domain/restaurant_models.dart';
+import '../widgets/customer_restaurant_menu_hero.dart';
+import '../widgets/customer_restaurant_menu_item_tile.dart';
+import 'customer_menu_item_detail_screen.dart';
 
 class CustomerRestaurantMenuScreen extends StatefulWidget {
   const CustomerRestaurantMenuScreen({
     super.key,
     required this.restaurantId,
     required this.restaurantName,
+    this.restaurant,
   });
 
   final int restaurantId;
   final String restaurantName;
+  final RestaurantSummary? restaurant;
 
   @override
   State<CustomerRestaurantMenuScreen> createState() => _CustomerRestaurantMenuScreenState();
 }
 
 class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScreen> {
+  RestaurantDetail? _detail;
   RestaurantMenu? _menu;
+  int _selectedCategoryIndex = 0;
   bool _loading = true;
   String? _error;
 
@@ -36,183 +44,421 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
     setState(() {
       _loading = true;
       _error = null;
+      _detail = null;
+      _menu = null;
     });
     try {
-      final RestaurantMenu menu =
-          await context.read<RestaurantRepository>().fetchMenu(widget.restaurantId);
-      if (!mounted) return;
+      final RestaurantRepository repo = context.read<RestaurantRepository>();
+      final List<Object> results = await Future.wait<Object>(<Future<Object>>[
+        repo.fetchRestaurantDetail(widget.restaurantId),
+        repo.fetchMenu(widget.restaurantId),
+      ]);
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _menu = menu;
+        _detail = results[0] as RestaurantDetail;
+        _menu = results[1] as RestaurantMenu;
+        _selectedCategoryIndex = 0;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _error = e.toString();
         _loading = false;
+        _detail = null;
+        _menu = null;
       });
     }
+  }
+
+  void _openItem(PublicMenuItem item) {
+    final RestaurantDetail? detail = _detail;
+    if (detail == null) {
+      return;
+    }
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomerMenuItemDetailScreen(
+          item: item,
+          restaurantId: detail.id,
+          restaurantName: detail.name,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addItem(PublicMenuItem item) async {
+    final RestaurantDetail? detail = _detail;
+    if (detail == null) {
+      return;
+    }
+    await context.read<CartRepository>().addItem(
+          restaurantId: detail.id,
+          restaurantName: detail.name,
+          line: CartLine(
+            menuItemId: item.id,
+            name: item.name,
+            unitPrice: item.price,
+            quantity: 1,
+            imageUrl: item.imageUrl,
+            currency: item.currency,
+          ),
+        );
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${item.name} added to cart')),
+    );
+  }
+
+  void _openCart() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const CustomerCartReviewScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final CartRepository cartRepo = context.watch<CartRepository>();
-    final int cartCount = cartRepo.current?.lines.fold<int>(0, (int s, CartLine l) => s + l.quantity) ?? 0;
+    final int cartCount =
+        cartRepo.current?.lines.fold<int>(0, (int s, CartLine l) => s + l.quantity) ?? 0;
+
+    final RestaurantDetail? detail = _detail;
+    final RestaurantMenu? menu = _menu;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.restaurantName, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: <Widget>[
-          if (cartCount > 0)
-            TextButton(
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (_) => const CustomerCheckoutScreen()),
-              ),
-              child: Text('Cart ($cartCount)'),
-            ),
-        ],
-      ),
+      backgroundColor: CustomerHomeTokens.canvas,
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: CustomerHomeTokens.primaryMaroon),
+            )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(onPressed: _load, child: const Text('Retry')),
-                      ],
-                    ),
-                  ),
-                )
-              : _buildMenu(_menu!),
+              ? _ErrorBody(message: _error ?? 'Something went wrong.', onRetry: _load)
+              : detail == null || menu == null
+                  ? _ErrorBody(message: 'Could not load this restaurant.', onRetry: _load)
+                  : _buildContent(cartCount: cartCount, detail: detail, menu: menu),
+      bottomNavigationBar: cartCount > 0 ? _CartBar(count: cartCount, onPressed: _openCart) : null,
     );
   }
 
-  Widget _buildMenu(RestaurantMenu menu) {
-    if (menu.categories.isEmpty) {
-      return const Center(child: Text('No menu items yet.'));
+  Widget _buildContent({
+    required int cartCount,
+    required RestaurantDetail detail,
+    required RestaurantMenu menu,
+  }) {
+    final List<PublicMenuCategory> categories =
+        menu.categories.where((PublicMenuCategory c) => c.items.isNotEmpty).toList();
+
+    if (categories.isEmpty) {
+      return Column(
+        children: <Widget>[
+          CustomerRestaurantMenuHero(
+            detail: detail,
+            cartCount: cartCount,
+            onBack: () => Navigator.of(context).pop(),
+            onCartPressed: _openCart,
+          ),
+          const Expanded(child: Center(child: Text('No menu items yet.'))),
+        ],
+      );
     }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      itemCount: menu.categories.length,
-      itemBuilder: (BuildContext context, int index) {
-        final PublicMenuCategory category = menu.categories[index];
-        if (category.items.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Text(
-                category.name,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+
+    final int categoryIndex = _selectedCategoryIndex.clamp(0, categories.length - 1);
+    final PublicMenuCategory activeCategory = categories[categoryIndex];
+
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(
+          child: CustomerRestaurantMenuHero(
+            detail: detail,
+            cartCount: cartCount,
+            onBack: () => Navigator.of(context).pop(),
+            onCartPressed: _openCart,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _RestaurantInfoCard(
+            detail: detail,
+            showTitle: _hasHeroImage(detail),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
+            child: Text(
+              'Menu',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: CustomerHomeTokens.ink,
               ),
             ),
-            ...category.items.map(
-              (PublicMenuItem item) => _MenuItemTile(
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 44,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              itemCount: categories.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (BuildContext context, int index) {
+                final bool selected = index == categoryIndex;
+                return FilterChip(
+                  label: Text(categories[index].name),
+                  selected: selected,
+                  showCheckmark: false,
+                  labelStyle: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: selected ? Colors.white : CustomerHomeTokens.labelGray,
+                  ),
+                  backgroundColor: CustomerHomeTokens.categoryIdleSurface,
+                  selectedColor: CustomerHomeTokens.primaryMaroon,
+                  side: BorderSide.none,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  onSelected: (_) => setState(() => _selectedCategoryIndex = index),
+                );
+              },
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+          sliver: SliverList.separated(
+            itemCount: activeCategory.items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (BuildContext context, int index) {
+              final PublicMenuItem item = activeCategory.items[index];
+              return CustomerRestaurantMenuItemTile(
                 item: item,
-                onAdd: () async {
-                  await context.read<CartRepository>().addItem(
-                        restaurantId: widget.restaurantId,
-                        restaurantName: widget.restaurantName,
-                        line: CartLine(
-                          menuItemId: item.id,
-                          name: item.name,
-                          unitPrice: item.price,
-                          quantity: 1,
-                          imageUrl: item.imageUrl,
-                          currency: item.currency,
-                        ),
-                      );
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('${item.name} added to cart')),
-                    );
-                  }
-                },
+                onTap: () => _openItem(item),
+                onAdd: () => _addItem(item),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static bool _hasHeroImage(RestaurantDetail detail) {
+    final String? url = detail.heroImageUrl?.trim();
+    return url != null && url.isNotEmpty;
+  }
+}
+
+class _RestaurantInfoCard extends StatelessWidget {
+  const _RestaurantInfoCard({required this.detail, this.showTitle = true});
+
+  final RestaurantDetail detail;
+  final bool showTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.translate(
+      offset: const Offset(0, -20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(CustomerHomeTokens.restaurantCardRadius),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                if (showTitle)
+                  Text(
+                    detail.name,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: CustomerHomeTokens.primaryMaroon,
+                      height: 1.1,
+                    ),
+                  ),
+                if (detail.description.isNotEmpty) ...<Widget>[
+                  if (showTitle) const SizedBox(height: 8),
+                  Text(
+                    detail.description,
+                    style: const TextStyle(
+                      color: CustomerHomeTokens.labelGray,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    _InfoChip(
+                      icon: detail.isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                      label: detail.isActive ? 'Open now' : 'Closed',
+                      emphasized: detail.isActive,
+                    ),
+                    if (detail.openingHours.isNotEmpty)
+                      _InfoChip(icon: Icons.schedule_rounded, label: detail.openingHours),
+                    if (detail.menuItemCount > 0)
+                      _InfoChip(
+                        icon: Icons.restaurant_menu_rounded,
+                        label: '${detail.menuItemCount} items',
+                      ),
+                    if (detail.addressText.isNotEmpty)
+                      _InfoChip(icon: Icons.place_outlined, label: detail.addressText),
+                  ],
+                ),
+              ],
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _MenuItemTile extends StatelessWidget {
-  const _MenuItemTile({required this.item, required this.onAdd});
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    this.emphasized = false,
+  });
 
-  final PublicMenuItem item;
-  final VoidCallback onAdd;
+  final IconData icon;
+  final String label;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: emphasized ? const Color(0xFFF5E8EA) : CustomerHomeTokens.searchFill,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 72,
-                height: 72,
-                child: item.imageUrl != null
-                    ? Image.network(item.imageUrl!, fit: BoxFit.cover)
-                    : ColoredBox(
-                        color: Colors.grey.shade200,
-                        child: Icon(Icons.fastfood_rounded, color: Colors.grey.shade500),
-                      ),
+            Icon(
+              icon,
+              size: 14,
+              color: emphasized ? CustomerHomeTokens.primaryMaroon : CustomerHomeTokens.labelGray,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: emphasized ? CustomerHomeTokens.primaryMaroon : CustomerHomeTokens.labelGray,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    item.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CartBar extends StatelessWidget {
+  const _CartBar({required this.count, required this.onPressed});
+
+  final int count;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+      child: Material(
+        color: CustomerHomeTokens.primaryMaroon,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: <Widget>[
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  if (item.description.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 4),
-                    Text(
-                      item.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ],
-                  const SizedBox(height: 6),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: <Widget>[
-                      Text(
-                        '${item.price} ${item.currency}',
-                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                      ),
-                      const SizedBox(height: 6),
-                      IconButton.filled(
-                        onPressed: onAdd,
-                        iconSize: 20,
-                        padding: const EdgeInsets.all(8),
-                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'View cart',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: CustomerHomeTokens.primaryMaroon,
               ),
+              onPressed: onRetry,
+              child: const Text('Retry'),
             ),
           ],
         ),

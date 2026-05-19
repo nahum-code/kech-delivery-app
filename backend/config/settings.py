@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     "apps.drivers.apps.DriversConfig",
     "apps.restaurants.apps.RestaurantsConfig",
     "apps.orders.apps.OrdersConfig",
+    "apps.payments.apps.PaymentsConfig",
     "core.apps.CoreConfig",
 ]
 
@@ -304,6 +305,15 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
+# Chapa payment gateway (never commit real keys)
+CHAPA_SECRET_KEY = os.getenv("CHAPA_SECRET_KEY", "")
+CHAPA_PUBLIC_KEY = os.getenv("CHAPA_PUBLIC_KEY", "")
+CHAPA_WEBHOOK_SECRET = os.getenv("CHAPA_WEBHOOK_SECRET", "")
+CHAPA_CALLBACK_URL = os.getenv("CHAPA_CALLBACK_URL", "")
+CHAPA_RETURN_URL = os.getenv("CHAPA_RETURN_URL", "")
+CHAPA_CURRENCY = os.getenv("CHAPA_CURRENCY", "ETB")
+CHAPA_MOCK_MODE = env_bool("CHAPA_MOCK_MODE", default=DEBUG and not CHAPA_SECRET_KEY)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -316,6 +326,11 @@ LOGGING = {
         "kech.auth": {
             "handlers": ["console"],
             "level": os.getenv("AUTH_LOG_LEVEL", "INFO"),
+            "propagate": False,
+        },
+        "kech.payments": {
+            "handlers": ["console"],
+            "level": os.getenv("PAYMENTS_LOG_LEVEL", "INFO"),
             "propagate": False,
         },
     },

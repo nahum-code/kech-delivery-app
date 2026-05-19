@@ -1,2 +1,7 @@
-export { default } from "../../../src/app/(protected)/orders/page";
+export const dynamic = "force-dynamic";
 
+import { OrdersMonitor } from "@/features/admin/pages/OrdersMonitor";
+
+export default function OrdersPage() {
+  return <OrdersMonitor />;
+}

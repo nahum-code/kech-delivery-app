@@ -39,7 +39,7 @@ class CustomerHomeExclusivePromoBanner extends StatelessWidget {
               child: Text(
                 'KECH',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                   fontSize: 56,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 4,
@@ -55,7 +55,7 @@ class CustomerHomeExclusivePromoBanner extends StatelessWidget {
                 Text(
                   'EXCLUSIVE DEAL',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.92),
+                    color: Colors.white.withValues(alpha: 0.92),
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
@@ -75,7 +75,7 @@ class CustomerHomeExclusivePromoBanner extends StatelessWidget {
                 Text(
                   'First order',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.82),
+                    color: Colors.white.withValues(alpha: 0.82),
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),

@@ -31,4 +31,8 @@ final class OrderApi {
   Future<http.Response> orderDetail(int id) {
     return _client.get(_u('/api/v1/orders/$id/'), headers: _headers);
   }
+
+  Future<http.Response> confirmPayment(int orderId) {
+    return _client.post(_u('/api/v1/orders/$orderId/confirm-payment/'), headers: _headers);
+  }
 }

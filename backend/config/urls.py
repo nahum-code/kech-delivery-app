@@ -23,6 +23,7 @@ urlpatterns = [
     path("api/v1/drivers/", include("apps.drivers.api.urls")),
     path("api/v1/restaurants/", include("apps.restaurants.api.urls")),
     path("api/v1/orders/", include("apps.orders.api.urls")),
+    path("api/v1/payments/", include("apps.payments.api.urls")),
 ]
 
 if settings.DEBUG:

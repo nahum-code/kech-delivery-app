@@ -149,3 +149,21 @@ def transition_order_status(order: Order, new_status: str) -> Order:
     order.updated_at = timezone.now()
     order.save(update_fields=["status", "updated_at"])
     return order
+
+
+@transaction.atomic
+def mark_order_paid_from_payment(order: Order) -> Order:
+    """Mark order paid after Chapa verification (webhook or verify API)."""
+    order.refresh_from_db()
+    if order.payment_status == Order.PaymentStatus.PAID:
+        return order
+    if order.payment_status == Order.PaymentStatus.FAILED:
+        raise OrderServiceError("Payment has failed for this order.", status_code=409)
+
+    order.payment_status = Order.PaymentStatus.PAID
+    order.updated_at = timezone.now()
+    order.save(update_fields=["payment_status", "updated_at"])
+
+    if order.status == Order.Status.PENDING:
+        order = transition_order_status(order, Order.Status.CONFIRMED)
+    return order

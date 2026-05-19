@@ -8,10 +8,12 @@ class DriverMainBottomNavBar extends StatelessWidget {
     super.key,
     required this.current,
     required this.onTabSelected,
+    this.alertBadge = false,
   });
 
   final DriverMainTab current;
   final ValueChanged<DriverMainTab> onTabSelected;
+  final bool alertBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +51,11 @@ class DriverMainBottomNavBar extends StatelessWidget {
                 ),
                 Expanded(
                   child: _NavTile(
-                    icon: Icons.history,
-                    label: 'ACTIVITY',
-                    selected: current == DriverMainTab.activity,
-                    onTap: () => onTabSelected(DriverMainTab.activity),
+                    icon: Icons.notifications_outlined,
+                    label: 'ALERT',
+                    selected: current == DriverMainTab.alert,
+                    showBadge: alertBadge,
+                    onTap: () => onTabSelected(DriverMainTab.alert),
                   ),
                 ),
                 Expanded(
@@ -78,12 +81,14 @@ class _NavTile extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.showBadge = false,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -95,17 +100,35 @@ class _NavTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: selected ? DriverShellNavigationTokens.primary : Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                icon,
-                size: 22,
-                color: selected ? Colors.white : const Color(0xFF9CA3AF),
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: selected ? DriverShellNavigationTokens.primary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 22,
+                    color: selected ? Colors.white : DriverShellNavigationTokens.navInactive,
+                  ),
+                ),
+                if (showBadge)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDC2626),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
@@ -114,7 +137,7 @@ class _NavTile extends StatelessWidget {
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: selected ? DriverShellNavigationTokens.primary : const Color(0xFF9CA3AF),
+                color: selected ? DriverShellNavigationTokens.primary : DriverShellNavigationTokens.navInactive,
               ),
             ),
           ],

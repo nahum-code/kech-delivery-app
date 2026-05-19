@@ -20,7 +20,7 @@ class _DriverPendingScreenState extends State<DriverPendingScreen> {
   Timer? _pollTimer;
   DriverStatus? _status;
   bool _loading = true;
-  int _pollIntervalSeconds = 30;
+  final int _pollIntervalSeconds = 30;
 
   @override
   void initState() {

@@ -50,6 +50,14 @@ final class OrderRepository {
     return OrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<OrderDetail> confirmPayment({required String accessToken, required int orderId}) async {
+    final http.Response response = await _apiFactory(accessToken).confirmPayment(orderId);
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not confirm payment');
+    }
+    return OrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
   Exception _httpError(http.Response response, String fallback) {
     try {
       final dynamic body = jsonDecode(response.body);

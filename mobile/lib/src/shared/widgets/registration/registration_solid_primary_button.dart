@@ -22,7 +22,7 @@ class RegistrationSolidPrimaryButton extends StatelessWidget {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: CustomerRegistrationTokens.primaryMaroon,
-          disabledBackgroundColor: CustomerRegistrationTokens.primaryMaroon.withOpacity(0.5),
+          disabledBackgroundColor: CustomerRegistrationTokens.primaryMaroon.withValues(alpha: 0.5),
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

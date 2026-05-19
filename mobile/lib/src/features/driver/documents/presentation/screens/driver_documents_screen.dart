@@ -111,7 +111,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
               Expanded(
                 child: ListView.separated(
                   itemCount: _docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (BuildContext context, int index) {
                     final (_DocMeta type, String title, IconData icon) = _docs[index];
                     final bool hasFile = _paths[type] != null;
