@@ -1,7 +1,9 @@
 from decimal import Decimal
+from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from PIL import Image
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -54,6 +56,31 @@ class RestaurantApiTests(TestCase):
         names = [r["name"] for r in res.json()]
         self.assertIn("Active One", names)
         self.assertNotIn("Hidden", names)
+
+    def _jpeg_upload(self, name: str = "logo.jpg") -> SimpleUploadedFile:
+        buf = BytesIO()
+        Image.new("RGB", (32, 32), color="red").save(buf, format="JPEG")
+        buf.seek(0)
+        return SimpleUploadedFile(name, buf.read(), content_type="image/jpeg")
+
+    def test_admin_create_with_logo_and_cover(self):
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.post(
+            "/api/v1/restaurants/",
+            {
+                "name": "Image Bistro",
+                "latitude": "9.030000",
+                "longitude": "38.740000",
+                "is_active": "true",
+                "logo": self._jpeg_upload("logo.jpg"),
+                "cover_image": self._jpeg_upload("cover.jpg"),
+            },
+            format="multipart",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
+        body = res.json()
+        self.assertTrue(body["logo_url"])
+        self.assertTrue(body["cover_image_url"])
 
     def test_admin_can_create_and_update(self):
         self.client.force_authenticate(user=self.admin)

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from django.db import transaction
+import os
+
+from django.conf import settings
+from django.db import IntegrityError, transaction
 
 from apps.restaurants.models import Restaurant
 
@@ -14,6 +17,47 @@ class RestaurantServiceError(Exception):
         self.status_code = status_code
 
 
+def _ensure_media_root() -> None:
+    media_root = getattr(settings, "MEDIA_ROOT", None)
+    if not media_root:
+        return
+    os.makedirs(media_root, exist_ok=True)
+    # Pre-create common upload trees (helps when parent dir is writable but umask blocks subdirs).
+    for sub in ("restaurants", "menu_items"):
+        os.makedirs(os.path.join(media_root, sub), exist_ok=True)
+
+
+def _pop_image_fields(fields: dict) -> tuple[object | None, object | None]:
+    logo = fields.pop("logo", None)
+    cover_image = fields.pop("cover_image", None)
+    return logo, cover_image
+
+
+def _save_restaurant_images(restaurant: Restaurant, *, logo, cover_image) -> None:
+    update_fields: list[str] = []
+    if logo is not None:
+        restaurant.logo = logo
+        update_fields.append("logo")
+    if cover_image is not None:
+        restaurant.cover_image = cover_image
+        update_fields.append("cover_image")
+    if not update_fields:
+        return
+    try:
+        restaurant.save(update_fields=[*update_fields, "updated_at"])
+    except (OSError, ValueError) as exc:
+        if isinstance(exc, PermissionError) or (isinstance(exc, OSError) and exc.errno == 13):
+            raise RestaurantServiceError(
+                "Could not save images: the server media directory is not writable. "
+                "If using Docker, rebuild and restart containers (entrypoint fixes volume permissions).",
+                status_code=503,
+            ) from exc
+        raise RestaurantServiceError(
+            f"Could not save restaurant images: {exc}",
+            status_code=400,
+        ) from exc
+
+
 @transaction.atomic
 def create_restaurant(**fields) -> Restaurant:
     name = (fields.get("name") or "").strip()
@@ -21,7 +65,20 @@ def create_restaurant(**fields) -> Restaurant:
         raise RestaurantServiceError("Restaurant name is required.")
     if Restaurant.objects.filter(name__iexact=name).exists():
         raise RestaurantServiceError("A restaurant with this name already exists.", status_code=409)
-    return Restaurant.objects.create(**fields)
+
+    _ensure_media_root()
+    logo, cover_image = _pop_image_fields(fields)
+
+    try:
+        restaurant = Restaurant.objects.create(**fields)
+    except IntegrityError as exc:
+        raise RestaurantServiceError(
+            "A restaurant with this name already exists.",
+            status_code=409,
+        ) from exc
+
+    _save_restaurant_images(restaurant, logo=logo, cover_image=cover_image)
+    return restaurant
 
 
 @transaction.atomic
@@ -34,9 +91,22 @@ def update_restaurant(restaurant: Restaurant, **fields) -> Restaurant:
             raise RestaurantServiceError("A restaurant with this name already exists.", status_code=409)
         fields["name"] = name
 
+    _ensure_media_root()
+    logo, cover_image = _pop_image_fields(fields)
+
     for key, value in fields.items():
         setattr(restaurant, key, value)
-    restaurant.save()
+
+    try:
+        if fields:
+            restaurant.save()
+    except IntegrityError as exc:
+        raise RestaurantServiceError(
+            "A restaurant with this name already exists.",
+            status_code=409,
+        ) from exc
+
+    _save_restaurant_images(restaurant, logo=logo, cover_image=cover_image)
     return restaurant
 
 

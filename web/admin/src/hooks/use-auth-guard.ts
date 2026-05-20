@@ -5,6 +5,7 @@ import { clearSession, hasClientSession } from "@/lib/auth-storage";
 import { fetchMe, logoutRemote, type MeResponse } from "@/services/auth";
 
 export function useAuthGuard() {
+  // Keep SSR and first client paint identical; auth is resolved in useEffect only.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<MeResponse | null>(null);
@@ -14,6 +15,7 @@ export function useAuthGuard() {
 
     if (!hasClientSession()) {
       clearSession();
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError("Not signed in");
       setLoading(false);
       return () => {

@@ -302,7 +302,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'MAD ${_earningsBalance.toStringAsFixed(2)}',
+                      'ETB ${_earningsBalance.toStringAsFixed(2)}',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 26,

@@ -11,6 +11,7 @@ type AdminShellProps = {
 
 const menu = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/orders", label: "Orders" },
   { href: "/payments", label: "Payments" },
   { href: "/restaurants", label: "Restaurants" },

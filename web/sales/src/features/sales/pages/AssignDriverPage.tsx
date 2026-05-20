@@ -147,7 +147,7 @@ export function AssignDriverPage() {
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {format(new Date(order.placed_at), "MMM d, HH:mm")} ·{" "}
-                            {order.total_amount} MAD
+                            {order.total_amount} ETB
                           </p>
                         </div>
                         <Badge variant="outline" className={statusBadgeClass(order.status)}>

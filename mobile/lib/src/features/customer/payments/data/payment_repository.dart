@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../../core/http/api_error_message.dart';
 import '../domain/payment_models.dart';
 import 'payment_api.dart';
 
@@ -36,9 +37,7 @@ final class PaymentRepository {
   Exception _httpError(http.Response response, String fallback) {
     try {
       final dynamic body = jsonDecode(response.body);
-      if (body is Map<String, dynamic> && body['detail'] != null) {
-        return Exception('${body['detail']}');
-      }
+      return Exception(parseApiErrorMessage(body, fallback));
     } catch (_) {}
     return Exception('$fallback (${response.statusCode})');
   }

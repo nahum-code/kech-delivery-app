@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     "apps.restaurants.apps.RestaurantsConfig",
     "apps.orders.apps.OrdersConfig",
     "apps.payments.apps.PaymentsConfig",
+    "apps.analytics.apps.AnalyticsConfig",
     "core.apps.CoreConfig",
 ]
 
@@ -208,6 +209,8 @@ STATIC_URL = "static/"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Ensure upload directory exists (logo/cover/menu images).
+os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -310,9 +313,22 @@ CHAPA_SECRET_KEY = os.getenv("CHAPA_SECRET_KEY", "")
 CHAPA_PUBLIC_KEY = os.getenv("CHAPA_PUBLIC_KEY", "")
 CHAPA_WEBHOOK_SECRET = os.getenv("CHAPA_WEBHOOK_SECRET", "")
 CHAPA_CALLBACK_URL = os.getenv("CHAPA_CALLBACK_URL", "")
-CHAPA_RETURN_URL = os.getenv("CHAPA_RETURN_URL", "")
+# Legacy CHAPA_RETURN_URL: deep link (kechdelivery://…) or https URL for Chapa return_url.
+_chapa_return_env = os.getenv("CHAPA_RETURN_URL", "").strip()
+if _chapa_return_env.startswith(("http://", "https://")):
+    CHAPA_RETURN_HTTP_URL = os.getenv("CHAPA_RETURN_HTTP_URL", _chapa_return_env).rstrip("/")
+    CHAPA_APP_RETURN_URL = os.getenv(
+        "CHAPA_APP_RETURN_URL", "kechdelivery://payment/return"
+    ).rstrip("/")
+else:
+    CHAPA_APP_RETURN_URL = os.getenv(
+        "CHAPA_APP_RETURN_URL", _chapa_return_env or "kechdelivery://payment/return"
+    ).rstrip("/")
+    CHAPA_RETURN_HTTP_URL = os.getenv("CHAPA_RETURN_HTTP_URL", "").rstrip("/")
 CHAPA_CURRENCY = os.getenv("CHAPA_CURRENCY", "ETB")
 CHAPA_MOCK_MODE = env_bool("CHAPA_MOCK_MODE", default=DEBUG and not CHAPA_SECRET_KEY)
+# Base URL reachable from the mobile app (emulator: http://10.0.2.2:8000). Used for mock checkout HTML.
+CHAPA_PUBLIC_BASE_URL = os.getenv("CHAPA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 LOGGING = {
     "version": 1,

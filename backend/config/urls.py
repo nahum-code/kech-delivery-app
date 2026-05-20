@@ -20,6 +20,7 @@ urlpatterns = [
     path("ready", ready),
     path("api/v1/auth/", include("apps.users.api.urls")),
     path("api/v1/admin/drivers/", include("apps.drivers.api.admin_urls")),
+    path("api/v1/admin/analytics/", include("apps.analytics.api.urls")),
     path("api/v1/drivers/", include("apps.drivers.api.urls")),
     path("api/v1/restaurants/", include("apps.restaurants.api.urls")),
     path("api/v1/orders/", include("apps.orders.api.urls")),

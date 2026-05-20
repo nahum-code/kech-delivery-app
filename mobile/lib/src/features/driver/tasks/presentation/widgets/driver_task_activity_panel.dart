@@ -43,7 +43,7 @@ class DriverTaskActivityPanel extends StatelessWidget {
             ),
             title: Text(o.restaurantName, style: const TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Text('Delivered · ${o.reference}'),
-            trailing: Text('${o.totalAmount} MAD', style: const TextStyle(fontWeight: FontWeight.w800)),
+            trailing: Text('${o.totalAmount} ETB', style: const TextStyle(fontWeight: FontWeight.w800)),
           ),
         );
       },

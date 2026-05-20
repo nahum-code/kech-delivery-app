@@ -39,6 +39,8 @@ backend/.coverage
 backend/htmlcov/
 backend/db.sqlite3
 backend/*.sqlite3
+backend/*.db
+backend/test_*.db
 backend/staticfiles/
 backend/media/
 backend/.env

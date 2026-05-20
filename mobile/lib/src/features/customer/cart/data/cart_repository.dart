@@ -132,7 +132,7 @@ final class CartRepository extends ChangeNotifier {
               unitPrice: '${e['unit_price']}',
               quantity: e['quantity'] as int? ?? 1,
               imageUrl: e['image_url'] as String?,
-              currency: e['currency'] as String? ?? 'MAD',
+              currency: e['currency'] as String? ?? 'ETB',
               subtitle: e['subtitle'] as String? ?? '',
               specialInstructions: e['special_instructions'] as String? ?? '',
             ),

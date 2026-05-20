@@ -240,7 +240,7 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
                       ),
                     ),
                     Text(
-                      '${o.totalAmount} MAD',
+                      '${o.totalAmount} ETB',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: CustomerCheckoutTokens.ink,

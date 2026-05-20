@@ -20,6 +20,8 @@ class PaymentVerifySerializer(serializers.Serializer):
 class PaymentSerializer(serializers.ModelSerializer):
     order_reference = serializers.CharField(source="order.reference", read_only=True)
     customer_phone = serializers.CharField(source="customer.phone", read_only=True)
+    # Avoid URL validation failures when checkout_url is blank in DB.
+    checkout_url = serializers.CharField(read_only=True, allow_blank=True)
 
     class Meta:
         model = Payment

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { KpiCard } from "../components/KpiCard";
 import {
   Package,
@@ -10,6 +11,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Button } from "../components/ui/button";
 import {
   LineChart,
   Line,
@@ -24,48 +26,81 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { StatusBadge } from "../components/StatusBadge";
-import { mockOrders, mockActivities } from "../data/mockData";
 import { format } from "date-fns";
+import { useAnalytics } from "@/hooks/use-analytics";
 
-const ordersOverTimeData = [
-  { date: "Mar 13", orders: 45 },
-  { date: "Mar 14", orders: 52 },
-  { date: "Mar 15", orders: 48 },
-  { date: "Mar 16", orders: 61 },
-  { date: "Mar 17", orders: 55 },
-  { date: "Mar 18", orders: 67 },
-  { date: "Mar 19", orders: 58 },
-];
+const STATUS_COLORS = ["#10b981", "#800020", "#f97316", "#6b7280", "#06b6d4", "#f59e0b"];
 
-const ordersByStatusData = [
-  { name: "Completed", value: 156, color: "#10b981" },
-  { name: "In Progress", value: 23, color: "#800020" },
-  { name: "Searching Driver", value: 8, color: "#f97316" },
-  { name: "Cancelled", value: 12, color: "#6b7280" },
-];
+function money(value: string | number, currency: string): string {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return `0.00 ${currency}`;
+  }
+  return `${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+}
 
 export function Dashboard() {
-  const activeOrders = mockOrders.filter(
-    (o) => o.status === "PickedUp" || o.status === "Accepted"
-  ).length;
-  const searchingDriver = mockOrders.filter(
-    (o) => o.status === "SearchingDriver"
-  ).length;
-  const totalPlatformFee = mockOrders.reduce(
-    (sum, o) => sum + o.platformFee,
-    0
+  const { revenue, profit, loading, error, reload } = useAnalytics("7d");
+
+  const statusMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of revenue?.order_status_distribution ?? []) {
+      map.set(row.status, row.count);
+    }
+    return map;
+  }, [revenue?.order_status_distribution]);
+
+  const completedOrders = statusMap.get("delivered") ?? 0;
+  const cancelledOrders = statusMap.get("cancelled") ?? 0;
+  const activeOrders =
+    (statusMap.get("assigned") ?? 0) +
+    (statusMap.get("picked_up") ?? 0) +
+    (statusMap.get("delivering") ?? 0);
+  const searchingDriver =
+    (statusMap.get("pending") ?? 0) +
+    (statusMap.get("confirmed") ?? 0) +
+    (statusMap.get("preparing") ?? 0) +
+    (statusMap.get("ready_for_pickup") ?? 0);
+  const totalOrders = (revenue?.order_status_distribution ?? []).reduce(
+    (sum, row) => sum + row.count,
+    0,
   );
-  const todayOrders = mockOrders.length;
-  const completedOrders = mockOrders.filter(
-    (o) => o.status === "Completed" || o.status === "Delivered"
-  ).length;
-  const cancelledOrders = mockOrders.filter((o) => o.status === "Cancelled")
-    .length;
-  const totalOrders = todayOrders;
+  const todayOrders = revenue?.totals.orders_count ?? 0;
   const completionRate =
     totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(1) : "0.0";
   const cancellationRate =
     totalOrders > 0 ? ((cancelledOrders / totalOrders) * 100).toFixed(1) : "0.0";
+
+  const ordersOverTimeData = (revenue?.trends ?? []).map((point) => ({
+    date: format(new Date(point.date), "MMM dd"),
+    orders: point.orders_count,
+  }));
+
+  const ordersByStatusData = (revenue?.order_status_distribution ?? []).map((row, index) => ({
+    name: row.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    value: row.count,
+    color: STATUS_COLORS[index % STATUS_COLORS.length],
+  }));
+
+  if (loading) {
+    return <div className="p-8 text-sm text-gray-600">Loading dashboard analytics...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
+        <Card>
+          <CardContent className="p-6 space-y-3">
+            <p className="text-red-600">{error}</p>
+            <Button className="bg-[#800020] hover:bg-[#600018]" onClick={() => void reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -115,8 +150,8 @@ export function Dashboard() {
         />
         <KpiCard
           title="Total Platform Fee"
-          value={`${totalPlatformFee} MAD`}
-          change="Today's earnings"
+          value={money(profit?.totals.estimated_platform_profit ?? "0", profit?.currency ?? "ETB")}
+          change="Estimated platform profit (MVP)"
           changeType="neutral"
           icon={DollarSign}
         />
@@ -189,26 +224,25 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockOrders
-                .filter((o) => o.status === "SearchingDriver")
-                .map((order) => (
+              {(revenue?.top_restaurants ?? [])
+                .slice(0, 3)
+                .map((restaurant) => (
                   <div
-                    key={order.id}
+                    key={restaurant.restaurant_id}
                     className="flex items-center justify-between p-3 bg-orange-50 rounded-lg"
                   >
                     <div>
-                      <p className="font-medium">{order.orderNumber}</p>
+                      <p className="font-medium">{restaurant.restaurant_name}</p>
                       <p className="text-sm text-gray-600">
-                        Searching driver for {order.restaurant}
+                        {restaurant.orders_count} paid orders in selected period
                       </p>
                     </div>
-                    <StatusBadge status={order.status} type="order" />
+                    <StatusBadge status="Completed" type="order" />
                   </div>
                 ))}
-              {mockOrders.filter((o) => o.status === "SearchingDriver")
-                .length === 0 && (
+              {(revenue?.top_restaurants ?? []).length === 0 && (
                 <p className="text-gray-500 text-center py-4">
-                  All orders have drivers assigned
+                  No paid orders in selected period.
                 </p>
               )}
             </div>
@@ -222,13 +256,16 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockActivities.map((activity) => (
-                <div key={activity.id} className="flex gap-3">
+              {(revenue?.trends ?? []).slice(-5).reverse().map((point) => (
+                <div key={point.date} className="flex gap-3">
                   <div className="w-2 h-2 rounded-full bg-[#800020] mt-2"></div>
                   <div className="flex-1">
-                    <p className="text-sm">{activity.message}</p>
+                    <p className="text-sm">
+                      Revenue {money(point.revenue, revenue?.currency ?? "ETB")} from{" "}
+                      {point.orders_count} paid orders
+                    </p>
                     <p className="text-xs text-gray-500">
-                      {format(activity.timestamp, "HH:mm")}
+                      {format(new Date(point.date), "MMM dd")}
                     </p>
                   </div>
                 </div>

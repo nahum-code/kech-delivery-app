@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 import logging
 
+from django.conf import settings
 from django.db.models import Q
+from django.http import HttpResponse
+from django.utils.html import escape
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -21,6 +24,7 @@ from apps.payments.api.serializers import (
 from apps.payments.models import Payment
 from apps.payments.services.payment import (
     PaymentServiceError,
+    _app_return_url,
     initialize_payment,
     process_chapa_webhook,
     verify_payment_by_tx_ref,
@@ -83,6 +87,73 @@ class PaymentVerifyView(APIView):
             return Response({"detail": exc.message}, status=exc.status_code)
 
         return Response(PaymentSerializer(payment).data)
+
+
+class MockChapaCheckoutView(APIView):
+    """Dev/mock checkout page — simulates Chapa hosted checkout in WebView."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    def get(self, request, *args, **kwargs):
+        tx_ref = (request.query_params.get("tx_ref") or "").strip()
+        if not tx_ref:
+            return HttpResponse("Missing tx_ref.", status=400, content_type="text/plain")
+
+        try:
+            payment = Payment.objects.select_related("order").get(chapa_tx_ref=tx_ref)
+            return_url = _app_return_url(payment.order_id, tx_ref)
+        except Payment.DoesNotExist:
+            return_url = _app_return_url(0, tx_ref)
+
+        safe_return = escape(return_url)
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Kech mock Chapa checkout</title>
+<style>body{{font-family:system-ui,sans-serif;margin:2rem;text-align:center}}
+button{{padding:12px 24px;font-size:16px;background:#800020;color:#fff;border:none;border-radius:8px}}</style>
+</head>
+<body>
+<h1>Mock Chapa checkout</h1>
+<p>Transaction: <code>{escape(tx_ref)}</code></p>
+<p><a href="{safe_return}"><button type="button">Complete test payment</button></a></p>
+</body></html>"""
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+
+class ChapaReturnRedirectView(APIView):
+    """
+    Browser return URL after Chapa checkout (http/https).
+    Redirects to the mobile deep link configured in CHAPA_APP_RETURN_URL.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    def get(self, request, *args, **kwargs):
+        tx_ref = (request.query_params.get("tx_ref") or request.query_params.get("trx_ref") or "").strip()
+        order_id_raw = request.query_params.get("order_id")
+        order_id = int(order_id_raw) if order_id_raw and str(order_id_raw).isdigit() else 0
+        if not tx_ref:
+            return HttpResponse("Missing tx_ref.", status=400, content_type="text/plain")
+
+        deep_link = _app_return_url(order_id, tx_ref)
+        safe_target = escape(deep_link)
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta http-equiv="refresh" content="0;url={safe_target}"/>
+  <title>Returning to Kech</title>
+</head>
+<body>
+  <p>Payment complete. <a href="{safe_target}">Return to the app</a>.</p>
+  <script>window.location.replace("{safe_target}");</script>
+</body>
+</html>"""
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
 
 
 class ChapaCallbackView(APIView):
@@ -157,13 +228,20 @@ class PaymentListView(APIView):
             )
 
         order_id = request.query_params.get("order_id")
-        if order_id:
-            qs = qs.filter(order_id=order_id)
+        if order_id not in (None, ""):
+            try:
+                qs = qs.filter(order_id=int(order_id))
+            except (TypeError, ValueError):
+                return Response({"detail": "Invalid order_id."}, status=status.HTTP_400_BAD_REQUEST)
 
         paginator = PaymentPagination()
         page = paginator.paginate_queryset(qs, request)
-        serializer = PaymentSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        if page is not None:
+            serializer = PaymentSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = PaymentSerializer(qs, many=True)
+        return Response(serializer.data)
 
 
 class PaymentDetailView(APIView):

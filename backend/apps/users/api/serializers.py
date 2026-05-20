@@ -164,7 +164,7 @@ class MeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "phone", "role", "is_active", "created_at", "profile")
+        fields = ("id", "phone", "role", "is_active", "is_staff", "is_superuser", "created_at", "profile")
         read_only_fields = fields
 
     def get_profile(self, obj: User) -> dict:

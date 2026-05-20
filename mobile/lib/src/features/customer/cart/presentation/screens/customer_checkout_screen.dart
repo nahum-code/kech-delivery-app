@@ -76,6 +76,9 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
             accessToken: token,
             orderId: placed.id,
           );
+      if (paymentInit.checkoutUrl.trim().isEmpty) {
+        throw Exception('Payment started but Chapa checkout link is missing.');
+      }
       if (!mounted) return;
       await context.read<CartRepository>().clear();
       if (!mounted) return;
@@ -97,7 +100,7 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final CartState? cart = context.watch<CartRepository>().current;
-    final String currency = cart != null && cart.lines.isNotEmpty ? cart.lines.first.currency : 'MAD';
+    final String currency = cart != null && cart.lines.isNotEmpty ? cart.lines.first.currency : 'ETB';
     final double subtotal = cart?.subtotal ?? 0;
     final double total = subtotal + _deliveryFee;
 

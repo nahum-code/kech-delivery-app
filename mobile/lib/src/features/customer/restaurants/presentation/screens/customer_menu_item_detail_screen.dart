@@ -73,8 +73,8 @@ class _CustomerMenuItemDetailScreenState extends State<CustomerMenuItemDetailScr
     if (item.currency == 'USD' || item.currency == r'$') {
       return '\$$amount';
     }
-    if (item.currency == 'MAD') {
-      return '$amount MAD';
+    if (item.currency == 'ETB') {
+      return '$amount ETB';
     }
     return '$amount ${item.currency}';
   }

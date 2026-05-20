@@ -49,7 +49,7 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
   Widget build(BuildContext context) {
     final CartState? cart = context.watch<CartRepository>().current;
     final String currency =
-        cart != null && cart.lines.isNotEmpty ? cart.lines.first.currency : 'MAD';
+        cart != null && cart.lines.isNotEmpty ? cart.lines.first.currency : 'ETB';
 
     return Scaffold(
       backgroundColor: CustomerCheckoutTokens.canvas,

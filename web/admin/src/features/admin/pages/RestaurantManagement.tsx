@@ -6,6 +6,7 @@ import { Edit, Eye, MapPin, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useRestaurants } from "@/hooks/use-restaurants";
+import { ApiError } from "@/services/http";
 import type { RestaurantRecord } from "@/services/restaurants";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -133,11 +134,11 @@ export function RestaurantManagement() {
       closeDialog();
     } catch (e) {
       const message =
-        e instanceof Error
-          ? e.message.includes("403") || e.message.toLowerCase().includes("permission")
-            ? "Only admin accounts can create or edit restaurants. Sign in with an admin user."
-            : e.message
-          : "Save failed";
+        e instanceof ApiError && e.status === 403
+          ? "Only admin accounts can create or edit restaurants. Sign in with an admin user."
+          : e instanceof Error
+            ? e.message
+            : "Save failed";
       setFormError(message);
       toast.error(message);
     } finally {

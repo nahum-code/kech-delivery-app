@@ -73,7 +73,7 @@ class _DriverActivityScreenState extends State<DriverActivityScreen> {
                     ),
                     title: Text(o.restaurantName, style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Delivered · ${o.reference}'),
-                    trailing: Text('${o.totalAmount} MAD', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: Text('${o.totalAmount} ETB', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),

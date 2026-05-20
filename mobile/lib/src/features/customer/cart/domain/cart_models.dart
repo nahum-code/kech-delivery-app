@@ -6,7 +6,7 @@ final class CartLine {
     required this.unitPrice,
     required this.quantity,
     this.imageUrl,
-    this.currency = 'MAD',
+    this.currency = 'ETB',
     this.subtitle = '',
     this.specialInstructions = '',
   });

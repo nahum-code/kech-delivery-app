@@ -105,7 +105,7 @@ final class RestaurantRepository {
       name: m['name'] as String? ?? '',
       description: m['description'] as String? ?? '',
       price: '${m['price']}',
-      currency: m['currency'] as String? ?? 'MAD',
+      currency: m['currency'] as String? ?? 'ETB',
       imageUrl: m['image_url'] as String?,
     );
   }

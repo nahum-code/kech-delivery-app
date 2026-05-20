@@ -76,6 +76,7 @@ export async function createMenuItem(
   fd.append("name", payload.name);
   if (payload.description) fd.append("description", payload.description);
   fd.append("price", String(payload.price));
+  fd.append("currency", "ETB");
   if (payload.is_available != null) fd.append("is_available", payload.is_available ? "true" : "false");
   if (payload.sort_order != null) fd.append("sort_order", String(payload.sort_order));
   if (payload.image) fd.append("image", payload.image);
@@ -103,6 +104,7 @@ export async function updateMenuItem(
   if (payload.name != null) fd.append("name", payload.name);
   if (payload.description != null) fd.append("description", payload.description);
   if (payload.price != null) fd.append("price", String(payload.price));
+  fd.append("currency", "ETB");
   if (payload.is_available != null) fd.append("is_available", payload.is_available ? "true" : "false");
   if (payload.sort_order != null) fd.append("sort_order", String(payload.sort_order));
   if (payload.image) fd.append("image", payload.image);

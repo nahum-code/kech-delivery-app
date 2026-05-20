@@ -98,7 +98,7 @@ class Command(BaseCommand):
                             "category": category,
                             "description": f"{SEED_MARKER} sample item",
                             "price": Decimal(price),
-                            "currency": "MAD",
+                            "currency": "ETB",
                             "is_available": True,
                             "sort_order": item_order,
                         },

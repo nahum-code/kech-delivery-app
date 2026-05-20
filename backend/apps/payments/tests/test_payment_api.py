@@ -71,6 +71,18 @@ class PaymentApiTests(TestCase):
             },
         )
 
+    def test_chapa_customer_email_and_return_http_url(self):
+        from apps.payments.services.payment import _customer_email, _return_http_url
+
+        email = _customer_email(self.customer, self.order)
+        self.assertIn("@kechdelivery.app", email)
+        self.assertNotIn(".local", email)
+
+        return_url = _return_http_url(self.order.id, "KCH-1-testref")
+        self.assertTrue(return_url.startswith("http"))
+        self.assertIn("return/chapa", return_url)
+        self.assertIn("tx_ref=", return_url)
+
     def test_initialize_payment(self):
         self.client.force_authenticate(user=self.customer)
         res = self.client.post("/api/v1/payments/init/", {"order_id": self.order.id}, format="json")
@@ -156,6 +168,22 @@ class PaymentApiTests(TestCase):
         res = self.client.get("/api/v1/payments/?status=pending")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertGreaterEqual(res.json()["count"], 1)
+
+    def test_admin_lists_payment_with_blank_checkout_url(self):
+        Payment.objects.create(
+            order=self.order,
+            customer=self.customer,
+            amount=Decimal("125.00"),
+            currency="ETB",
+            chapa_tx_ref="KCH-blank-url-test",
+            checkout_url="",
+            status=Payment.Status.PENDING,
+        )
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get("/api/v1/payments/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        row = next(r for r in res.json()["results"] if r["chapa_tx_ref"] == "KCH-blank-url-test")
+        self.assertEqual(row["checkout_url"], "")
 
     def test_initialize_rejects_paid_order(self):
         self.order.payment_status = Order.PaymentStatus.PAID

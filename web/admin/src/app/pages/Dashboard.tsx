@@ -113,7 +113,7 @@ export function Dashboard() {
         />
         <KpiCard
           title="Total Platform Fee"
-          value={`${totalPlatformFee} MAD`}
+          value={`${totalPlatformFee} ETB`}
           change="Today's earnings"
           changeType="neutral"
           icon={DollarSign}

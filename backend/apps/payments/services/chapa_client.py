@@ -78,6 +78,12 @@ def _request(
         except (json.JSONDecodeError, ValueError):
             parsed = {}
         message = parsed.get("message") if isinstance(parsed, dict) else str(exc)
+        if isinstance(message, dict):
+            parts = [
+                f"{field}: {', '.join(str(item) for item in errs) if isinstance(errs, list) else errs}"
+                for field, errs in message.items()
+            ]
+            message = "; ".join(parts) if parts else str(exc.reason)
         logger.warning("Chapa HTTP error %s %s: %s", method, path, message)
         raise ChapaClientError(str(message or exc.reason), status_code=exc.code, payload=parsed) from exc
     except urllib.error.URLError as exc:
@@ -150,13 +156,21 @@ def verify_transaction(tx_ref: str) -> ChapaVerifyResult:
     )
 
 
+def _mock_checkout_page_url(tx_ref: str) -> str:
+    """Hosted mock checkout page (real URL loads in WebView; fake chapa.co/mock/* does not)."""
+    from urllib.parse import quote
+
+    base = getattr(settings, "CHAPA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    return f"{base}/api/v1/payments/mock-checkout/?tx_ref={quote(str(tx_ref))}"
+
+
 def _mock_response(method: str, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
     if method == "POST" and path == "/transaction/initialize":
         tx_ref = (body or {}).get("tx_ref", "mock-tx")
         return {
             "status": "success",
             "message": "mock",
-            "data": {"checkout_url": f"https://checkout.chapa.co/mock/{tx_ref}"},
+            "data": {"checkout_url": _mock_checkout_page_url(tx_ref)},
         }
     if method == "GET" and path.startswith("/transaction/verify/"):
         tx_ref = path.rsplit("/", 1)[-1]

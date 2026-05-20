@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import uuid
 from decimal import Decimal
 from typing import Any
@@ -32,9 +33,33 @@ class PaymentServiceError(Exception):
 
 
 def _customer_email(user: User, order: Order) -> str:
+    """Chapa requires a standard email shape (rejects .local and invalid formats)."""
     addr = order.delivery_address or {}
-    phone = (addr.get("phone") or user.phone or "customer").replace("+", "").replace(" ", "")
-    return f"{phone}@customers.kechdelivery.local"
+    phone = addr.get("phone") or user.phone or "customer"
+    digits = re.sub(r"\D", "", str(phone)) or "0000000000"
+    if len(digits) > 15:
+        digits = digits[-15:]
+    return f"customer{digits}@kechdelivery.app"
+
+
+def _chapa_error_message(exc: ChapaClientError) -> str:
+    payload = exc.payload
+    if isinstance(payload, dict):
+        message = payload.get("message")
+        if isinstance(message, dict):
+            parts: list[str] = []
+            for field, errors in message.items():
+                if isinstance(errors, list):
+                    parts.append(f"{field}: {', '.join(str(item) for item in errors)}")
+                else:
+                    parts.append(f"{field}: {errors}")
+            if parts:
+                return "Chapa rejected the payment request. " + "; ".join(parts)
+        if isinstance(message, str) and message.strip():
+            return message.strip()
+    if exc.message and not str(exc.message).startswith("{"):
+        return str(exc.message)
+    return "Chapa payment initialization failed."
 
 
 def _customer_names(order: Order) -> tuple[str, str]:
@@ -61,10 +86,30 @@ def _callback_url(order_id: int, tx_ref: str) -> str:
     return f"{base}?order_id={order_id}&tx_ref={tx_ref}"
 
 
-def _return_url(order_id: int, tx_ref: str) -> str:
-    base = getattr(settings, "CHAPA_RETURN_URL", "").rstrip("/")
+def _return_http_url(order_id: int, tx_ref: str) -> str:
+    """HTTPS return URL sent to Chapa (must be http/https, not a mobile deep link)."""
+    base = getattr(settings, "CHAPA_RETURN_HTTP_URL", "").strip().rstrip("/")
     if not base:
-        raise PaymentServiceError("CHAPA_RETURN_URL is not configured.", status_code=503)
+        callback = getattr(settings, "CHAPA_CALLBACK_URL", "")
+        if "callback/chapa" in callback:
+            base = callback.replace("/callback/chapa/", "/return/chapa/").rstrip("/")
+        else:
+            public_base = getattr(settings, "CHAPA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip(
+                "/"
+            )
+            base = f"{public_base}/api/v1/payments/return/chapa"
+    if not base.startswith(("http://", "https://")):
+        raise PaymentServiceError(
+            "CHAPA_RETURN_HTTP_URL must be a valid http(s) URL for Chapa checkout.",
+            status_code=503,
+        )
+    separator = "&" if "?" in base else "?"
+    return f"{base}{separator}order_id={order_id}&tx_ref={tx_ref}"
+
+
+def _app_return_url(order_id: int, tx_ref: str) -> str:
+    """Deep link opened by the mobile app after hosted checkout completes."""
+    base = getattr(settings, "CHAPA_APP_RETURN_URL", "kechdelivery://payment/return").rstrip("/")
     separator = "&" if "?" in base else "?"
     return f"{base}{separator}order_id={order_id}&tx_ref={tx_ref}"
 
@@ -117,7 +162,7 @@ def initialize_payment(*, order: Order, customer: User) -> Payment:
             phone_number=phone,
             tx_ref=tx_ref,
             callback_url=_callback_url(order.pk, tx_ref),
-            return_url=_return_url(order.pk, tx_ref),
+            return_url=_return_http_url(order.pk, tx_ref),
             customization={
                 "title": "Kech Delivery",
                 "description": f"Order {order.reference}",
@@ -128,7 +173,7 @@ def initialize_payment(*, order: Order, customer: User) -> Payment:
         payment.status = Payment.Status.FAILED
         payment.raw_initialize_response = exc.payload if isinstance(exc.payload, dict) else {"error": exc.message}
         payment.save(update_fields=["status", "raw_initialize_response", "updated_at"])
-        raise PaymentServiceError(exc.message, status_code=502) from exc
+        raise PaymentServiceError(_chapa_error_message(exc), status_code=502) from exc
 
     payment.checkout_url = init_result.checkout_url
     payment.raw_initialize_response = init_result.raw
@@ -201,7 +246,7 @@ def verify_payment_by_tx_ref(*, tx_ref: str, customer: User | None = None) -> Pa
     try:
         verify = chapa_client.verify_transaction(tx_ref)
     except ChapaClientError as exc:
-        raise PaymentServiceError(exc.message, status_code=502) from exc
+        raise PaymentServiceError(_chapa_error_message(exc), status_code=502) from exc
 
     return _apply_verified_payment(payment, verify)
 

@@ -3,12 +3,16 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.restaurants.models import MenuCategory, MenuItem, Restaurant
+from core.currency import DEFAULT_CURRENCY
 
 
 def _absolute_media_url(request, file_field) -> str | None:
     if not file_field:
         return None
-    url = file_field.url
+    try:
+        url = file_field.url
+    except (OSError, ValueError):
+        return None
     if request is not None:
         return request.build_absolute_uri(url)
     return url
@@ -45,6 +49,10 @@ class RestaurantListSerializer(serializers.ModelSerializer):
 
 
 class RestaurantWriteSerializer(serializers.ModelSerializer):
+    """Accepts JSON or multipart (admin logo/cover uploads)."""
+
+    is_active = serializers.BooleanField(required=False, default=True)
+
     class Meta:
         model = Restaurant
         fields = (
@@ -95,6 +103,8 @@ class MenuItemSerializer(serializers.ModelSerializer):
 
 class MenuItemWriteSerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField()
+    currency = serializers.CharField(required=False, default=DEFAULT_CURRENCY, max_length=8)
+    is_available = serializers.BooleanField(required=False, default=True)
 
     class Meta:
         model = MenuItem

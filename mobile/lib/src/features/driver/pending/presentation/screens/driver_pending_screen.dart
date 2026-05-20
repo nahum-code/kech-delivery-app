@@ -7,6 +7,7 @@ import '../../../../../shared/theme/customer_registration_tokens.dart';
 import '../../../auth/login/navigation/driver_auth_navigation.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../../data/models/driver_status.dart';
+import '../../../onboarding/navigation/driver_onboarding_exit.dart';
 
 /// Polls onboarding status until approved, rejected, or suspended.
 class DriverPendingScreen extends StatefulWidget {
@@ -149,6 +150,17 @@ class _DriverPendingScreenState extends State<DriverPendingScreen> {
                         ),
                       ),
                     ),
+                    TextButton(
+                      onPressed: () => DriverOnboardingExit.toRoleSelection(context),
+                      child: Text(
+                        'CONTINUE AS CUSTOMER INSTEAD',
+                        style: TextStyle(
+                          color: maroon.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -229,6 +241,11 @@ class _RejectedView extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(reason!, textAlign: TextAlign.center),
               ],
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => DriverOnboardingExit.toRoleSelection(context),
+                child: Text('Back to role selection', style: TextStyle(color: maroon, fontWeight: FontWeight.w700)),
+              ),
             ],
           ),
         ),
@@ -259,6 +276,11 @@ class _SuspendedView extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(reason!, textAlign: TextAlign.center),
               ],
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => DriverOnboardingExit.toRoleSelection(context),
+                child: Text('Back to role selection', style: TextStyle(color: maroon, fontWeight: FontWeight.w700)),
+              ),
             ],
           ),
         ),

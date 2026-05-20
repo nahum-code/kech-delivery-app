@@ -4,8 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/webview/webview_platform_init.dart';
+
 Future<void> bootstrap(FutureOr<void> Function() run) async {
   WidgetsFlutterBinding.ensureInitialized();
+  ensureWebViewPlatformInitialized();
 
   await SystemChrome.setPreferredOrientations(
     <DeviceOrientation>[

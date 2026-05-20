@@ -19,6 +19,18 @@ export function paymentLabel(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+export function paymentBadgeClass(status: string): string {
+  switch (status) {
+    case "paid":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "failed":
+      return "bg-red-100 text-red-800 border-red-200";
+    case "pending":
+    default:
+      return "bg-amber-100 text-amber-800 border-amber-200";
+  }
+}
+
 export function statusBadgeClass(status: string): string {
   switch (status) {
     case "delivered":

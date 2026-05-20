@@ -5,6 +5,7 @@
  * was never linked (broken install, cache restore, tooling), CMD reports
  * "'next' is not recognized..." even when `next` exists under `node_modules/next`.
  */
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const fs = require("fs");
 const path = require("path");
@@ -17,7 +18,7 @@ const nextCliPath = path.join(
   "next",
   "dist",
   "bin",
-  "next"
+  "next",
 );
 /** Loaded by Next’s CLI bootstrap; absent when an install/sync was interrupted. */
 const nextRequireHook = path.join(
@@ -26,13 +27,13 @@ const nextRequireHook = path.join(
   "next",
   "dist",
   "server",
-  "require-hook.js"
+  "require-hook.js",
 );
 
 if (!fs.existsSync(nextCliPath)) {
   console.error(
     `[next-admin] Missing Next.js CLI:\n  ${nextCliPath}\n` +
-      "Install dependencies from this folder: npm ci   (or: npm install)\n"
+      "Install dependencies from this folder: npm ci   (or: npm install)\n",
   );
   process.exit(1);
 }
@@ -46,7 +47,7 @@ if (!fs.existsSync(nextRequireHook)) {
       "  npx --yes rimraf node_modules\n" +
       "  npm ci\n\n" +
       "If deletion fails on Windows (locked files): close terminals/IDE antivirus scan " +
-      "on this folder temporarily, retry, then run npm ci again.\n"
+      "on this folder temporarily, retry, then run npm ci again.\n",
   );
   process.exit(1);
 }
@@ -59,7 +60,7 @@ const result = spawnSync(
     env: process.env,
     stdio: "inherit",
     shell: false,
-  }
+  },
 );
 
 process.exit(Number.isInteger(result.status) ? result.status : 1);

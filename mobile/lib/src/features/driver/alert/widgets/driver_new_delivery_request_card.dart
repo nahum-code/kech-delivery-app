@@ -95,7 +95,7 @@ class _DriverNewDeliveryRequestCardState extends State<DriverNewDeliveryRequestC
             ),
             const SizedBox(height: 8),
             Text(
-              '$payout MAD',
+              '$payout ETB',
               style: const TextStyle(
                 color: DriverTaskTokens.primary,
                 fontWeight: FontWeight.w800,

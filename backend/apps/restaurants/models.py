@@ -1,16 +1,28 @@
 from __future__ import annotations
 
+import os
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.text import get_valid_filename
+
+from core.currency import DEFAULT_CURRENCY
+
+
+def _safe_upload_name(filename: str) -> str:
+    return get_valid_filename(os.path.basename(filename)) or "upload.jpg"
 
 
 def restaurant_logo_upload_to(instance: "Restaurant", filename: str) -> str:
-    return f"restaurants/{instance.pk or 'new'}/logo/{filename}"
+    rid = instance.pk if instance.pk else uuid.uuid4().hex
+    return f"restaurants/{rid}/logo/{_safe_upload_name(filename)}"
 
 
 def restaurant_cover_upload_to(instance: "Restaurant", filename: str) -> str:
-    return f"restaurants/{instance.pk or 'new'}/cover/{filename}"
+    rid = instance.pk if instance.pk else uuid.uuid4().hex
+    return f"restaurants/{rid}/cover/{_safe_upload_name(filename)}"
 
 
 def menu_item_image_upload_to(instance: "MenuItem", filename: str) -> str:
@@ -98,7 +110,7 @@ class MenuItem(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=8, default="MAD")
+    currency = models.CharField(max_length=8, default=DEFAULT_CURRENCY)
     is_available = models.BooleanField(default=True, db_index=True)
     image = models.ImageField(upload_to=menu_item_image_upload_to, blank=True, null=True)
     sort_order = models.PositiveIntegerField(default=0)

@@ -151,7 +151,7 @@ export function OrdersMonitor() {
                   </TableCell>
                   <TableCell>{format(order.createdAt, "HH:mm")}</TableCell>
                   <TableCell>{order.distance}</TableCell>
-                  <TableCell>{order.deliveryFee} MAD</TableCell>
+                  <TableCell>{order.deliveryFee} ETB</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -217,16 +217,16 @@ export function OrdersMonitor() {
                     <div className="flex justify-between">
                       <span>Delivery Fee</span>
                       <span className="font-medium">
-                        {selectedOrder.deliveryFee} MAD
+                        {selectedOrder.deliveryFee} ETB
                       </span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Driver Payout</span>
-                      <span>{selectedOrder.driverPayout} MAD</span>
+                      <span>{selectedOrder.driverPayout} ETB</span>
                     </div>
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Platform Fee</span>
-                      <span>{selectedOrder.platformFee} MAD</span>
+                      <span>{selectedOrder.platformFee} ETB</span>
                     </div>
                   </div>
                 </div>

@@ -17,6 +17,7 @@ import {
 import {
   ORDER_STATUS_OPTIONS,
   parseApiError,
+  paymentBadgeClass,
   paymentLabel,
   statusBadgeClass,
   statusLabel,
@@ -270,9 +271,11 @@ export function MonitorOrdersPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{paymentLabel(o.payment_status)}</Badge>
+                      <Badge variant="outline" className={paymentBadgeClass(o.payment_status)}>
+                        {paymentLabel(o.payment_status)}
+                      </Badge>
                     </TableCell>
-                    <TableCell>{o.total_amount} MAD</TableCell>
+                    <TableCell>{o.total_amount} ETB</TableCell>
                     <TableCell>{format(new Date(o.placed_at), "MMM d, HH:mm")}</TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedId(o.id)}>
@@ -301,9 +304,14 @@ export function MonitorOrdersPage() {
                     {statusLabel(detail.status)}
                   </Badge>
                 </p>
-                <p>
-                  <span className="text-muted-foreground">Payment:</span>{" "}
-                  {paymentLabel(detail.payment_status)}
+                <p className="flex items-center gap-2 flex-wrap">
+                  <span className="text-muted-foreground">Payment:</span>
+                  <Badge variant="outline" className={paymentBadgeClass(detail.payment_status)}>
+                    {paymentLabel(detail.payment_status)}
+                  </Badge>
+                  {detail.payment_status === "paid" && (
+                    <span className="text-xs text-green-700">Customer paid via Chapa</span>
+                  )}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Customer:</span> {detail.customer_phone}
@@ -317,7 +325,7 @@ export function MonitorOrdersPage() {
                       <span>
                         {item.item_name} ×{item.quantity}
                       </span>
-                      <span>{item.total_price} MAD</span>
+                      <span>{item.total_price} ETB</span>
                     </li>
                   ))}
                 </ul>

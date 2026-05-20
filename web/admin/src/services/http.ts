@@ -40,22 +40,44 @@ async function refreshAccessToken(): Promise<boolean> {
   return true;
 }
 
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function parseErrorMessage(response: Response): Promise<string> {
-  const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
-  if (payload?.detail) {
-    return String(payload.detail);
+  const raw = await response.text().catch(() => "");
+  if (!raw) {
+    return `Request failed (${response.status})`;
   }
-  if (payload && typeof payload === "object") {
-    const firstValue = Object.values(payload)[0];
-    if (Array.isArray(firstValue) && firstValue.length > 0) {
-      return String(firstValue[0]);
+
+  try {
+    const payload = JSON.parse(raw) as Record<string, unknown>;
+    if (payload.detail) {
+      return String(payload.detail);
     }
-    if (typeof firstValue === "string") {
-      return firstValue;
+    if (typeof payload === "object") {
+      const firstValue = Object.values(payload)[0];
+      if (Array.isArray(firstValue) && firstValue.length > 0) {
+        return String(firstValue[0]);
+      }
+      if (typeof firstValue === "string") {
+        return firstValue;
+      }
+    }
+  } catch {
+    // Non-JSON (e.g. HTML debug page) — avoid surfacing huge bodies.
+    if (raw.length < 200 && !raw.includes("<html")) {
+      return raw;
     }
   }
-  const bodyText = await response.text().catch(() => "");
-  return bodyText || `Request failed (${response.status})`;
+
+  return `Request failed (${response.status})`;
 }
 
 export async function requestJson<T>(
@@ -86,10 +108,12 @@ export async function requestJson<T>(
 
   if (!response.ok) {
     const message = await parseErrorMessage(response);
-    if (response.status === 403) {
-      throw new Error(message || "You do not have permission for this action.");
-    }
-    throw new Error(message);
+    throw new ApiError(
+      response.status === 403
+        ? message || "You do not have permission for this action."
+        : message,
+      response.status,
+    );
   }
 
   if (response.status === 204) {

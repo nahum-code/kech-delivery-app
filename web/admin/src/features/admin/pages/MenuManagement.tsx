@@ -84,6 +84,7 @@ export function MenuManagement() {
   }, [restaurantId, selectedCategoryId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadMenu();
   }, [loadMenu]);
 
@@ -280,7 +281,7 @@ export function MenuManagement() {
               <Input value={itemForm.name} onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })} />
             </div>
             <div>
-              <Label>Price (MAD)</Label>
+              <Label>Price (ETB)</Label>
               <Input value={itemForm.price} onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })} />
             </div>
             <div>

@@ -6,6 +6,8 @@ export type MeResponse = {
   phone: string;
   role: string;
   is_active: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
   created_at: string;
   profile: Record<string, unknown>;
 };
@@ -13,7 +15,8 @@ export type MeResponse = {
 const ROLE = "admin";
 
 function assertRole(me: MeResponse): void {
-  if (me.role !== ROLE) {
+  const isAdmin = me.role === ROLE || me.is_superuser === true;
+  if (!isAdmin) {
     clearSession();
     throw new Error("This account does not have admin access.");
   }
@@ -34,7 +37,7 @@ export async function loginWithPhone(phone: string, password: string) {
   const role = String(response.role || "");
   if (role !== ROLE) {
     clearSession();
-    throw new Error("This account does not have admin access.");
+    throw new Error("This account does not have admin access. Use an account with the admin role.");
   }
 
   setSessionTokens(access, refresh);

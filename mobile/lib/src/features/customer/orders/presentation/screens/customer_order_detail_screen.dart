@@ -242,7 +242,7 @@ class _ItemCard extends StatelessWidget {
               ),
             ),
             Text(
-              '${item.totalPrice} MAD',
+              '${item.totalPrice} ETB',
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 color: CustomerOrderDetailScreen._maroon,

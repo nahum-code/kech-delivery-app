@@ -359,7 +359,7 @@ class _ActiveDeliveryTile extends StatelessWidget {
             ),
           ),
           Text(
-            '${order.totalAmount} MAD',
+            '${order.totalAmount} ETB',
             style: const TextStyle(fontWeight: FontWeight.w700, color: DriverHomeTokens.primary),
           ),
         ],

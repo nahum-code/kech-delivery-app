@@ -8,6 +8,7 @@ import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/customer_registration_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
 import '../../../data/driver_onboarding_repository.dart';
+import '../../../onboarding/navigation/driver_onboarding_exit.dart';
 import '../../../otp/navigation/driver_otp_navigation.dart';
 
 /// Upload required driver verification documents before OTP.
@@ -96,6 +97,10 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
         elevation: 0,
         foregroundColor: CustomerRegistrationTokens.primaryMaroon,
         title: const Text('Verification documents', style: TextStyle(fontWeight: FontWeight.w800)),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => DriverOnboardingExit.toRoleSelection(context),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -141,6 +146,17 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                 label: 'CONTINUE',
                 loading: _submitting,
                 onPressed: _submitting ? null : _submit,
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: _submitting ? null : () => DriverOnboardingExit.toRoleSelection(context),
+                child: Text(
+                  'Continue as customer instead',
+                  style: TextStyle(
+                    color: CustomerRegistrationTokens.primaryMaroon,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),

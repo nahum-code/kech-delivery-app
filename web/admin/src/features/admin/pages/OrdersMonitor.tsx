@@ -118,10 +118,7 @@ export function OrdersMonitor() {
   }, []);
 
   useEffect(() => {
-    if (selectedId == null) {
-      setDetail(null);
-      return;
-    }
+    if (selectedId == null) return;
     void fetchOrder(selectedId)
       .then(setDetail)
       .catch((e) => toast.error(e instanceof Error ? e.message : "Failed to load order"));
@@ -244,7 +241,7 @@ export function OrdersMonitor() {
                       <Badge variant="secondary">{paymentLabel(o.payment_status)}</Badge>
                     </TableCell>
                     <TableCell>
-                      {o.total_amount} MAD
+                      {o.total_amount} ETB
                     </TableCell>
                     <TableCell>{format(new Date(o.placed_at), "MMM d, HH:mm")}</TableCell>
                     <TableCell>
@@ -260,7 +257,15 @@ export function OrdersMonitor() {
         </CardContent>
       </Card>
 
-      <Sheet open={selectedId != null} onOpenChange={() => setSelectedId(null)}>
+      <Sheet
+        open={selectedId != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedId(null);
+            setDetail(null);
+          }
+        }}
+      >
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           {detail && (
             <>
@@ -283,7 +288,7 @@ export function OrdersMonitor() {
                       <span>
                         {item.item_name} ×{item.quantity}
                       </span>
-                      <span>{item.total_price} MAD</span>
+                      <span>{item.total_price} ETB</span>
                     </li>
                   ))}
                 </ul>
