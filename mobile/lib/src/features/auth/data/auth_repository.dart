@@ -174,7 +174,8 @@ final class AuthRepository {
 
   static String _networkHint() {
     return 'Cannot reach the server at ${ApiBaseUrl.resolve()}. '
-        'Ensure Django is running and reachable (Docker: port 8000 published).';
+        'Ensure Docker is running (port 8000). On a physical phone, set your PC\'s '
+        'Wi‑Fi IPv4 in lib/src/core/config/dev_api_config.dart — not 127.0.0.1 or 10.0.2.2.';
   }
 
   static String _mapLoginHttpFailure(String expectedRole, String body, int status) {

@@ -75,8 +75,14 @@ class PaymentApiTests(TestCase):
         from apps.payments.services.payment import _customer_email, _return_http_url
 
         email = _customer_email(self.customer, self.order)
-        self.assertIn("@kechdelivery.app", email)
+        self.assertTrue(email.endswith("@ethionet.et"))
         self.assertNotIn(".local", email)
+        self.assertNotIn("kechdelivery.app", email)
+
+        from apps.payments.services.payment import _chapa_phone_number
+
+        phone = _chapa_phone_number(self.customer, self.order)
+        self.assertRegex(phone, r"^0[79]\d{8}$")
 
         return_url = _return_http_url(self.order.id, "KCH-1-testref")
         self.assertTrue(return_url.startswith("http"))

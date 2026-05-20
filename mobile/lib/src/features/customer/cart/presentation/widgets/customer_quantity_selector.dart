@@ -8,11 +8,14 @@ class CustomerQuantitySelector extends StatelessWidget {
     required this.quantity,
     required this.onDecrement,
     required this.onIncrement,
+    this.allowRemoveAtOne = false,
   });
 
   final int quantity;
   final VoidCallback onDecrement;
   final VoidCallback onIncrement;
+  /// When true (cart review), minus at qty 1 removes the line and can clear the cart.
+  final bool allowRemoveAtOne;
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +28,19 @@ class CustomerQuantitySelector extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _CircleButton(icon: Icons.remove, onTap: quantity > 1 ? onDecrement : null),
+          _CircleButton(
+            icon: Icons.remove,
+            onTap: allowRemoveAtOne || quantity > 1 ? onDecrement : null,
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               '$quantity',
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                color: CustomerCheckoutTokens.ink,
+              ),
             ),
           ),
           _CircleButton(icon: Icons.add, onTap: onIncrement),

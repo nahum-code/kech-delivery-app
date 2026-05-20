@@ -33,6 +33,13 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
     super.initState();
     _draft = widget.draft;
     _driverNote.text = widget.draft.driverNote;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final CartState? cart = context.read<CartRepository>().current;
+      if (cart == null || cart.isEmpty) {
+        Navigator.of(context).maybePop();
+      }
+    });
   }
 
   @override
@@ -115,28 +122,67 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
           Padding(padding: EdgeInsets.only(right: 16), child: Icon(Icons.shopping_bag_outlined)),
         ],
       ),
-      body: cart == null
-          ? const Center(child: Text('Cart is empty'))
+      body: cart == null || cart.isEmpty
+          ? const Center(child: CircularProgressIndicator(color: CustomerCheckoutTokens.primaryMaroon))
           : Column(
               children: <Widget>[
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.fromLTRB(
                       CustomerCheckoutTokens.screenPadding,
-                      0,
+                      8,
                       CustomerCheckoutTokens.screenPadding,
-                      16,
+                      24,
                     ),
                     children: <Widget>[
+                      if (cart.lines.isNotEmpty) ...<Widget>[
+                        Text('Your order', style: CustomerCheckoutTokens.sectionTitle(context)),
+                        const SizedBox(height: 10),
+                        ...cart.lines.map(
+                          (CartLine line) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Expanded(
+                                  child: Text(
+                                    line.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15,
+                                      color: CustomerCheckoutTokens.ink,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  '${line.quantity} × ${line.unitPrice} ${line.currency}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: CustomerCheckoutTokens.ink,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       Text('Delivery destination', style: CustomerCheckoutTokens.sectionTitle(context)),
                       const SizedBox(height: 10),
                       _AddressCard(draft: _draft, onChange: _changeAddress),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 24),
                       Text('Instructions for driver', style: CustomerCheckoutTokens.sectionTitle(context)),
                       const SizedBox(height: 10),
                       TextField(
                         controller: _driverNote,
                         maxLines: 3,
+                        style: const TextStyle(
+                          color: CustomerCheckoutTokens.ink,
+                          fontSize: 14,
+                          height: 1.4,
+                        ),
+                        cursorColor: CustomerCheckoutTokens.primaryMaroon,
                         decoration: InputDecoration(
                           hintText: 'Add a note for the driver... (e.g. gate code, leave at door)',
                           hintStyle: TextStyle(color: CustomerCheckoutTokens.mutedGray, fontSize: 13),
@@ -146,30 +192,44 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                             borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
                             borderSide: BorderSide.none,
                           ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+                            borderSide: const BorderSide(color: CustomerCheckoutTokens.primaryMaroon, width: 1),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                         ),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 24),
                       Text('Payment method', style: CustomerCheckoutTokens.sectionTitle(context)),
                       const SizedBox(height: 10),
                       const _ChapaTile(),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 24),
                       Container(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
                         decoration: BoxDecoration(
                           color: CustomerCheckoutTokens.fieldFill,
                           borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text('Order summary', style: CustomerCheckoutTokens.sectionTitle(context)),
-                            const SizedBox(height: 12),
-                            _summaryRow('Subtotal', '${subtotal.toStringAsFixed(2)} $currency'),
-                            const SizedBox(height: 8),
-                            _summaryRow('Delivery fee', '${_deliveryFee.toStringAsFixed(2)} $currency'),
-                            const Divider(height: 24),
-                            _summaryRow('Total', '${total.toStringAsFixed(2)} $currency', bold: true),
-                          ],
+                        child: DefaultTextStyle(
+                          style: const TextStyle(color: CustomerCheckoutTokens.ink),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text('Order summary', style: CustomerCheckoutTokens.sectionTitle(context)),
+                              const SizedBox(height: 14),
+                              _summaryRow('Subtotal', '${subtotal.toStringAsFixed(2)} $currency'),
+                              const SizedBox(height: 10),
+                              _summaryRow('Delivery fee', '${_deliveryFee.toStringAsFixed(2)} $currency'),
+                              const SizedBox(height: 14),
+                              const Divider(height: 1, color: Color(0xFFE0E0E0)),
+                              const SizedBox(height: 14),
+                              _summaryRow('Total', '${total.toStringAsFixed(2)} $currency', bold: true),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -192,9 +252,23 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
   Widget _summaryRow(String label, String value, {bool bold = false}) {
     return Row(
       children: <Widget>[
-        Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+            fontSize: bold ? 15 : 14,
+            color: CustomerCheckoutTokens.bodyGray,
+          ),
+        ),
         const Spacer(),
-        Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w700)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: bold ? 16 : 15,
+            color: CustomerCheckoutTokens.ink,
+          ),
+        ),
       ],
     );
   }
@@ -232,11 +306,18 @@ class _AddressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(draft.addressLabel, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                Text(
+                  draft.addressLabel,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: CustomerCheckoutTokens.ink,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   draft.address.addressLine,
-                  style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13, height: 1.35),
+                  style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13, height: 1.4),
                 ),
                 if (draft.address.landmark.isNotEmpty)
                   Text(draft.address.landmark, style: TextStyle(color: CustomerCheckoutTokens.mutedGray, fontSize: 12)),
@@ -284,7 +365,14 @@ class _ChapaTile extends StatelessWidget {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    const Text('Chapa', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    const Text(
+                      'Chapa',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        color: CustomerCheckoutTokens.ink,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

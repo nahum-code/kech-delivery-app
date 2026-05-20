@@ -111,10 +111,18 @@ class _DeliveryAddressSheetState extends State<_DeliveryAddressSheet> {
             onPressed: _save,
             style: FilledButton.styleFrom(
               backgroundColor: CustomerCheckoutTokens.primaryMaroon,
+              foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: const Text('Save address'),
+            child: const Text(
+              'Save address',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
           ),
         ],
       ),
@@ -126,11 +134,31 @@ class _DeliveryAddressSheetState extends State<_DeliveryAddressSheet> {
       controller: c,
       keyboardType: keyboard,
       maxLines: maxLines,
+      style: const TextStyle(
+        color: CustomerCheckoutTokens.ink,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+      ),
+      cursorColor: CustomerCheckoutTokens.primaryMaroon,
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: const TextStyle(
+          color: CustomerCheckoutTokens.primaryMaroon,
+          fontWeight: FontWeight.w600,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: CustomerCheckoutTokens.primaryMaroon,
+          fontWeight: FontWeight.w700,
+        ),
+        hintStyle: TextStyle(color: CustomerCheckoutTokens.mutedGray, fontSize: 14),
         filled: true,
         fillColor: CustomerCheckoutTokens.fieldFill,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: CustomerCheckoutTokens.primaryMaroon, width: 1.2),
+        ),
       ),
     );
   }

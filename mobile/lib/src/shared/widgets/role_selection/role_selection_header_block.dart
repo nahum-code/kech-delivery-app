@@ -45,18 +45,9 @@ class RoleSelectionHeaderBlock extends StatelessWidget {
             height: 1.1,
           ),
         ),
-        const Text(
-          'Marrakech local.',
-          style: TextStyle(
-            color: RoleSelectionTokens.primaryBurgundy,
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            height: 1.1,
-          ),
-        ),
         const SizedBox(height: 14),
         const Text(
-          'Join the fastest delivery network in the Red City.',
+          'Join the fastest delivery network in the Addis City.',
           style: TextStyle(
             color: RoleSelectionTokens.subheadGray,
             fontSize: 16,

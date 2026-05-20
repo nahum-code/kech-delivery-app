@@ -61,6 +61,9 @@ ALLOWED_HOSTS = [host.strip() for host in os.getenv("ALLOWED_HOSTS", "").split("
 if DEBUG and not ALLOWED_HOSTS:
     # 10.0.2.2 is the Android emulator alias for the host machine loopback.
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "10.0.2.2"]
+# Physical phones hit the API via LAN IP; allow any Host in local DEBUG only.
+if DEBUG and "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS = [*ALLOWED_HOSTS, "*"]
 if not DEBUG and not ALLOWED_HOSTS:
     raise ImproperlyConfigured(
         "ALLOWED_HOSTS must be set via environment when DEBUG is False"
@@ -326,6 +329,8 @@ else:
     ).rstrip("/")
     CHAPA_RETURN_HTTP_URL = os.getenv("CHAPA_RETURN_HTTP_URL", "").rstrip("/")
 CHAPA_CURRENCY = os.getenv("CHAPA_CURRENCY", "ETB")
+# Chapa rejects some domains (e.g. kechdelivery.app); use a domain their API accepts.
+CHAPA_CUSTOMER_EMAIL_DOMAIN = os.getenv("CHAPA_CUSTOMER_EMAIL_DOMAIN", "ethionet.et").strip().lstrip("@")
 CHAPA_MOCK_MODE = env_bool("CHAPA_MOCK_MODE", default=DEBUG and not CHAPA_SECRET_KEY)
 # Base URL reachable from the mobile app (emulator: http://10.0.2.2:8000). Used for mock checkout HTML.
 CHAPA_PUBLIC_BASE_URL = os.getenv("CHAPA_PUBLIC_BASE_URL", "http://127.0.0.1:8000").rstrip("/")

@@ -33,13 +33,39 @@ class PaymentServiceError(Exception):
 
 
 def _customer_email(user: User, order: Order) -> str:
-    """Chapa requires a standard email shape (rejects .local and invalid formats)."""
+    """
+    Synthetic checkout email — Chapa validates the domain (rejects kechdelivery.app).
+    Use CHAPA_CUSTOMER_EMAIL_DOMAIN for a Chapa-accepted domain (default: ethionet.et).
+    """
+    domain = (
+        getattr(settings, "CHAPA_CUSTOMER_EMAIL_DOMAIN", "ethionet.et") or "ethionet.et"
+    ).strip().lstrip("@")
     addr = order.delivery_address or {}
     phone = addr.get("phone") or user.phone or "customer"
-    digits = re.sub(r"\D", "", str(phone)) or "0000000000"
-    if len(digits) > 15:
-        digits = digits[-15:]
-    return f"customer{digits}@kechdelivery.app"
+    digits = re.sub(r"\D", "", str(phone)) or "900000000"
+    if digits.startswith("251") and len(digits) >= 12:
+        digits = digits[3:12]
+    elif digits.startswith("0") and len(digits) >= 10:
+        digits = digits[1:10]
+    elif len(digits) > 9:
+        digits = digits[-9:]
+    return f"customer{digits}@{domain}"
+
+
+def _chapa_phone_number(user: User, order: Order) -> str:
+    """Chapa expects Ethiopian mobile as 09xxxxxxxx or 07xxxxxxxx (10 digits)."""
+    addr = order.delivery_address or {}
+    raw = addr.get("phone") or user.phone or ""
+    digits = re.sub(r"\D", "", str(raw))
+    if digits.startswith("251") and len(digits) >= 12:
+        local = digits[3:12]
+    elif digits.startswith("0") and len(digits) >= 10:
+        return digits[:10]
+    elif len(digits) == 9 and digits[0] in "97":
+        local = digits
+    else:
+        local = digits[-9:] if len(digits) >= 9 else "900000000"
+    return f"0{local}" if len(local) == 9 else local[:10]
 
 
 def _chapa_error_message(exc: ChapaClientError) -> str:
@@ -141,7 +167,7 @@ def initialize_payment(*, order: Order, customer: User) -> Payment:
     tx_ref = _generate_tx_ref(order.pk)
     amount_str = _format_amount(order.total_amount)
     first_name, last_name = _customer_names(order)
-    phone = (order.delivery_address or {}).get("phone") or customer.phone
+    phone = _chapa_phone_number(customer, order)
 
     payment = Payment.objects.create(
         order=order,

@@ -21,6 +21,31 @@ class CustomerCartReviewScreen extends StatefulWidget {
 class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
   CheckoutDraft? _draft;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _popIfCartEmpty(showMessage: false));
+  }
+
+  void _popIfCartEmpty({required bool showMessage}) {
+    if (!mounted) return;
+    final CartState? cart = context.read<CartRepository>().current;
+    if (cart != null && !cart.isEmpty) return;
+    if (!Navigator.of(context).canPop()) return;
+    Navigator.of(context).pop();
+    if (showMessage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Item removed from cart')),
+      );
+    }
+  }
+
+  Future<void> _decrementLine(CartLine line) async {
+    await context.read<CartRepository>().updateLineQuantity(line.menuItemId, line.quantity - 1);
+    if (!mounted) return;
+    _popIfCartEmpty(showMessage: true);
+  }
+
   int get _itemCount =>
       context.read<CartRepository>().current?.lines.fold<int>(0, (int s, CartLine l) => s + l.quantity) ?? 0;
 
@@ -70,7 +95,7 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
         ],
       ),
       body: cart == null || cart.isEmpty
-          ? const Center(child: Text('Cart is empty'))
+          ? _EmptyCartView(onBack: () => Navigator.of(context).maybePop())
           : Column(
               children: <Widget>[
                 Expanded(
@@ -98,7 +123,9 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ...cart.lines.map((CartLine line) => _CartLineCard(line: line)),
+                      ...cart.lines.map(
+                        (CartLine line) => _CartLineCard(line: line, onDecrement: () => _decrementLine(line)),
+                      ),
                       const SizedBox(height: 16),
                       _DeliveryCard(
                         draft: _draft,
@@ -122,10 +149,42 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
   }
 }
 
+class _EmptyCartView extends StatelessWidget {
+  const _EmptyCartView({required this.onBack});
+
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(CustomerCheckoutTokens.screenPadding),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.shopping_bag_outlined, size: 56, color: CustomerCheckoutTokens.mutedGray),
+            const SizedBox(height: 16),
+            Text('Your cart is empty', style: CustomerCheckoutTokens.sectionTitle(context)),
+            const SizedBox(height: 8),
+            Text(
+              'Add items from the menu, or go back to keep browsing.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            CustomerMaroonPrimaryButton(label: 'BACK TO MENU', onPressed: onBack),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CartLineCard extends StatelessWidget {
-  const _CartLineCard({required this.line});
+  const _CartLineCard({required this.line, required this.onDecrement});
 
   final CartLine line;
+  final VoidCallback onDecrement;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +220,14 @@ class _CartLineCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Text(line.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      Text(
+                        line.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: CustomerCheckoutTokens.ink,
+                        ),
+                      ),
                       if (line.subtitle.isNotEmpty)
                         Text(line.subtitle, style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13)),
                       const SizedBox(height: 6),
@@ -177,7 +243,8 @@ class _CartLineCard extends StatelessWidget {
                 ),
                 CustomerQuantitySelector(
                   quantity: line.quantity,
-                  onDecrement: () => repo.updateLineQuantity(line.menuItemId, line.quantity - 1),
+                  allowRemoveAtOne: true,
+                  onDecrement: onDecrement,
                   onIncrement: () => repo.updateLineQuantity(line.menuItemId, line.quantity + 1),
                 ),
               ],
@@ -282,6 +349,8 @@ class _LineInstructionsFieldState extends State<_LineInstructionsField> {
     return TextField(
       controller: _controller,
       onChanged: widget.onChanged,
+      style: const TextStyle(color: CustomerCheckoutTokens.ink, fontSize: 14),
+      cursorColor: CustomerCheckoutTokens.primaryMaroon,
       decoration: InputDecoration(
         hintText: 'Add special instructions...',
         hintStyle: TextStyle(color: CustomerCheckoutTokens.mutedGray, fontSize: 13),
@@ -306,7 +375,14 @@ class _PriceRow extends StatelessWidget {
       children: <Widget>[
         Text(label, style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontWeight: FontWeight.w600)),
         const Spacer(),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+            color: CustomerCheckoutTokens.ink,
+          ),
+        ),
       ],
     );
   }

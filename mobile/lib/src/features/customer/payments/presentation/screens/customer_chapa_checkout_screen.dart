@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -39,7 +43,7 @@ class _CustomerChapaCheckoutScreenState extends State<CustomerChapaCheckoutScree
     _bootstrapWebView();
   }
 
-  void _bootstrapWebView() {
+  Future<void> _bootstrapWebView() async {
     final String url = widget.checkoutUrl.trim();
     if (url.isEmpty) {
       setState(() {
@@ -53,6 +57,15 @@ class _CustomerChapaCheckoutScreenState extends State<CustomerChapaCheckoutScree
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       setState(() {
         _loadError = 'Payment link is invalid. Go back and try again.';
+        _loading = false;
+      });
+      return;
+    }
+
+    if (await _preflightHostLookupFailed(uri.host)) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = _dnsFailureMessage(uri.host);
         _loading = false;
       });
       return;
@@ -77,9 +90,7 @@ class _CustomerChapaCheckoutScreenState extends State<CustomerChapaCheckoutScree
             if (!mounted) return;
             setState(() {
               _loading = false;
-              _loadError = error.description.isNotEmpty
-                  ? 'Chapa could not load (${error.description}).'
-                  : 'Chapa could not load. Check your connection and try again.';
+              _loadError = _webResourceErrorMessage(error);
             });
           },
           onNavigationRequest: _onNavigation,
@@ -92,7 +103,68 @@ class _CustomerChapaCheckoutScreenState extends State<CustomerChapaCheckoutScree
     }
 
     setState(() => _controller = controller);
-    controller.loadRequest(uri);
+    await controller.loadRequest(uri);
+  }
+
+  /// True when the device cannot resolve the checkout host before loading the WebView.
+  Future<bool> _preflightHostLookupFailed(String host) async {
+    if (host == 'localhost' || host == '127.0.0.1') {
+      return false;
+    }
+    try {
+      final List<InternetAddress> results = await InternetAddress.lookup(host).timeout(
+        const Duration(seconds: 8),
+      );
+      return results.isEmpty;
+    } on TimeoutException {
+      return true;
+    } on SocketException {
+      return true;
+    } on OSError {
+      return true;
+    }
+  }
+
+  String _dnsFailureMessage(String host) {
+    if (host == '10.0.2.2') {
+      return 'Cannot reach the dev server at 10.0.2.2 from this phone. '
+          'Use your computer\'s LAN IP in CHAPA_PUBLIC_BASE_URL '
+          '(e.g. http://192.168.1.x:8000), same Wi‑Fi as the phone, then restart the backend.';
+    }
+    final StringBuffer message = StringBuffer(
+      'Cannot connect to the payment page. Check Wi‑Fi or mobile data, then tap Retry. '
+      'You can also try Open in browser.',
+    );
+    if (kDebugMode) {
+      message.write(
+        '\n\n(Dev: DNS could not resolve $host. Emulators need working internet for checkout.chapa.co; '
+        'or use CHAPA_MOCK_MODE=1 with CHAPA_PUBLIC_BASE_URL pointing at your machine.)',
+      );
+    }
+    return message.toString();
+  }
+
+  String _webResourceErrorMessage(WebResourceError error) {
+    final String desc = error.description;
+    if (_isDnsLookupFailure(desc, error.errorCode)) {
+      final Uri? uri = Uri.tryParse(widget.checkoutUrl.trim());
+      return _dnsFailureMessage(uri?.host ?? 'checkout.chapa.co');
+    }
+    if (desc.isNotEmpty) {
+      return 'Chapa could not load ($desc). Check your connection and try again.';
+    }
+    return 'Chapa could not load. Check your connection and try again.';
+  }
+
+  bool _isDnsLookupFailure(String description, int errorCode) {
+    if (description.contains('ERR_NAME_NOT_RESOLVED')) {
+      return true;
+    }
+    // Android WebView ERROR_HOST_LOOKUP
+    if (errorCode == -2) {
+      return true;
+    }
+    return false;
   }
 
   NavigationDecision _onNavigation(NavigationRequest request) {
@@ -137,9 +209,12 @@ class _CustomerChapaCheckoutScreenState extends State<CustomerChapaCheckoutScree
       );
       return;
     }
-    if (mounted) {
-      await _completeCheckout();
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Complete payment in the browser, then tap “I already paid — continue”.'),
+      ),
+    );
   }
 
   @override
