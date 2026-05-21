@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.orders.api.serializers import (
     AssignDriverSerializer,
+    DeliveryFeeQuoteInputSerializer,
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
@@ -16,6 +17,8 @@ from apps.orders.api.serializers import (
     SalesOrderCreateSerializer,
 )
 from apps.orders.models import Order
+from apps.orders.services.pricing import compute_pricing, haversine_km
+from apps.restaurants.models import Restaurant
 from apps.orders.permissions import (
     CanAssignDriver,
     CanCreateCustomerOrder,
@@ -250,6 +253,37 @@ class AssignDriverView(APIView):
 
         order = _order_queryset().get(pk=order.pk)
         return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+
+class DeliveryFeeQuoteView(APIView):
+    """Distance-based delivery fee quote. Authenticated; sales + customers both call it."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        body = DeliveryFeeQuoteInputSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+        try:
+            restaurant = Restaurant.objects.get(pk=data["restaurant_id"], is_active=True)
+        except Restaurant.DoesNotExist:
+            return Response(
+                {"detail": "Restaurant not found or inactive."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if restaurant.latitude is None or restaurant.longitude is None:
+            return Response(
+                {"detail": "Restaurant has no coordinates set."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        distance_km = haversine_km(
+            restaurant.latitude,
+            restaurant.longitude,
+            data["latitude"],
+            data["longitude"],
+        )
+        pricing = compute_pricing(distance_km)
+        return Response(pricing.as_dict())
 
 
 class DriverOrdersListView(APIView):

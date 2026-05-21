@@ -1,9 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { format } from "date-fns";
 import { Edit, Eye, MapPin, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+
+const RestaurantLocationPicker = dynamic(
+  () =>
+    import("../components/RestaurantLocationPicker").then(
+      (m) => m.RestaurantLocationPicker,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-gray-100 rounded-lg h-[280px] flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading map…</p>
+      </div>
+    ),
+  },
+);
 
 import { useRestaurants } from "@/hooks/use-restaurants";
 import { ApiError } from "@/services/http";
@@ -333,6 +349,23 @@ export function RestaurantManagement() {
                 className="mt-2"
                 value={form.address_text}
                 onChange={(e) => setForm({ ...form, address_text: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <p className="text-xs text-muted-foreground">
+                Click on the map to set the restaurant&apos;s pin. You can also fine-tune the lat/lng below.
+              </p>
+              <RestaurantLocationPicker
+                latitude={Number.parseFloat(form.latitude) || null}
+                longitude={Number.parseFloat(form.longitude) || null}
+                onPick={(pos) =>
+                  setForm({
+                    ...form,
+                    latitude: pos.latitude.toFixed(6),
+                    longitude: pos.longitude.toFixed(6),
+                  })
+                }
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

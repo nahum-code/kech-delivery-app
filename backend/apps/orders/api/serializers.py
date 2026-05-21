@@ -11,6 +11,8 @@ class DeliveryAddressSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32)
     address_line = serializers.CharField(max_length=500)
     landmark = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    latitude = serializers.FloatField(required=False, allow_null=True)
+    longitude = serializers.FloatField(required=False, allow_null=True)
 
 
 class OrderItemInputSerializer(serializers.Serializer):
@@ -84,6 +86,8 @@ class OrderListSerializer(serializers.ModelSerializer):
             "payment_status",
             "subtotal",
             "delivery_fee",
+            "driver_payout",
+            "platform_fee",
             "total_amount",
             "delivery_address",
             "driver_acknowledged_at",
@@ -130,6 +134,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "payment_status",
             "subtotal",
             "delivery_fee",
+            "driver_payout",
+            "platform_fee",
             "total_amount",
             "delivery_address",
             "customer_note",
@@ -146,3 +152,9 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
 
 class AssignDriverSerializer(serializers.Serializer):
     driver_id = serializers.IntegerField()
+
+
+class DeliveryFeeQuoteInputSerializer(serializers.Serializer):
+    restaurant_id = serializers.IntegerField()
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()

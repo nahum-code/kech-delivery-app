@@ -40,6 +40,8 @@ final class RestaurantDetail {
     this.addressText = '',
     this.openingHours = '',
     this.isActive = true,
+    this.latitude,
+    this.longitude,
   });
 
   final int id;
@@ -52,6 +54,8 @@ final class RestaurantDetail {
   final String addressText;
   final String openingHours;
   final bool isActive;
+  final double? latitude;
+  final double? longitude;
 
   String? get heroImageUrl => coverImageUrl ?? logoUrl;
 
@@ -71,6 +75,8 @@ final class RestaurantDetail {
       addressText: m['address_text'] as String? ?? '',
       openingHours: _readString(m['opening_hours']) ?? '',
       isActive: m['is_active'] as bool? ?? true,
+      latitude: _readDouble(m['latitude']),
+      longitude: _readDouble(m['longitude']),
     );
   }
 
@@ -136,6 +142,12 @@ int? _readInt(dynamic value) {
   if (value is String) {
     return int.tryParse(value);
   }
+  return null;
+}
+
+double? _readDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
   return null;
 }
 

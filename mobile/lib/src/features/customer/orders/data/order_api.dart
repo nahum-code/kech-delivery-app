@@ -35,4 +35,20 @@ final class OrderApi {
   Future<http.Response> confirmPayment(int orderId) {
     return _client.post(_u('/api/v1/orders/$orderId/confirm-payment/'), headers: _headers);
   }
+
+  Future<http.Response> quoteDeliveryFee({
+    required int restaurantId,
+    required double latitude,
+    required double longitude,
+  }) {
+    return _client.post(
+      _u('/api/v1/orders/quote-delivery-fee/'),
+      headers: _headers,
+      body: jsonEncode(<String, dynamic>{
+        'restaurant_id': restaurantId,
+        'latitude': latitude,
+        'longitude': longitude,
+      }),
+    );
+  }
 }

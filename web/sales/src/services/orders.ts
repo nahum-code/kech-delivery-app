@@ -63,6 +63,24 @@ export async function fetchOrder(id: number): Promise<OrderDetail> {
   return authJson<OrderDetail>(`/api/v1/orders/${id}/`);
 }
 
+export type DeliveryFeeQuote = {
+  distance_km: string | null;
+  driver_payout: string;
+  platform_fee: string;
+  delivery_fee: string;
+};
+
+export async function quoteDeliveryFee(input: {
+  restaurant_id: number;
+  latitude: number;
+  longitude: number;
+}): Promise<DeliveryFeeQuote> {
+  return authJson<DeliveryFeeQuote>("/api/v1/orders/quote-delivery-fee/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function createSalesOrder(payload: {
   customer_id: number;
   restaurant_id: number;
@@ -72,6 +90,8 @@ export async function createSalesOrder(payload: {
     phone: string;
     address_line: string;
     landmark?: string;
+    latitude?: number;
+    longitude?: number;
   };
   customer_note?: string;
   payment_status?: "pending" | "paid" | "failed";

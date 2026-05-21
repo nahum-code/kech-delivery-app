@@ -58,6 +58,29 @@ final class OrderRepository {
     return OrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<DeliveryFeeQuote> quoteDeliveryFee({
+    required String accessToken,
+    required int restaurantId,
+    required double latitude,
+    required double longitude,
+  }) async {
+    final http.Response response = await _apiFactory(accessToken).quoteDeliveryFee(
+      restaurantId: restaurantId,
+      latitude: latitude,
+      longitude: longitude,
+    );
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not fetch delivery fee');
+    }
+    final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
+    return DeliveryFeeQuote(
+      distanceKm: body['distance_km'] as String?,
+      driverPayout: '${body['driver_payout']}',
+      platformFee: '${body['platform_fee']}',
+      deliveryFee: '${body['delivery_fee']}',
+    );
+  }
+
   Exception _httpError(http.Response response, String fallback) {
     try {
       final dynamic body = jsonDecode(response.body);

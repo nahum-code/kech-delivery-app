@@ -62,6 +62,8 @@ class Order(models.Model):
     )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     delivery_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    driver_payout = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
+    platform_fee = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0.00"))
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     delivery_address = models.JSONField(default=dict)
     customer_note = models.TextField(blank=True)
