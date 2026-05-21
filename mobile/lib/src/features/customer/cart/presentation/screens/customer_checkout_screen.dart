@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../shared/theme/customer_checkout_tokens.dart';
+import '../../../../../shared/widgets/map/customer_address_map_picker.dart';
 import '../../../../auth/data/auth_repository.dart';
 import '../../../orders/data/order_repository.dart';
 import '../../../orders/domain/order_models.dart';
@@ -15,9 +16,10 @@ import '../widgets/customer_maroon_primary_button.dart';
 
 /// Pay-with-Chapa checkout — creates order then opens payment pending.
 class CustomerCheckoutScreen extends StatefulWidget {
-  const CustomerCheckoutScreen({super.key, required this.draft});
+  const CustomerCheckoutScreen({super.key, required this.draft, this.restaurant});
 
   final CheckoutDraft draft;
+  final RestaurantOnMap? restaurant;
 
   @override
   State<CustomerCheckoutScreen> createState() => _CustomerCheckoutScreenState();
@@ -27,6 +29,10 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
   late CheckoutDraft _draft;
   final TextEditingController _driverNote = TextEditingController();
   bool _submitting = false;
+
+  DeliveryFeeQuote? _quote;
+  bool _quoteLoading = false;
+  String? _quoteError;
 
   @override
   void initState() {
@@ -38,7 +44,9 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
       final CartState? cart = context.read<CartRepository>().current;
       if (cart == null || cart.isEmpty) {
         Navigator.of(context).maybePop();
+        return;
       }
+      _refreshQuote();
     });
   }
 
@@ -48,12 +56,57 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
     super.dispose();
   }
 
-  double get _deliveryFee => CustomerCheckoutTokens.defaultDeliveryFee;
+  double get _deliveryFee {
+    if (_quote != null) {
+      return double.tryParse(_quote!.deliveryFee) ?? CustomerCheckoutTokens.defaultDeliveryFee;
+    }
+    return CustomerCheckoutTokens.defaultDeliveryFee;
+  }
+
+  Future<void> _refreshQuote() async {
+    final CartState? cart = context.read<CartRepository>().current;
+    if (cart == null) return;
+    final double? lat = _draft.address.latitude;
+    final double? lng = _draft.address.longitude;
+    if (lat == null || lng == null) {
+      setState(() {
+        _quote = null;
+        _quoteError = null;
+      });
+      return;
+    }
+    final String? token = context.read<AuthRepository>().currentSession?.accessToken;
+    if (token == null) return;
+    setState(() {
+      _quoteLoading = true;
+      _quoteError = null;
+    });
+    try {
+      final DeliveryFeeQuote q = await context.read<OrderRepository>().quoteDeliveryFee(
+            accessToken: token,
+            restaurantId: cart.restaurantId,
+            latitude: lat,
+            longitude: lng,
+          );
+      if (!mounted) return;
+      setState(() => _quote = q);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _quoteError = e.toString());
+    } finally {
+      if (mounted) setState(() => _quoteLoading = false);
+    }
+  }
 
   Future<void> _changeAddress() async {
-    final CheckoutDraft? updated = await showCustomerDeliveryAddressSheet(context, initial: _draft);
+    final CheckoutDraft? updated = await showCustomerDeliveryAddressSheet(
+      context,
+      initial: _draft,
+      restaurant: widget.restaurant,
+    );
     if (updated != null && mounted) {
       setState(() => _draft = updated.copyWith(driverNote: _driverNote.text.trim()));
+      _refreshQuote();
     }
   }
 
@@ -223,7 +276,31 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                               const SizedBox(height: 14),
                               _summaryRow('Subtotal', '${subtotal.toStringAsFixed(2)} $currency'),
                               const SizedBox(height: 10),
-                              _summaryRow('Delivery fee', '${_deliveryFee.toStringAsFixed(2)} $currency'),
+                              _summaryRow(
+                                'Delivery fee',
+                                _quoteLoading
+                                    ? 'Calculating…'
+                                    : '${_deliveryFee.toStringAsFixed(2)} $currency',
+                              ),
+                              if (_quote != null) ...<Widget>[
+                                const SizedBox(height: 4),
+                                Text(
+                                  _quote!.distanceKm != null
+                                      ? 'Distance ${double.tryParse(_quote!.distanceKm!)?.toStringAsFixed(2) ?? _quote!.distanceKm} km · driver ${_quote!.driverPayout} + platform ${_quote!.platformFee}'
+                                      : 'Default fare (no map pin) · driver ${_quote!.driverPayout} + platform ${_quote!.platformFee}',
+                                  style: const TextStyle(
+                                    color: CustomerCheckoutTokens.mutedGray,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                              if (_quoteError != null) ...<Widget>[
+                                const SizedBox(height: 4),
+                                Text(
+                                  _quoteError!,
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+                                ),
+                              ],
                               const SizedBox(height: 14),
                               const Divider(height: 1, color: Color(0xFFE0E0E0)),
                               const SizedBox(height: 14),

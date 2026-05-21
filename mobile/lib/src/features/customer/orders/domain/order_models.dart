@@ -4,18 +4,24 @@ final class DeliveryAddress {
     required this.phone,
     required this.addressLine,
     this.landmark = '',
+    this.latitude,
+    this.longitude,
   });
 
   final String receiverName;
   final String phone;
   final String addressLine;
   final String landmark;
+  final double? latitude;
+  final double? longitude;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'receiver_name': receiverName,
         'phone': phone,
         'address_line': addressLine,
         'landmark': landmark,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       };
 }
 
@@ -51,6 +57,20 @@ final class OrderSummary {
         totalAmount: '${m['total_amount']}',
         placedAt: m['placed_at'] as String? ?? '',
       );
+}
+
+final class DeliveryFeeQuote {
+  const DeliveryFeeQuote({
+    required this.distanceKm,
+    required this.driverPayout,
+    required this.platformFee,
+    required this.deliveryFee,
+  });
+
+  final String? distanceKm;
+  final String driverPayout;
+  final String platformFee;
+  final String deliveryFee;
 }
 
 final class OrderLineItem {

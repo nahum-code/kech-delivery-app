@@ -19,7 +19,10 @@ abstract final class CustomerCheckoutTokens {
   static const double screenPadding = 20;
   static const double cardRadius = 16;
   static const double buttonRadius = 28;
-  static const double defaultDeliveryFee = 25;
+  // Matches the backend's 0–1 km tier fallback (driver 50 + platform 10).
+  // Used only as a UI placeholder while the live quote is still loading or
+  // when the address has no map pin yet.
+  static const double defaultDeliveryFee = 60;
 
   static TextStyle sectionTitle(BuildContext context) => Theme.of(context).textTheme.titleMedium!.copyWith(
         fontWeight: FontWeight.w800,

@@ -9,6 +9,11 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.orders.models import Order, OrderItem
+from apps.orders.services.pricing import (
+    DeliveryPricing,
+    compute_pricing,
+    haversine_km,
+)
 from apps.restaurants.models import MenuItem, Restaurant
 from core.models import User
 
@@ -39,6 +44,15 @@ def _generate_reference(order_id: int) -> str:
     return f"KD-{order_id:04d}"
 
 
+def _coerce_optional_float(value: Any) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _validate_delivery_address(address: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(address, dict):
         raise OrderServiceError("delivery_address must be an object.")
@@ -51,12 +65,35 @@ def _validate_delivery_address(address: dict[str, Any]) -> dict[str, Any]:
         raise OrderServiceError("A valid delivery phone is required.")
     if not line:
         raise OrderServiceError("Delivery address line is required.")
-    return {
+    cleaned: dict[str, Any] = {
         "receiver_name": receiver,
         "phone": phone,
         "address_line": line,
         "landmark": (address.get("landmark") or "").strip(),
     }
+    lat = _coerce_optional_float(address.get("latitude"))
+    lon = _coerce_optional_float(address.get("longitude"))
+    if lat is not None and lon is not None:
+        cleaned["latitude"] = lat
+        cleaned["longitude"] = lon
+    return cleaned
+
+
+def _pricing_for(restaurant: Restaurant, address: dict[str, Any]) -> DeliveryPricing:
+    """Compute the financial snapshot for a delivery, with fallback when coords missing."""
+    dropoff_lat = address.get("latitude")
+    dropoff_lon = address.get("longitude")
+    restaurant_lat = restaurant.latitude
+    restaurant_lon = restaurant.longitude
+    if (
+        dropoff_lat is None
+        or dropoff_lon is None
+        or restaurant_lat is None
+        or restaurant_lon is None
+    ):
+        return compute_pricing(None)
+    distance_km = haversine_km(restaurant_lat, restaurant_lon, dropoff_lat, dropoff_lon)
+    return compute_pricing(distance_km)
 
 
 @transaction.atomic
@@ -82,9 +119,20 @@ def create_order(
         raise OrderServiceError("At least one menu item is required.")
 
     validated_address = _validate_delivery_address(delivery_address)
-    fee = delivery_fee if delivery_fee is not None else DEFAULT_DELIVERY_FEE
-    if fee < 0:
-        raise OrderServiceError("delivery_fee cannot be negative.")
+    if delivery_fee is not None:
+        # Explicit admin/sales override — keep the breakdown consistent by
+        # treating the override as the full delivery_fee and zeroing the
+        # platform share. Negative values stay an error.
+        if delivery_fee < 0:
+            raise OrderServiceError("delivery_fee cannot be negative.")
+        pricing = DeliveryPricing(
+            distance_km=None,
+            driver_payout=delivery_fee,
+            platform_fee=Decimal("0.00"),
+            delivery_fee=delivery_fee,
+        )
+    else:
+        pricing = _pricing_for(restaurant, validated_address)
 
     order = Order.objects.create(
         reference="KD-PENDING",
@@ -94,7 +142,9 @@ def create_order(
         status=Order.Status.PENDING,
         delivery_address=validated_address,
         customer_note=(customer_note or "").strip(),
-        delivery_fee=fee,
+        delivery_fee=pricing.delivery_fee,
+        driver_payout=pricing.driver_payout,
+        platform_fee=pricing.platform_fee,
     )
     order.reference = _generate_reference(order.pk)
     order.save(update_fields=["reference"])
@@ -128,7 +178,7 @@ def create_order(
         )
 
     order.subtotal = subtotal
-    order.total_amount = subtotal + fee
+    order.total_amount = subtotal + pricing.delivery_fee
     order.save(update_fields=["subtotal", "total_amount", "updated_at"])
     return order
 

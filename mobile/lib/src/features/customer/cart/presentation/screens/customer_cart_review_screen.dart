@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:latlong2/latlong.dart';
+
 import '../../../../../shared/theme/customer_checkout_tokens.dart';
+import '../../../../../shared/widgets/map/customer_address_map_picker.dart';
+import '../../../../auth/data/auth_repository.dart';
+import '../../../orders/data/order_repository.dart';
+import '../../../orders/domain/order_models.dart';
+import '../../../restaurants/data/restaurant_repository.dart';
+import '../../../restaurants/domain/restaurant_models.dart';
 import '../../data/cart_repository.dart';
 import '../../domain/cart_models.dart';
 import '../../domain/checkout_draft.dart';
@@ -24,7 +32,30 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _popIfCartEmpty(showMessage: false));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _popIfCartEmpty(showMessage: false);
+      _loadRestaurantLocation();
+    });
+  }
+
+  Future<void> _loadRestaurantLocation() async {
+    final CartState? cart = context.read<CartRepository>().current;
+    if (cart == null) return;
+    try {
+      final RestaurantDetail r =
+          await context.read<RestaurantRepository>().fetchRestaurantDetail(cart.restaurantId);
+      if (!mounted) return;
+      if (r.latitude != null && r.longitude != null) {
+        setState(() {
+          _restaurantOnMap = RestaurantOnMap(
+            position: LatLng(r.latitude!, r.longitude!),
+            name: r.name,
+          );
+        });
+      }
+    } catch (_) {
+      // Restaurant lookup is non-critical for the cart-review UI.
+    }
   }
 
   void _popIfCartEmpty({required bool showMessage}) {
@@ -49,11 +80,59 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
   int get _itemCount =>
       context.read<CartRepository>().current?.lines.fold<int>(0, (int s, CartLine l) => s + l.quantity) ?? 0;
 
-  double get _deliveryFee => CustomerCheckoutTokens.defaultDeliveryFee;
+  DeliveryFeeQuote? _quote;
+  bool _quoteLoading = false;
+  RestaurantOnMap? _restaurantOnMap;
+
+  double get _deliveryFee {
+    if (_quote != null) {
+      return double.tryParse(_quote!.deliveryFee) ?? CustomerCheckoutTokens.defaultDeliveryFee;
+    }
+    return CustomerCheckoutTokens.defaultDeliveryFee;
+  }
+
+  Future<void> _refreshQuote() async {
+    final CartState? cart = context.read<CartRepository>().current;
+    if (cart == null || _draft == null) {
+      setState(() => _quote = null);
+      return;
+    }
+    final double? lat = _draft!.address.latitude;
+    final double? lng = _draft!.address.longitude;
+    if (lat == null || lng == null) {
+      setState(() => _quote = null);
+      return;
+    }
+    final String? token = context.read<AuthRepository>().currentSession?.accessToken;
+    if (token == null) return;
+    setState(() => _quoteLoading = true);
+    try {
+      final DeliveryFeeQuote q = await context.read<OrderRepository>().quoteDeliveryFee(
+            accessToken: token,
+            restaurantId: cart.restaurantId,
+            latitude: lat,
+            longitude: lng,
+          );
+      if (!mounted) return;
+      setState(() => _quote = q);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _quote = null);
+    } finally {
+      if (mounted) setState(() => _quoteLoading = false);
+    }
+  }
 
   Future<void> _editAddress() async {
-    final CheckoutDraft? updated = await showCustomerDeliveryAddressSheet(context, initial: _draft);
-    if (updated != null && mounted) setState(() => _draft = updated);
+    final CheckoutDraft? updated = await showCustomerDeliveryAddressSheet(
+      context,
+      initial: _draft,
+      restaurant: _restaurantOnMap,
+    );
+    if (updated != null && mounted) {
+      setState(() => _draft = updated);
+      _refreshQuote();
+    }
   }
 
   void _goCheckout() {
@@ -65,7 +144,7 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
     }
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => CustomerCheckoutScreen(draft: _draft!),
+        builder: (_) => CustomerCheckoutScreen(draft: _draft!, restaurant: _restaurantOnMap),
       ),
     );
   }
@@ -134,7 +213,12 @@ class _CustomerCartReviewScreenState extends State<CustomerCartReviewScreen> {
                       const SizedBox(height: 16),
                       _PriceRow(label: 'Subtotal', value: '${cart.subtotal.toStringAsFixed(2)} $currency'),
                       const SizedBox(height: 8),
-                      _PriceRow(label: 'Delivery fee', value: '${_deliveryFee.toStringAsFixed(2)} $currency'),
+                      _PriceRow(
+                        label: 'Delivery fee',
+                        value: _quoteLoading
+                            ? 'Calculating…'
+                            : '${_deliveryFee.toStringAsFixed(2)} $currency',
+                      ),
                     ],
                   ),
                 ),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -45,8 +46,22 @@ import {
   searchCustomers,
   type CustomerSearchResult,
 } from "@/services/customers";
-import { createSalesOrder } from "@/services/orders";
+
+import { createSalesOrder, quoteDeliveryFee, type DeliveryFeeQuote } from "@/services/orders";
 import { parseApiError } from "@/lib/order-utils";
+import { reverseGeocode } from "../components/DropoffMapPicker";
+
+const DropoffMapPicker = dynamic(
+  () => import("../components/DropoffMapPicker").then((m) => m.DropoffMapPicker),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="bg-gray-100 rounded-lg h-[280px] flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading map…</p>
+      </div>
+    ),
+  },
+);
 
 type CatalogMenuRow = PublicMenuItem & { category: string };
 
@@ -105,6 +120,11 @@ export function CreateOrderPage() {
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [dropoffAddress, setDropoffAddress] = useState("");
+  const [dropoffCoords, setDropoffCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [dropoffGeocoding, setDropoffGeocoding] = useState(false);
+  const [feeQuote, setFeeQuote] = useState<DeliveryFeeQuote | null>(null);
+  const [feeQuoteLoading, setFeeQuoteLoading] = useState(false);
+  const [feeQuoteError, setFeeQuoteError] = useState<string | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("pending");
   const [restaurants, setRestaurants] = useState<RestaurantRecord[]>([]);
@@ -209,6 +229,40 @@ export function CreateOrderPage() {
     return () => clearTimeout(timer);
   }, [customer.phone]);
 
+  useEffect(() => {
+    if (!selectedRestaurant || !dropoffCoords) {
+      setFeeQuote(null);
+      setFeeQuoteError(null);
+      setFeeQuoteLoading(false);
+      return;
+    }
+    const restaurantId = Number(selectedRestaurant);
+    if (!Number.isFinite(restaurantId)) return;
+    let cancelled = false;
+    setFeeQuoteLoading(true);
+    setFeeQuoteError(null);
+    void quoteDeliveryFee({
+      restaurant_id: restaurantId,
+      latitude: dropoffCoords.latitude,
+      longitude: dropoffCoords.longitude,
+    })
+      .then((data) => {
+        if (!cancelled) setFeeQuote(data);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setFeeQuote(null);
+          setFeeQuoteError(parseApiError(e, "Could not fetch delivery fee"));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setFeeQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRestaurant, dropoffCoords]);
+
   const visibleCustomerResults =
     customer.phone.trim().length >= 2 && !customerExists && !showCreateCustomer
       ? customerResults
@@ -301,12 +355,18 @@ export function CreateOrderPage() {
       (sum, item) => sum + item.price * item.quantity,
       0
     );
-    const deliveryFee = 80;
-    const driverPayout = 60;
-    const platformFee = 20;
+    // Use the live quote when we have one; otherwise fall back to the
+    // 0–1 km tier (60 birr total) so the wizard renders sensibly before
+    // a dropoff is pinned. Backend recomputes the authoritative pricing
+    // when the order is submitted.
+    const deliveryFee = feeQuote ? Number.parseFloat(feeQuote.delivery_fee) : 60;
+    const driverPayout = feeQuote ? Number.parseFloat(feeQuote.driver_payout) : 50;
+    const platformFee = feeQuote ? Number.parseFloat(feeQuote.platform_fee) : 10;
+    const distanceKm =
+      feeQuote && feeQuote.distance_km ? Number.parseFloat(feeQuote.distance_km) : null;
     const total = subtotal + deliveryFee;
 
-    return { subtotal, deliveryFee, driverPayout, platformFee, total };
+    return { subtotal, deliveryFee, driverPayout, platformFee, distanceKm, total };
   };
 
   const handleSubmitOrder = async () => {
@@ -332,6 +392,9 @@ export function CreateOrderPage() {
           receiver_name: customer.name,
           phone: customer.phone,
           address_line: dropoffAddress,
+          ...(dropoffCoords
+            ? { latitude: dropoffCoords.latitude, longitude: dropoffCoords.longitude }
+            : {}),
         },
         payment_status: backendPaymentStatus,
       });
@@ -347,6 +410,9 @@ export function CreateOrderPage() {
       setCreateCustomerError(null);
       setSelectedRestaurant("");
       setDropoffAddress("");
+      setDropoffCoords(null);
+      setFeeQuote(null);
+      setFeeQuoteError(null);
       setOrderItems([]);
       setPaymentStatus("pending");
     } catch (e) {
@@ -681,32 +747,118 @@ export function CreateOrderPage() {
                 )}
               </div>
 
+              {(() => {
+                const restaurant = restaurants.find(
+                  (r) => String(r.id) === selectedRestaurant,
+                );
+                const rLat = restaurant ? Number.parseFloat(restaurant.latitude) : NaN;
+                const rLng = restaurant ? Number.parseFloat(restaurant.longitude) : NaN;
+                const hasCoords = Number.isFinite(rLat) && Number.isFinite(rLng);
+                if (!restaurant) {
+                  return (
+                    <div className="bg-gray-100 rounded-lg h-[280px] flex items-center justify-center border-2 border-dashed border-gray-300">
+                      <div className="text-center">
+                        <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Select a restaurant above to pick the dropoff
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                if (!hasCoords) {
+                  return (
+                    <div className="bg-amber-50 rounded-lg h-[280px] flex items-center justify-center border border-amber-200">
+                      <div className="text-center px-4">
+                        <MapPin className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+                        <p className="text-sm text-amber-900">
+                          {restaurant.name} has no coordinates set yet.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Click on the map to pin the dropoff. The address below
+                      will fill automatically — you can edit it if needed.
+                    </p>
+                    <DropoffMapPicker
+                      restaurant={{ latitude: rLat, longitude: rLng, name: restaurant.name }}
+                      dropoff={dropoffCoords}
+                      onPick={async (pos) => {
+                        setDropoffCoords(pos);
+                        setDropoffGeocoding(true);
+                        const address = await reverseGeocode(pos.latitude, pos.longitude);
+                        setDropoffGeocoding(false);
+                        if (address) setDropoffAddress(address);
+                      }}
+                    />
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        <span className="inline-block h-2 w-2 rounded-full bg-[#3b82c4] mr-1" />
+                        Restaurant
+                        <span className="inline-block h-2 w-2 rounded-full bg-blue-600 ml-3 mr-1" />
+                        Dropoff
+                      </span>
+                      {dropoffCoords && (
+                        <span>
+                          {dropoffCoords.latitude.toFixed(5)}, {dropoffCoords.longitude.toFixed(5)}
+                        </span>
+                      )}
+                    </div>
+                    {dropoffCoords && (
+                      <div className="rounded-md border border-[#800020]/20 bg-[#800020]/5 px-3 py-2 text-sm">
+                        {feeQuoteLoading && (
+                          <span className="text-muted-foreground">Calculating delivery fee…</span>
+                        )}
+                        {!feeQuoteLoading && feeQuoteError && (
+                          <span className="text-destructive">{feeQuoteError}</span>
+                        )}
+                        {!feeQuoteLoading && !feeQuoteError && feeQuote && (
+                          <span>
+                            Distance:{" "}
+                            <strong>
+                              {feeQuote.distance_km
+                                ? `${Number.parseFloat(feeQuote.distance_km).toFixed(2)} km`
+                                : "—"}
+                            </strong>
+                            <span className="mx-2 text-muted-foreground">•</span>
+                            Delivery fee:{" "}
+                            <strong className="text-[#800020]">{feeQuote.delivery_fee} ETB</strong>{" "}
+                            <span className="text-muted-foreground">
+                              ({feeQuote.driver_payout} driver + {feeQuote.platform_fee} platform)
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="space-y-2">
                 <Label htmlFor="dropoff">
                   Dropoff Address <span className="text-destructive">*</span>
                 </Label>
                 <Textarea
                   id="dropoff"
-                  placeholder="Enter full delivery address (e.g., Bole, Next to Atlas Hotel, Gate 2)"
+                  placeholder="Click on the map above, or type the address manually"
                   value={dropoffAddress}
                   onChange={(e) => setDropoffAddress(e.target.value)}
                   rows={3}
                   className={errors.dropoffAddress ? "border-destructive" : ""}
                 />
+                {dropoffGeocoding && (
+                  <p className="text-xs text-muted-foreground">Looking up address…</p>
+                )}
                 {errors.dropoffAddress && (
                   <p className="text-sm text-destructive flex items-center gap-1">
                     <AlertCircle className="h-4 w-4" />
                     {errors.dropoffAddress}
                   </p>
                 )}
-              </div>
-
-              {/* Map Placeholder */}
-              <div className="bg-gray-100 rounded-lg h-48 flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                  <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Map Preview</p>
-                </div>
               </div>
             </div>
           </div>
