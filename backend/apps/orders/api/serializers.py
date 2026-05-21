@@ -28,6 +28,10 @@ class OrderCreateSerializer(serializers.Serializer):
 
 class SalesOrderCreateSerializer(OrderCreateSerializer):
     customer_id = serializers.IntegerField()
+    payment_status = serializers.ChoiceField(
+        choices=Order.PaymentStatus.choices,
+        required=False,
+    )
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

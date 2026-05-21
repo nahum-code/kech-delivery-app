@@ -163,6 +163,8 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
             ),
           ),
           const SizedBox(height: 16),
+          _OrderItemsCard(order: order),
+          const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -212,5 +214,157 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
       default:
         return 'Preparing your order';
     }
+  }
+}
+
+class _OrderItemsCard extends StatelessWidget {
+  const _OrderItemsCard({required this.order});
+
+  final OrderDetail order;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              const Text(
+                'YOUR ORDER',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.8,
+                  color: CustomerCheckoutTokens.primaryMaroon,
+                ),
+              ),
+              Text(
+                order.restaurantName,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: CustomerCheckoutTokens.bodyGray,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (order.items.isEmpty)
+            Text(
+              'No items recorded for this order.',
+              style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13),
+            )
+          else
+            ...order.items.map((OrderLineItem item) => _OrderItemRow(item: item)),
+          const SizedBox(height: 4),
+          const Divider(height: 24),
+          _SummaryRow(label: 'Subtotal', value: '${order.subtotal} ETB'),
+          const SizedBox(height: 6),
+          _SummaryRow(label: 'Delivery fee', value: '${order.deliveryFee} ETB'),
+          const SizedBox(height: 10),
+          _SummaryRow(label: 'Total', value: '${order.totalAmount} ETB', emphasis: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderItemRow extends StatelessWidget {
+  const _OrderItemRow({required this.item});
+
+  final OrderLineItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: item.imageUrl != null
+                  ? Image.network(
+                      item.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _itemPlaceholder(),
+                    )
+                  : _itemPlaceholder(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  item.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Qty: ${item.quantity}',
+                  style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${item.totalPrice} ETB',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              color: CustomerCheckoutTokens.primaryMaroon,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemPlaceholder() {
+    return ColoredBox(
+      color: const Color(0xFFF0EBE8),
+      child: Icon(Icons.fastfood, color: Colors.grey.shade500, size: 20),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({required this.label, required this.value, this.emphasis = false});
+
+  final String label;
+  final String value;
+  final bool emphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextStyle base = TextStyle(
+      fontSize: emphasis ? 15 : 13,
+      fontWeight: emphasis ? FontWeight.w800 : FontWeight.w600,
+      color: emphasis ? CustomerCheckoutTokens.ink : CustomerCheckoutTokens.bodyGray,
+    );
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        Text(label, style: base),
+        Text(
+          value,
+          style: emphasis ? base.copyWith(color: CustomerCheckoutTokens.primaryMaroon) : base,
+        ),
+      ],
+    );
   }
 }

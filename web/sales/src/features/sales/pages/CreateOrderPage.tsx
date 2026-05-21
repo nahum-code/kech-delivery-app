@@ -25,10 +25,12 @@ import {
   Check,
   AlertCircle,
   User,
+  UserPlus,
   Store,
   ShoppingBag,
   Banknote,
   CreditCard,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,7 +40,11 @@ import {
   type PublicMenuItem,
   type RestaurantRecord,
 } from "@/services/catalog";
-import { searchCustomers, type CustomerSearchResult } from "@/services/customers";
+import {
+  createCustomer,
+  searchCustomers,
+  type CustomerSearchResult,
+} from "@/services/customers";
 import { createSalesOrder } from "@/services/orders";
 import { parseApiError } from "@/lib/order-utils";
 
@@ -62,6 +68,30 @@ type OrderItem = {
 
 type PaymentStatus = "pending" | "confirmed" | "failed";
 
+function generateTempPassword(): string {
+  // Cryptographically random, 12 chars from [A-Za-z0-9],
+  // guaranteed to contain at least one letter and one digit so it
+  // passes Django's default NumericPasswordValidator + min length 8.
+  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"; // no I/O/l/0/1 lookalikes
+  const digits = "23456789";
+  const alphabet = letters + digits;
+  const length = 12;
+  const buf = new Uint32Array(length);
+  crypto.getRandomValues(buf);
+  const chars: string[] = [];
+  for (let i = 0; i < length; i += 1) {
+    chars.push(alphabet[buf[i] % alphabet.length]);
+  }
+  // Force at least one letter + one digit
+  const letterPick = new Uint32Array(1);
+  const digitPick = new Uint32Array(1);
+  crypto.getRandomValues(letterPick);
+  crypto.getRandomValues(digitPick);
+  chars[0] = letters[letterPick[0] % letters.length];
+  chars[length - 1] = digits[digitPick[0] % digits.length];
+  return chars.join("");
+}
+
 export function CreateOrderPage() {
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [customer, setCustomer] = useState<Customer>({ phone: "", name: "" });
@@ -69,6 +99,10 @@ export function CreateOrderPage() {
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([]);
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [createCustomerForm, setCreateCustomerForm] = useState({ phone: "", name: "", password: "" });
+  const [createCustomerError, setCreateCustomerError] = useState<string | null>(null);
+  const [createCustomerLoading, setCreateCustomerLoading] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
   const [dropoffAddress, setDropoffAddress] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -176,7 +210,9 @@ export function CreateOrderPage() {
   }, [customer.phone]);
 
   const visibleCustomerResults =
-    customer.phone.trim().length >= 2 && !customerExists ? customerResults : [];
+    customer.phone.trim().length >= 2 && !customerExists && !showCreateCustomer
+      ? customerResults
+      : [];
 
   const handleSelectCustomer = (row: CustomerSearchResult) => {
     setCustomer({ id: String(row.id), phone: row.phone, name: row.name });
@@ -184,6 +220,50 @@ export function CreateOrderPage() {
     setCustomerResults([]);
     setErrors({});
     toast.success("Customer selected");
+  };
+
+  const handleGenerateCustomerPassword = () => {
+    setCreateCustomerForm((prev) => ({ ...prev, password: generateTempPassword() }));
+  };
+
+  const handleStartCreateCustomer = () => {
+    setShowCreateCustomer(true);
+    setCreateCustomerError(null);
+    setCreateCustomerForm({
+      phone: customer.phone.trim(),
+      name: "",
+      password: "",
+    });
+  };
+
+  const handleCancelCreateCustomer = () => {
+    setShowCreateCustomer(false);
+    setCreateCustomerError(null);
+    setCreateCustomerForm({ phone: "", name: "", password: "" });
+  };
+
+  const handleSubmitCreateCustomer = async () => {
+    const phone = createCustomerForm.phone.trim();
+    const name = createCustomerForm.name.trim();
+    const password = createCustomerForm.password;
+    if (!phone || !name || !password) {
+      setCreateCustomerError("Phone, name, and temp password are all required.");
+      return;
+    }
+    setCreateCustomerLoading(true);
+    setCreateCustomerError(null);
+    try {
+      const created = await createCustomer({ phone, name, password });
+      handleSelectCustomer(created);
+      setShowCreateCustomer(false);
+      setCreateCustomerForm({ phone: "", name: "", password: "" });
+      setCustomerSearchError(null);
+      toast.success("Customer created and selected");
+    } catch (e) {
+      setCreateCustomerError(e instanceof Error ? e.message : "Failed to create customer");
+    } finally {
+      setCreateCustomerLoading(false);
+    }
   };
 
   const handleAddItem = (item: CatalogMenuRow) => {
@@ -238,8 +318,10 @@ export function CreateOrderPage() {
       toast.error("Customer must be registered (set customer ID after lookup)");
       return;
     }
+    const backendPaymentStatus: "pending" | "paid" | "failed" =
+      paymentStatus === "confirmed" ? "paid" : paymentStatus;
     try {
-      await createSalesOrder({
+      const created = await createSalesOrder({
         customer_id: Number(customer.id),
         restaurant_id: Number(selectedRestaurant),
         items: orderItems.map((item) => ({
@@ -251,11 +333,18 @@ export function CreateOrderPage() {
           phone: customer.phone,
           address_line: dropoffAddress,
         },
+        payment_status: backendPaymentStatus,
       });
-      toast.success("Order created successfully!");
+      toast.success(`Order ${created.reference} created`, {
+        description: `${customer.name} • ${created.total_amount} ETB • Payment ${created.payment_status}`,
+        duration: 6000,
+      });
       setCurrentStep(1);
       setCustomer({ phone: "", name: "" });
       setCustomerExists(false);
+      setShowCreateCustomer(false);
+      setCreateCustomerForm({ phone: "", name: "", password: "" });
+      setCreateCustomerError(null);
       setSelectedRestaurant("");
       setDropoffAddress("");
       setOrderItems([]);
@@ -334,36 +423,158 @@ export function CreateOrderPage() {
             <div>
               <h2 className="text-xl font-semibold mb-1">Customer Information</h2>
               <p className="text-sm text-muted-foreground">
-                Search registered customers by phone or name
+                Look up an existing customer, or register a new one.
               </p>
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="customer-search">Customer search</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="customer-search"
-                    type="text"
-                    placeholder="Phone or name (min 2 characters)"
-                    value={customer.phone}
-                    onChange={(e) => {
-                      setCustomerExists(false);
-                      setCustomer({ phone: e.target.value, name: "", id: undefined });
+              {!customerExists && (
+                <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-1">
+                  <Button
+                    type="button"
+                    variant={showCreateCustomer ? "ghost" : "default"}
+                    onClick={() => {
+                      if (showCreateCustomer) handleCancelCreateCustomer();
                     }}
-                    disabled={customerExists}
-                    className={`pl-10 ${errors.phone ? "border-destructive" : ""}`}
-                  />
+                    className="justify-center"
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Find existing
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={showCreateCustomer ? "default" : "ghost"}
+                    onClick={() => {
+                      if (!showCreateCustomer) handleStartCreateCustomer();
+                    }}
+                    className="justify-center"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Register new
+                  </Button>
                 </div>
-                {customerSearchLoading && (
-                  <p className="text-sm text-muted-foreground">Searching...</p>
+              )}
+
+              <div className="space-y-2">
+                {!showCreateCustomer && (
+                  <>
+                    <Label htmlFor="customer-search">Customer search</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="customer-search"
+                        type="text"
+                        placeholder="Phone or name (min 2 characters)"
+                        value={customer.phone}
+                        onChange={(e) => {
+                          setCustomerExists(false);
+                          setCustomer({ phone: e.target.value, name: "", id: undefined });
+                        }}
+                        disabled={customerExists}
+                        className={`pl-10 ${errors.phone ? "border-destructive" : ""}`}
+                      />
+                    </div>
+                    {customerSearchLoading && (
+                      <p className="text-sm text-muted-foreground">Searching...</p>
+                    )}
+                    {customerSearchError && !customerExists && (
+                      <p className="text-sm text-amber-900 flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        {customerSearchError} You can switch to <strong>Register new</strong> above.
+                      </p>
+                    )}
+                  </>
                 )}
-                {customerSearchError && !customerExists && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-4 w-4" />
-                    {customerSearchError}
-                  </p>
+
+                {showCreateCustomer && !customerExists && (
+                  <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium flex items-center gap-2">
+                        <UserPlus className="h-4 w-4" />
+                        Register new customer
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleCancelCreateCustomer}
+                        disabled={createCustomerLoading}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="new-customer-phone">Phone</Label>
+                        <Input
+                          id="new-customer-phone"
+                          type="tel"
+                          placeholder="e.g. 0911223344"
+                          value={createCustomerForm.phone}
+                          onChange={(e) =>
+                            setCreateCustomerForm((prev) => ({ ...prev, phone: e.target.value }))
+                          }
+                          disabled={createCustomerLoading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-customer-name">Full name</Label>
+                        <Input
+                          id="new-customer-name"
+                          type="text"
+                          placeholder="Customer name"
+                          value={createCustomerForm.name}
+                          onChange={(e) =>
+                            setCreateCustomerForm((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          disabled={createCustomerLoading}
+                        />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label htmlFor="new-customer-password">Temporary password</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="new-customer-password"
+                            type="text"
+                            placeholder="Tell the customer this password"
+                            value={createCustomerForm.password}
+                            onChange={(e) =>
+                              setCreateCustomerForm((prev) => ({ ...prev, password: e.target.value }))
+                            }
+                            disabled={createCustomerLoading}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleGenerateCustomerPassword}
+                            disabled={createCustomerLoading}
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Generate
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Share this with the customer on the call so they can log in to the mobile app later.
+                        </p>
+                      </div>
+                    </div>
+                    {createCustomerError && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        {createCustomerError}
+                      </p>
+                    )}
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={handleSubmitCreateCustomer}
+                        disabled={createCustomerLoading}
+                      >
+                        {createCustomerLoading ? "Creating..." : "Create & select"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
                 {errors.phone && (
                   <p className="text-sm text-destructive flex items-center gap-1">

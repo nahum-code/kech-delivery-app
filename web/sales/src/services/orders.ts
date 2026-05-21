@@ -74,6 +74,7 @@ export async function createSalesOrder(payload: {
     landmark?: string;
   };
   customer_note?: string;
+  payment_status?: "pending" | "paid" | "failed";
 }): Promise<OrderDetail> {
   return authJson<OrderDetail>("/api/v1/orders/", {
     method: "POST",

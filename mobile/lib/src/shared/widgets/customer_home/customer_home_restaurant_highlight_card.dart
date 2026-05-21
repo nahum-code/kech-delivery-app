@@ -18,6 +18,34 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
   final double? height;
   final VoidCallback? onTap;
 
+  static Widget _buildImage(CustomerHomeRestaurantPreview preview) {
+    if (preview.imageUrl != null && preview.imageUrl!.isNotEmpty) {
+      return Image.network(
+        preview.imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+          return _placeholder();
+        },
+      );
+    }
+    if (preview.imageAssetPath != null && preview.imageAssetPath!.isNotEmpty) {
+      return Image.asset(
+        preview.imageAssetPath!,
+        fit: BoxFit.cover,
+        errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+          return _placeholder();
+        },
+      );
+    }
+    return _placeholder();
+  }
+
+  static Widget _placeholder() {
+    return Center(
+      child: Icon(Icons.storefront_rounded, size: 48, color: Colors.grey.shade500),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(

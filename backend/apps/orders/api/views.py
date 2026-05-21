@@ -28,7 +28,12 @@ from apps.orders.permissions import (
     IsSalesOrAdmin,
 )
 from apps.orders.services.assignment import assign_driver_to_order
-from apps.orders.services.order import OrderServiceError, create_order, transition_order_status
+from apps.orders.services.order import (
+    OrderServiceError,
+    create_order,
+    mark_order_paid_from_payment,
+    transition_order_status,
+)
 from apps.payments.services.payment import PaymentServiceError, verify_payment_for_order
 from core.models import User
 
@@ -113,6 +118,15 @@ class OrderListCreateView(APIView):
                 )
             except OrderServiceError as exc:
                 return Response({"detail": exc.message}, status=exc.status_code)
+            requested_payment = data.get("payment_status")
+            if requested_payment == Order.PaymentStatus.PAID:
+                try:
+                    order = mark_order_paid_from_payment(order)
+                except OrderServiceError as exc:
+                    return Response({"detail": exc.message}, status=exc.status_code)
+            elif requested_payment == Order.PaymentStatus.FAILED:
+                order.payment_status = Order.PaymentStatus.FAILED
+                order.save(update_fields=["payment_status", "updated_at"])
         else:
             body = OrderCreateSerializer(data=request.data)
             body.is_valid(raise_exception=True)
