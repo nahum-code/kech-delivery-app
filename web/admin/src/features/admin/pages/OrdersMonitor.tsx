@@ -159,7 +159,7 @@ export function OrdersMonitor() {
   }, [load]);
 
   useEffect(() => {
-    void fetchApprovedDrivers()
+    void fetchApprovedDrivers({ includeBusy: true })
       .then(setDrivers)
       .catch(() => setDrivers([]));
   }, []);

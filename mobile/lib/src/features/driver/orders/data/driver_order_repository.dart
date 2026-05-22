@@ -69,6 +69,20 @@ final class DriverOrderRepository {
     return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  Future<DriverOrderDetail> decline({
+    required String accessToken,
+    required int orderId,
+  }) async {
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).decline(orderId),
+    );
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not decline delivery');
+    }
+    return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
   Future<DriverOrderDetail> fetchAvailableDetail({
     required String accessToken,
     required int orderId,

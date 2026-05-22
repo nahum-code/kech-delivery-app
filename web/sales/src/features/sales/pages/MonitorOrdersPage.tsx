@@ -36,6 +36,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "../components/ui/sheet";
@@ -92,7 +93,7 @@ export function MonitorOrdersPage() {
   }, [load]);
 
   useEffect(() => {
-    void fetchApprovedDrivers()
+    void fetchApprovedDrivers({ includeBusy: true })
       .then((rows) => setDrivers(rows.map((d) => ({ id: d.id, full_name: d.full_name }))))
       .catch(() => setDrivers([]));
   }, []);
@@ -292,11 +293,17 @@ export function MonitorOrdersPage() {
 
       <Sheet open={selectedId != null} onOpenChange={() => setSelectedId(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          {/* SheetTitle / Description are required by Radix for screen
+              readers; render them unconditionally so the warning doesn't
+              fire on the brief loading flash before `detail` resolves. */}
+          <SheetHeader className={detail ? undefined : "sr-only"}>
+            <SheetTitle>{detail?.reference ?? "Order details"}</SheetTitle>
+            <SheetDescription className="sr-only">
+              Order details, items, and admin operations.
+            </SheetDescription>
+          </SheetHeader>
           {detail && (
             <>
-              <SheetHeader>
-                <SheetTitle>{detail.reference}</SheetTitle>
-              </SheetHeader>
               <div className="mt-6 space-y-4 text-sm">
                 <p>
                   <span className="text-muted-foreground">Status:</span>{" "}

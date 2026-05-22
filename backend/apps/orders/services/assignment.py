@@ -56,6 +56,17 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
             status_code=409,
         )
 
+    # Don't hand a declined order back to the driver who refused it —
+    # main's policy. Other drivers are fair game.
+    if (
+        order.status == Order.Status.DECLINED
+        and order.assigned_driver_id == driver.id
+    ):
+        raise OrderServiceError(
+            "This driver previously declined this delivery.",
+            status_code=409,
+        )
+
     order.assigned_driver = driver
     if order.status in {
         Order.Status.PENDING,
@@ -63,6 +74,9 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
         Order.Status.SEARCHING_DRIVER,
         Order.Status.PREPARING,
         Order.Status.READY_FOR_PICKUP,
+        # Manual reassignment after a driver declined: rebracket the
+        # order back to assigned so the new driver actually sees it.
+        Order.Status.DECLINED,
     }:
         order.status = Order.Status.ASSIGNED
     order.driver_acknowledged_at = None

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -43,14 +42,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
   // still see these orders, and admin/sales can still manually assign.
   final Set<int> _skippedAvailableIds = <int>{};
 
-  // Countdown for the currently-pending manual assignment card (main's
-  // accept-window UX). Each pending order shows a 30 s clock — when it
-  // hits 0 we auto-decline so the driver can keep moving.
-  static const int _kAcceptWindowSeconds = 30;
-  Timer? _countdownTimer;
-  int _countdownSeconds = _kAcceptWindowSeconds;
-  int? _countdownOrderId;
-
   List<DriverOrderSummary> get _visibleAvailable =>
       _available.where((DriverOrderSummary o) => !_skippedAvailableIds.contains(o.id)).toList(growable: false);
 
@@ -58,12 +49,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
   void initState() {
     super.initState();
     _load(silent: false); // first mount: show spinner
-  }
-
-  @override
-  void dispose() {
-    _countdownTimer?.cancel();
-    super.dispose();
   }
 
   /// Refresh used by the shell's periodic poll (silent, default) and tab
@@ -100,7 +85,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
         _available = available;
         _loading = false;
       });
-      _syncCountdown(pending);
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -108,39 +92,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
-  }
-
-  /// Resets the countdown for the active pending offer. Cancels any
-  /// in-flight timer when [pending] is null or the offer changed.
-  void _syncCountdown(DriverOrderSummary? pending) {
-    if (pending == null) {
-      _countdownTimer?.cancel();
-      _countdownTimer = null;
-      _countdownOrderId = null;
-      return;
-    }
-    if (_countdownOrderId == pending.id && _countdownTimer != null) {
-      return; // already counting for this offer
-    }
-    _countdownTimer?.cancel();
-    _countdownOrderId = pending.id;
-    if (mounted) {
-      setState(() => _countdownSeconds = _kAcceptWindowSeconds);
-    }
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (Timer t) {
-      if (!mounted) {
-        t.cancel();
-        return;
-      }
-      if (_countdownSeconds <= 1) {
-        t.cancel();
-        setState(() => _countdownSeconds = 0);
-        // Auto-decline so the driver isn't stuck on a stale card.
-        _decline();
-        return;
-      }
-      setState(() => _countdownSeconds -= 1);
-    });
   }
 
   Future<void> _accept() async {
@@ -151,7 +102,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
       final String token = context.read<AuthRepository>().currentSession!.accessToken;
       await context.read<DriverOrderRepository>().accept(accessToken: token, orderId: order.id);
       if (!mounted) return;
-      _countdownTimer?.cancel();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Order accepted. Open Tasks to continue.')),
       );
@@ -202,19 +152,33 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
     return raw;
   }
 
-  void _decline() {
+  Future<void> _decline() async {
     final DriverOrderSummary? order = _pending;
     if (order == null) return;
-    _countdownTimer?.cancel();
-    _countdownTimer = null;
-    _countdownOrderId = null;
     setState(() => _dismissedIds.add(order.id));
+    // Tell the backend so the order's status moves to `declined` and
+    // admin/sales can reassign — without this the order stays attached
+    // to this driver as `assigned`.
+    try {
+      final String token = context.read<AuthRepository>().currentSession!.accessToken;
+      await context.read<DriverOrderRepository>().decline(
+            accessToken: token,
+            orderId: order.id,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Request dismissed. Contact dispatch if you cannot take this delivery.'),
+        content: Text('Delivery declined. Dispatch will reassign.'),
       ),
     );
-    _load(silent: true);
+    await _load(silent: true);
   }
 
   Future<void> _openDetail(DriverOrderSummary order) async {
@@ -293,7 +257,6 @@ class DriverAlertScreenState extends State<DriverAlertScreen> {
                             DriverNewDeliveryRequestCard(
                               order: _pending!,
                               submitting: _submitting,
-                              secondsLeft: _countdownSeconds,
                               onAccept: _accept,
                               onDecline: _decline,
                             ),
