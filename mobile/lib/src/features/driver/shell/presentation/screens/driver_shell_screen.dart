@@ -27,7 +27,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
   @override
   void initState() {
     super.initState();
-    _pollTimer = Timer.periodic(const Duration(seconds: 12), (_) => _refreshAlertBadge());
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _refreshAlertBadge());
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAlertBadge());
   }
 
@@ -42,7 +42,7 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
     if (tab == DriverMainTab.tasks) {
       _tasksKey.currentState?.refresh();
     } else if (tab == DriverMainTab.alert) {
-      _alertKey.currentState?.reload();
+      _alertKey.currentState?.reload(silent: false);
     }
   }
 

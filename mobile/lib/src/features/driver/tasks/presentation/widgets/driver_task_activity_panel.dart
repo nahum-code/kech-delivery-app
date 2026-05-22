@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/theme/driver_task_tokens.dart';
 import '../../../orders/domain/driver_order_models.dart';
 import 'driver_tasks_tab_empty_state.dart';
@@ -39,11 +40,26 @@ class DriverTaskActivityPanel extends StatelessWidget {
                 color: DriverTaskTokens.primary,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.check, color: Colors.white),
+              child: const Icon(Icons.check, color: DriverAppTokens.onPrimary),
             ),
-            title: Text(o.restaurantName, style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text('Delivered · ${o.reference}'),
-            trailing: Text('${o.totalAmount} ETB', style: const TextStyle(fontWeight: FontWeight.w800)),
+            title: Text(
+              o.restaurantName,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: DriverTaskTokens.ink,
+              ),
+            ),
+            subtitle: Text(
+              'Delivered · ${o.reference}',
+              style: const TextStyle(color: DriverTaskTokens.bodyGray),
+            ),
+            trailing: Text(
+              '${o.totalAmount} ETB',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: DriverTaskTokens.primary,
+              ),
+            ),
           ),
         );
       },

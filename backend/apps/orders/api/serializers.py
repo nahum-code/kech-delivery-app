@@ -62,12 +62,32 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return url
 
 
+def _sales_agent_display_name(agent: User | None) -> str | None:
+    if agent is None:
+        return None
+    profile = getattr(agent, "sales_profile", None)
+    if profile and profile.full_name:
+        return profile.full_name
+    return agent.phone
+
+
+def _restaurant_coord(restaurant, field: str) -> float | None:
+    value = getattr(restaurant, field, None)
+    if value is None:
+        return None
+    return float(value)
+
+
 class OrderListSerializer(serializers.ModelSerializer):
     restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
     restaurant_address = serializers.CharField(source="restaurant.address_text", read_only=True)
+    restaurant_latitude = serializers.SerializerMethodField()
+    restaurant_longitude = serializers.SerializerMethodField()
     customer_phone = serializers.CharField(source="customer.phone", read_only=True)
     customer_name = serializers.SerializerMethodField()
     assigned_driver_name = serializers.SerializerMethodField()
+    sales_agent_name = serializers.SerializerMethodField()
+    order_channel = serializers.SerializerMethodField()
     item_count = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -78,8 +98,13 @@ class OrderListSerializer(serializers.ModelSerializer):
             "restaurant",
             "restaurant_name",
             "restaurant_address",
+            "restaurant_latitude",
+            "restaurant_longitude",
             "customer_phone",
             "customer_name",
+            "sales_agent",
+            "sales_agent_name",
+            "order_channel",
             "assigned_driver",
             "assigned_driver_name",
             "status",
@@ -96,6 +121,12 @@ class OrderListSerializer(serializers.ModelSerializer):
             "item_count",
         )
 
+    def get_restaurant_latitude(self, obj: Order) -> float | None:
+        return _restaurant_coord(obj.restaurant, "latitude")
+
+    def get_restaurant_longitude(self, obj: Order) -> float | None:
+        return _restaurant_coord(obj.restaurant, "longitude")
+
     def get_customer_name(self, obj: Order) -> str:
         profile = getattr(obj.customer, "customer_profile", None)
         if profile and profile.full_name:
@@ -111,12 +142,22 @@ class OrderListSerializer(serializers.ModelSerializer):
             return profile.full_name
         return driver.phone
 
+    def get_sales_agent_name(self, obj: Order) -> str | None:
+        return _sales_agent_display_name(obj.sales_agent)
+
+    def get_order_channel(self, obj: Order) -> str:
+        return "sales" if obj.sales_agent_id else "app"
+
 
 class OrderDetailSerializer(serializers.ModelSerializer):
     restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
     restaurant_address = serializers.CharField(source="restaurant.address_text", read_only=True)
+    restaurant_latitude = serializers.SerializerMethodField()
+    restaurant_longitude = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
     customer_phone = serializers.CharField(source="customer.phone", read_only=True)
+    sales_agent_name = serializers.SerializerMethodField()
+    order_channel = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -128,7 +169,11 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "restaurant",
             "restaurant_name",
             "restaurant_address",
+            "restaurant_latitude",
+            "restaurant_longitude",
             "sales_agent",
+            "sales_agent_name",
+            "order_channel",
             "assigned_driver",
             "status",
             "payment_status",
@@ -144,6 +189,18 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "items",
         )
+
+    def get_restaurant_latitude(self, obj: Order) -> float | None:
+        return _restaurant_coord(obj.restaurant, "latitude")
+
+    def get_restaurant_longitude(self, obj: Order) -> float | None:
+        return _restaurant_coord(obj.restaurant, "longitude")
+
+    def get_sales_agent_name(self, obj: Order) -> str | None:
+        return _sales_agent_display_name(obj.sales_agent)
+
+    def get_order_channel(self, obj: Order) -> str:
+        return "sales" if obj.sales_agent_id else "app"
 
 
 class OrderStatusUpdateSerializer(serializers.Serializer):

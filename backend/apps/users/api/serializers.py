@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.drivers.models import DriverProfile
 from apps.users.auth_policy import assert_jwt_eligible
-from apps.users.models import CustomerProfile
+from apps.users.models import CustomerProfile, SalesProfile
 from apps.users.phone_utils import normalize_phone
 from core.models import User
 
@@ -132,6 +132,7 @@ class SalesAgentCreateSerializer(serializers.Serializer):
 
     phone = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True)
+    name = serializers.CharField(max_length=150)
 
     def validate_phone(self, value: str) -> str:
         return normalize_phone(value)
@@ -150,11 +151,15 @@ class SalesAgentCreateSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        return User.objects.create_user(
-            phone=validated_data["phone"],
-            password=validated_data["password"],
-            role=User.Role.SALES,
-        )
+        name = validated_data.pop("name").strip()
+        with transaction.atomic():
+            user = User.objects.create_user(
+                phone=validated_data["phone"],
+                password=validated_data["password"],
+                role=User.Role.SALES,
+            )
+            SalesProfile.objects.create(user=user, full_name=name)
+            return user
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -194,12 +199,28 @@ class UserListSerializer(serializers.ModelSerializer):
     """Admin-facing user list serializer."""
 
     user_id = serializers.IntegerField(source="id", read_only=True)
+    name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("user_id", "phone", "role", "status", "created_at")
+        fields = ("user_id", "phone", "name", "role", "status", "created_at")
         read_only_fields = fields
+
+    def get_name(self, obj: User) -> str | None:
+        if obj.role == User.Role.CUSTOMER:
+            profile = getattr(obj, "customer_profile", None)
+            if profile and profile.full_name:
+                return profile.full_name
+        elif obj.role == User.Role.DRIVER:
+            profile = getattr(obj, "driver_profile", None)
+            if profile and profile.full_name:
+                return profile.full_name
+        elif obj.role == User.Role.SALES:
+            profile = getattr(obj, "sales_profile", None)
+            if profile and profile.full_name:
+                return profile.full_name
+        return None
 
     def get_status(self, obj: User) -> str:
         return "active" if obj.is_active else "inactive"

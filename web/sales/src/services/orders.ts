@@ -116,8 +116,11 @@ export async function assignDriver(orderId: number, driverId: number): Promise<O
   });
 }
 
-export async function fetchApprovedDrivers(): Promise<
-  Array<{ id: number; full_name: string; phone: string }>
+export async function fetchApprovedDrivers(options?: {
+  includeBusy?: boolean;
+}): Promise<
+  Array<{ id: number; full_name: string; phone: string; operational_status?: string }>
 > {
-  return authJson(`/api/v1/admin/drivers/approved/`);
+  const q = options?.includeBusy ? "?include_busy=true" : "";
+  return authJson(`/api/v1/admin/drivers/approved${q}`);
 }

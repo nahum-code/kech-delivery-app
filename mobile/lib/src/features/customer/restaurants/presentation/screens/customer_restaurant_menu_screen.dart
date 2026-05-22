@@ -24,10 +24,12 @@ class CustomerRestaurantMenuScreen extends StatefulWidget {
   final RestaurantSummary? restaurant;
 
   @override
-  State<CustomerRestaurantMenuScreen> createState() => _CustomerRestaurantMenuScreenState();
+  State<CustomerRestaurantMenuScreen> createState() =>
+      _CustomerRestaurantMenuScreenState();
 }
 
-class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScreen> {
+class _CustomerRestaurantMenuScreenState
+    extends State<CustomerRestaurantMenuScreen> {
   RestaurantDetail? _detail;
   RestaurantMenu? _menu;
   int _selectedCategoryIndex = 0;
@@ -97,23 +99,23 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
       return;
     }
     await context.read<CartRepository>().addItem(
-          restaurantId: detail.id,
-          restaurantName: detail.name,
-          line: CartLine(
-            menuItemId: item.id,
-            name: item.name,
-            unitPrice: item.price,
-            quantity: 1,
-            imageUrl: item.imageUrl,
-            currency: item.currency,
-          ),
-        );
+      restaurantId: detail.id,
+      restaurantName: detail.name,
+      line: CartLine(
+        menuItemId: item.id,
+        name: item.name,
+        unitPrice: item.price,
+        quantity: 1,
+        imageUrl: item.imageUrl,
+        currency: item.currency,
+      ),
+    );
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${item.name} added to cart')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${item.name} added to cart')));
   }
 
   void _openCart() {
@@ -126,7 +128,11 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
   Widget build(BuildContext context) {
     final CartRepository cartRepo = context.watch<CartRepository>();
     final int cartCount =
-        cartRepo.current?.lines.fold<int>(0, (int s, CartLine l) => s + l.quantity) ?? 0;
+        cartRepo.current?.lines.fold<int>(
+          0,
+          (int s, CartLine l) => s + l.quantity,
+        ) ??
+        0;
 
     final RestaurantDetail? detail = _detail;
     final RestaurantMenu? menu = _menu;
@@ -135,14 +141,24 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
       backgroundColor: CustomerHomeTokens.canvas,
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: CustomerHomeTokens.primaryMaroon),
+              child: CircularProgressIndicator(
+                color: CustomerHomeTokens.primaryMaroon,
+              ),
             )
           : _error != null
-              ? _ErrorBody(message: _error ?? 'Something went wrong.', onRetry: _load)
-              : detail == null || menu == null
-                  ? _ErrorBody(message: 'Could not load this restaurant.', onRetry: _load)
-                  : _buildContent(cartCount: cartCount, detail: detail, menu: menu),
-      bottomNavigationBar: cartCount > 0 ? _CartBar(count: cartCount, onPressed: _openCart) : null,
+          ? _ErrorBody(
+              message: _error ?? 'Something went wrong.',
+              onRetry: _load,
+            )
+          : detail == null || menu == null
+          ? _ErrorBody(
+              message: 'Could not load this restaurant.',
+              onRetry: _load,
+            )
+          : _buildContent(cartCount: cartCount, detail: detail, menu: menu),
+      bottomNavigationBar: cartCount > 0
+          ? _CartBar(count: cartCount, onPressed: _openCart)
+          : null,
     );
   }
 
@@ -151,8 +167,9 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
     required RestaurantDetail detail,
     required RestaurantMenu menu,
   }) {
-    final List<PublicMenuCategory> categories =
-        menu.categories.where((PublicMenuCategory c) => c.items.isNotEmpty).toList();
+    final List<PublicMenuCategory> categories = menu.categories
+        .where((PublicMenuCategory c) => c.items.isNotEmpty)
+        .toList();
 
     if (categories.isEmpty) {
       return Column(
@@ -168,7 +185,10 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
       );
     }
 
-    final int categoryIndex = _selectedCategoryIndex.clamp(0, categories.length - 1);
+    final int categoryIndex = _selectedCategoryIndex.clamp(
+      0,
+      categories.length - 1,
+    );
     final PublicMenuCategory activeCategory = categories[categoryIndex];
 
     return CustomScrollView(
@@ -216,13 +236,19 @@ class _CustomerRestaurantMenuScreenState extends State<CustomerRestaurantMenuScr
                   showCheckmark: false,
                   labelStyle: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: selected ? Colors.white : CustomerHomeTokens.labelGray,
+                    color: selected
+                        ? Colors.white
+                        : CustomerHomeTokens.labelGray,
                   ),
                   backgroundColor: CustomerHomeTokens.categoryIdleSurface,
                   selectedColor: CustomerHomeTokens.primaryMaroon,
                   side: BorderSide.none,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  onSelected: (_) => setState(() => _selectedCategoryIndex = index),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  onSelected: (_) =>
+                      setState(() => _selectedCategoryIndex = index),
                 );
               },
             ),
@@ -268,7 +294,9 @@ class _RestaurantInfoCard extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(CustomerHomeTokens.restaurantCardRadius),
+            borderRadius: BorderRadius.circular(
+              CustomerHomeTokens.restaurantCardRadius,
+            ),
             boxShadow: <BoxShadow>[
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
@@ -309,19 +337,27 @@ class _RestaurantInfoCard extends StatelessWidget {
                   runSpacing: 8,
                   children: <Widget>[
                     _InfoChip(
-                      icon: detail.isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                      label: detail.isActive ? 'Open now' : 'Closed',
-                      emphasized: detail.isActive,
+                      icon: detail.isOpen
+                          ? Icons.check_circle_rounded
+                          : Icons.cancel_rounded,
+                      label: detail.isOpen ? 'Open now' : 'Closed',
+                      emphasized: detail.isOpen,
                     ),
                     if (detail.openingHours.isNotEmpty)
-                      _InfoChip(icon: Icons.schedule_rounded, label: detail.openingHours),
+                      _InfoChip(
+                        icon: Icons.schedule_rounded,
+                        label: detail.openingHours,
+                      ),
                     if (detail.menuItemCount > 0)
                       _InfoChip(
                         icon: Icons.restaurant_menu_rounded,
                         label: '${detail.menuItemCount} items',
                       ),
                     if (detail.addressText.isNotEmpty)
-                      _InfoChip(icon: Icons.place_outlined, label: detail.addressText),
+                      _InfoChip(
+                        icon: Icons.place_outlined,
+                        label: detail.addressText,
+                      ),
                   ],
                 ),
               ],
@@ -348,7 +384,9 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: emphasized ? const Color(0xFFF5E8EA) : CustomerHomeTokens.searchFill,
+        color: emphasized
+            ? const Color(0xFFF5E8EA)
+            : CustomerHomeTokens.searchFill,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
@@ -359,7 +397,9 @@ class _InfoChip extends StatelessWidget {
             Icon(
               icon,
               size: 14,
-              color: emphasized ? CustomerHomeTokens.primaryMaroon : CustomerHomeTokens.labelGray,
+              color: emphasized
+                  ? CustomerHomeTokens.primaryMaroon
+                  : CustomerHomeTokens.labelGray,
             ),
             const SizedBox(width: 4),
             Text(
@@ -369,7 +409,9 @@ class _InfoChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: emphasized ? CustomerHomeTokens.primaryMaroon : CustomerHomeTokens.labelGray,
+                color: emphasized
+                    ? CustomerHomeTokens.primaryMaroon
+                    : CustomerHomeTokens.labelGray,
               ),
             ),
           ],
@@ -406,7 +448,10 @@ class _CartBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     child: Text(
                       '$count',
                       style: const TextStyle(

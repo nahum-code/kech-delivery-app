@@ -31,3 +31,27 @@ class CustomerProfile(models.Model):
 
     def __str__(self) -> str:
         return f"CustomerProfile<{self.user}>"
+
+
+class SalesProfile(models.Model):
+    """Sales agent display name for admin user management and order attribution."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sales_profile",
+    )
+    full_name = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.user and getattr(self.user, "role", None) != "sales":
+            raise ValidationError("SalesProfile can only be attached to a sales user.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"SalesProfile<{self.user}>"

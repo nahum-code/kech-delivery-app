@@ -16,6 +16,7 @@ from apps.orders.permissions import CanViewDriverOrders
 from apps.orders.services.driver_delivery import (
     acknowledge_assignment,
     complete_delivery,
+    decline_assignment,
     mark_picked_up,
     start_delivery,
 )
@@ -92,6 +93,12 @@ class DriverOrderAcceptView(_DriverOrderActionView):
     """POST accept — acknowledgment only; status remains assigned."""
 
     action_handler = acknowledge_assignment
+
+
+class DriverOrderDeclineView(_DriverOrderActionView):
+    """POST decline — order status becomes declined for dispatch."""
+
+    action_handler = decline_assignment
 
 
 class DriverOrderPickupView(_DriverOrderActionView):

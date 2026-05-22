@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/data/auth_repository.dart';
+import '../../../../../core/http/api_error_message.dart';
 import '../../../../../shared/theme/driver_home_tokens.dart';
+import '../../../../../shared/widgets/driver/driver_inline_error.dart';
+import '../../../shared/driver_session_handler.dart';
 import '../../../../../shared/theme/driver_task_tokens.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
@@ -64,9 +67,12 @@ class DriverTasksScreenState extends State<DriverTasksScreen> with SingleTickerP
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userMessageFrom(e, fallback: 'Could not load tasks.');
         _loading = false;
       });
+      if (isSessionExpiredError(e)) {
+        handleDriverApiError(context, e);
+      }
     }
   }
 
@@ -125,7 +131,7 @@ class DriverTasksScreenState extends State<DriverTasksScreen> with SingleTickerP
                 indicatorColor: DriverTaskTokens.primary,
                 indicatorWeight: 3,
                 indicatorSize: TabBarIndicatorSize.label,
-                dividerColor: const Color(0xFFF0E8E8),
+                dividerColor: DriverTaskTokens.divider,
                 labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.8),
                 unselectedLabelStyle:
                     const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 0.8),
@@ -140,16 +146,18 @@ class DriverTasksScreenState extends State<DriverTasksScreen> with SingleTickerP
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: DriverTaskTokens.primary))
                   : _error != null
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(_error!, textAlign: TextAlign.center),
-                          ),
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: <Widget>[
+                            DriverInlineError(message: _error!, onRetry: _load),
+                          ],
                         )
                       : RefreshIndicator(
                           color: DriverTaskTokens.primary,
                           onRefresh: _load,
-                          child: TabBarView(
+                          child: ColoredBox(
+                            color: DriverTaskTokens.canvas,
+                            child: TabBarView(
                             controller: _tabController,
                             children: <Widget>[
                               DriverTaskPickupPanel(
@@ -167,6 +175,7 @@ class DriverTasksScreenState extends State<DriverTasksScreen> with SingleTickerP
                                 onCheckUpdates: _load,
                               ),
                             ],
+                            ),
                           ),
                         ),
             ),

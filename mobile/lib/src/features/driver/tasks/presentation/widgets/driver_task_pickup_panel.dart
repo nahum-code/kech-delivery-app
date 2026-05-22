@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/data/auth_repository.dart';
+import '../../../shared/driver_session_handler.dart';
 import '../../../../../shared/theme/driver_task_tokens.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
 import '../screens/driver_task_detail_screen.dart';
+import '../../../../../shared/widgets/map/location_map_preview.dart';
+import 'driver_task_map_placeholder.dart';
 import 'driver_tasks_tab_empty_state.dart';
 
 /// Pickup phase — assigned / picked_up orders.
@@ -36,7 +39,7 @@ class _DriverTaskPickupPanelState extends State<DriverTaskPickupPanel> {
       widget.onChanged();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      await handleDriverApiError(context, e);
     } finally {
       if (mounted) setState(() => _actingOnId = null);
     }
@@ -50,11 +53,18 @@ class _DriverTaskPickupPanelState extends State<DriverTaskPickupPanel> {
       widget.onChanged();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      await handleDriverApiError(context, e);
     } finally {
       if (mounted) setState(() => _actingOnId = null);
     }
   }
+
+  static ButtonStyle get _primaryButtonStyle => FilledButton.styleFrom(
+        backgroundColor: DriverTaskTokens.primary,
+        foregroundColor: DriverTaskTokens.onPrimary,
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +99,12 @@ class _DriverTaskPickupPanelState extends State<DriverTaskPickupPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  _MapStrip(label: o.restaurantName),
+                  DriverTaskMapPlaceholder(
+                    label: o.restaurantName,
+                    latitude: o.restaurantLatitude,
+                    longitude: o.restaurantLongitude,
+                    markerRole: MapPreviewMarkerRole.pickup,
+                  ),
                   const SizedBox(height: 12),
                   const Text(
                     'PICKUP FROM',
@@ -101,36 +116,47 @@ class _DriverTaskPickupPanelState extends State<DriverTaskPickupPanel> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(o.restaurantName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                  Text(
+                    o.restaurantName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      color: DriverTaskTokens.ink,
+                    ),
+                  ),
                   if (o.restaurantAddress.isNotEmpty)
-                    Text(o.restaurantAddress, style: const TextStyle(color: DriverTaskTokens.bodyGray)),
+                    Text(
+                      o.restaurantAddress,
+                      style: const TextStyle(color: DriverTaskTokens.bodyGray),
+                    ),
                   const SizedBox(height: 12),
-                  Text(o.reference, style: const TextStyle(color: DriverTaskTokens.primary, fontWeight: FontWeight.w600)),
+                  Text(
+                    o.reference,
+                    style: const TextStyle(
+                      color: DriverTaskTokens.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   if (o.status == 'assigned')
                     FilledButton(
                       onPressed: busy ? null : () => _pickup(o),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: DriverTaskTokens.primary,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                      style: _primaryButtonStyle,
                       child: busy
                           ? const SizedBox(
                               height: 22,
                               width: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: DriverTaskTokens.onPrimary,
+                              ),
                             )
                           : const Text('MARK AS PICKED UP', style: TextStyle(fontWeight: FontWeight.w800)),
                     )
                   else if (o.status == 'picked_up')
                     FilledButton(
                       onPressed: busy ? null : () => _startDelivery(o),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: DriverTaskTokens.primary,
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                      style: _primaryButtonStyle,
                       child: const Text('START DELIVERY', style: TextStyle(fontWeight: FontWeight.w800)),
                     ),
                 ],
@@ -142,31 +168,3 @@ class _DriverTaskPickupPanelState extends State<DriverTaskPickupPanel> {
     );
   }
 }
-
-class _MapStrip extends StatelessWidget {
-  const _MapStrip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE5E7EB),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(Icons.map_outlined, color: Colors.grey[600]),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-

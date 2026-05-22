@@ -20,6 +20,7 @@ export default function SalesRoute() {
       {
         user_id: created.user_id,
         phone: created.phone,
+        name: null,
         role: created.role,
         status: "active",
         created_at: new Date().toISOString(),
@@ -44,7 +45,7 @@ export default function SalesRoute() {
       <div className="relative max-w-xl">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <Input
-          placeholder="Search sales agents by phone number..."
+          placeholder="Search sales agents by name or phone..."
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           className="pl-10"

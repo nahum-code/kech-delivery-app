@@ -1,5 +1,4 @@
 import { Card } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,6 +9,9 @@ import {
 } from "../../components/ui/table";
 import { EmptyState } from "../../components/EmptyState";
 import { Users } from "lucide-react";
+import { AdminUserRoleBadge } from "../../components/AdminUserRoleBadge";
+import { AdminUserStatusBadge } from "../../components/AdminUserStatusBadge";
+import { adminUserDisplayName, filterAdminUsers } from "@/lib/admin-user-utils";
 import type { AdminUser } from "@/services/users";
 
 interface UsersAllProps {
@@ -17,46 +19,8 @@ interface UsersAllProps {
   users?: AdminUser[];
 }
 
-const getRoleBadgeColor = (role: string) => {
-  switch (role) {
-    case "customer":
-      return "bg-blue-100 text-blue-700";
-    case "driver":
-      return "bg-purple-100 text-purple-700";
-    case "sales":
-      return "bg-green-100 text-green-700";
-    case "admin":
-      return "bg-[#800020] text-white";
-    default:
-      return "bg-gray-100 text-gray-700";
-  }
-};
-
-const getRoleLabel = (role: string) => {
-  switch (role) {
-    case "customer":
-      return "Customer";
-    case "driver":
-      return "Driver";
-    case "sales":
-      return "Sales Agent";
-    case "admin":
-      return "Admin";
-    default:
-      return role;
-  }
-};
-
-const getStatusBadgeColor = (status: string) => {
-  return status === "active"
-    ? "bg-green-100 text-green-700"
-    : "bg-gray-100 text-gray-700";
-};
-
 export function UsersAll({ searchQuery, users = [] }: UsersAllProps) {
-  const filteredUsers = users.filter((user) =>
-    user.phone.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = filterAdminUsers(users, searchQuery);
 
   if (filteredUsers.length === 0) {
     return (
@@ -79,6 +43,7 @@ export function UsersAll({ searchQuery, users = [] }: UsersAllProps) {
           <TableHeader>
             <TableRow>
               <TableHead>User ID</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead>Phone Number</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
@@ -90,22 +55,15 @@ export function UsersAll({ searchQuery, users = [] }: UsersAllProps) {
             {filteredUsers.map((user) => (
               <TableRow key={user.user_id}>
                 <TableCell className="font-medium">{user.user_id}</TableCell>
+                <TableCell className="font-medium text-gray-900">
+                  {adminUserDisplayName(user)}
+                </TableCell>
                 <TableCell>{user.phone}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={getRoleBadgeColor(user.role)}
-                  >
-                    {getRoleLabel(user.role)}
-                  </Badge>
+                  <AdminUserRoleBadge role={user.role} />
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={getStatusBadgeColor(user.status)}
-                  >
-                    {user.status === "active" ? "Active" : "Inactive"}
-                  </Badge>
+                  <AdminUserStatusBadge status={user.status} />
                 </TableCell>
                 <TableCell>
                   {new Date(user.created_at).toLocaleDateString("en-GB", {

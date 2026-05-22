@@ -56,6 +56,7 @@ def _order_queryset():
             "assigned_driver",
             "assigned_driver__driver_profile",
             "sales_agent",
+            "sales_agent__sales_profile",
         )
         .prefetch_related("items__menu_item")
         .annotate(item_count=Count("items", distinct=True))

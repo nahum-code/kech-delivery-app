@@ -22,7 +22,9 @@ final class RestaurantRepository {
     return RestaurantDetail.fromJson(decoded);
   }
 
-  Future<List<RestaurantSummary>> fetchActiveRestaurants({String? search}) async {
+  Future<List<RestaurantSummary>> fetchActiveRestaurants({
+    String? search,
+  }) async {
     final http.Response response = await _api.listRestaurants(search: search);
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load restaurants');
@@ -43,7 +45,8 @@ final class RestaurantRepository {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Unexpected menu response');
     }
-    final List<dynamic> categories = decoded['categories'] as List<dynamic>? ?? <dynamic>[];
+    final List<dynamic> categories =
+        decoded['categories'] as List<dynamic>? ?? <dynamic>[];
     final int? parsedRestaurantId = _readInt(decoded['restaurant_id']);
     if (parsedRestaurantId == null) {
       throw const FormatException('Menu response missing restaurant_id');
@@ -81,6 +84,7 @@ final class RestaurantRepository {
       logoUrl: m['logo_url'] as String?,
       coverImageUrl: m['cover_image_url'] as String?,
       menuItemCount: m['menu_item_count'] as int? ?? 0,
+      isOpen: m['is_open'] as bool? ?? false,
     );
   }
 

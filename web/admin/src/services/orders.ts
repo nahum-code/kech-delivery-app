@@ -7,6 +7,9 @@ export type OrderRecord = {
   restaurant_name: string;
   customer_phone: string;
   customer_name: string;
+  sales_agent: number | null;
+  sales_agent_name: string | null;
+  order_channel: "app" | "sales";
   assigned_driver: number | null;
   assigned_driver_name: string | null;
   status: string;
@@ -68,22 +71,37 @@ export async function fetchOrder(id: number): Promise<OrderDetail> {
   return requestJson<OrderDetail>(`/api/v1/orders/${id}/`);
 }
 
-export async function updateOrderStatus(id: number, status: string): Promise<OrderDetail> {
+export async function updateOrderStatus(
+  id: number,
+  status: string,
+): Promise<OrderDetail> {
   return requestJson<OrderDetail>(`/api/v1/orders/${id}/status/`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
 }
 
-export async function assignDriver(orderId: number, driverId: number): Promise<OrderDetail> {
+export async function assignDriver(
+  orderId: number,
+  driverId: number,
+): Promise<OrderDetail> {
   return requestJson<OrderDetail>(`/api/v1/orders/${orderId}/assign-driver/`, {
     method: "POST",
     body: JSON.stringify({ driver_id: driverId }),
   });
 }
 
-export async function fetchApprovedDrivers(): Promise<
-  Array<{ id: number; full_name: string; phone: string; vehicle_type: string }>
+export async function fetchApprovedDrivers(options?: {
+  includeBusy?: boolean;
+}): Promise<
+  Array<{
+    id: number;
+    full_name: string;
+    phone: string;
+    vehicle_type: string;
+    operational_status?: string;
+  }>
 > {
-  return requestJson(`/api/v1/admin/drivers/approved/`);
+  const q = options?.includeBusy ? "?include_busy=true" : "";
+  return requestJson(`/api/v1/admin/drivers/approved${q}`);
 }

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/data/auth_repository.dart';
+import '../../../../../core/http/api_error_message.dart';
 import '../../../../../shared/theme/driver_home_tokens.dart';
+import '../../../../../shared/widgets/driver/driver_inline_error.dart';
+import '../../../shared/driver_session_handler.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
 import '../../../shell/widgets/driver_online_status_badge.dart';
@@ -48,9 +51,12 @@ class _DriverHomeTabScreenState extends State<DriverHomeTabScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userMessageFrom(e, fallback: 'Could not load home.');
         _loading = false;
       });
+      if (isSessionExpiredError(e)) {
+        handleDriverApiError(context, e);
+      }
     }
   }
 
@@ -120,10 +126,7 @@ class _DriverHomeTabScreenState extends State<DriverHomeTabScreen> {
                   ),
                 )
               else if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24),
-                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
-                )
+                DriverInlineError(message: _error!, onRetry: _load)
               else ...<Widget>[
                 Row(
                   children: <Widget>[

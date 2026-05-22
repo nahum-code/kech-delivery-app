@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../../../core/auth/driver_onboarding_storage.dart';
 import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/customer_registration_tokens.dart';
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../navigation/driver_otp_navigation.dart';
@@ -147,7 +148,7 @@ class _DriverOtpScreenState extends State<DriverOtpScreen> {
     final Color maroon = CustomerRegistrationTokens.primaryMaroon;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F8),
+      backgroundColor: DriverAppTokens.screenBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),

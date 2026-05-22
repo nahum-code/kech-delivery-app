@@ -10,6 +10,7 @@ from apps.orders.api.views import DriverOrdersListView
 from .delivery_views import (
     DriverAvailabilityView,
     DriverOrderAcceptView,
+    DriverOrderDeclineView,
     DriverOrderCompleteView,
     DriverOrderDetailView,
     DriverOrderPickupView,
@@ -21,6 +22,7 @@ urlpatterns = [
     path("orders/", DriverOrdersListView.as_view(), name="driver_orders"),
     path("orders/<int:order_id>/", DriverOrderDetailView.as_view(), name="driver_order_detail"),
     path("orders/<int:order_id>/accept/", DriverOrderAcceptView.as_view(), name="driver_order_accept"),
+    path("orders/<int:order_id>/decline/", DriverOrderDeclineView.as_view(), name="driver_order_decline"),
     path("orders/<int:order_id>/pickup/", DriverOrderPickupView.as_view(), name="driver_order_pickup"),
     path(
         "orders/<int:order_id>/start-delivery/",

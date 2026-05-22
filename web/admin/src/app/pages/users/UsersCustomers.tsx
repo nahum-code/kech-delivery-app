@@ -1,5 +1,4 @@
 import { Card } from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
 import {
   Table,
   TableBody,
@@ -10,6 +9,8 @@ import {
 } from "../../components/ui/table";
 import { EmptyState } from "../../components/EmptyState";
 import { ShoppingBag } from "lucide-react";
+import { AdminUserStatusBadge } from "../../components/AdminUserStatusBadge";
+import { adminUserDisplayName, filterAdminUsers } from "@/lib/admin-user-utils";
 import type { AdminUser } from "@/services/users";
 
 interface UsersCustomersProps {
@@ -17,16 +18,8 @@ interface UsersCustomersProps {
   users?: AdminUser[];
 }
 
-const getStatusBadgeColor = (status: string) => {
-  return status === "Active"
-    ? "bg-green-100 text-green-700"
-    : "bg-gray-100 text-gray-700";
-};
-
 export function UsersCustomers({ searchQuery, users = [] }: UsersCustomersProps) {
-  const filteredUsers = users.filter((user) =>
-    user.phone.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = filterAdminUsers(users, searchQuery);
 
   if (filteredUsers.length === 0) {
     return (
@@ -49,6 +42,7 @@ export function UsersCustomers({ searchQuery, users = [] }: UsersCustomersProps)
           <TableHeader>
             <TableRow>
               <TableHead>User ID</TableHead>
+              <TableHead>Name</TableHead>
               <TableHead>Phone Number</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
@@ -59,14 +53,12 @@ export function UsersCustomers({ searchQuery, users = [] }: UsersCustomersProps)
             {filteredUsers.map((user) => (
               <TableRow key={user.user_id}>
                 <TableCell className="font-medium">{user.user_id}</TableCell>
+                <TableCell className="font-medium text-gray-900">
+                  {adminUserDisplayName(user)}
+                </TableCell>
                 <TableCell>{user.phone}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={getStatusBadgeColor(user.status)}
-                  >
-                    {user.status === "active" ? "Active" : "Inactive"}
-                  </Badge>
+                  <AdminUserStatusBadge status={user.status} />
                 </TableCell>
                 <TableCell>
                   {new Date(user.created_at).toLocaleDateString("en-GB", {

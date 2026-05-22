@@ -130,10 +130,12 @@ class CreateSalesAgentView(APIView):
 
         auth_logging.log_sales_agent_create(request.user.id, user.id, user.phone)
 
+        profile = getattr(user, "sales_profile", None)
         return Response(
             {
                 "user_id": user.id,
                 "phone": user.phone,
+                "name": profile.full_name if profile else "",
                 "role": str(user.role),
             },
             status=status.HTTP_201_CREATED,
@@ -196,7 +198,19 @@ class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUserRole]
 
     def get(self, request, *args, **kwargs):
-        users = User.objects.all().order_by("-created_at")
+        users = (
+            User.objects.all()
+            .select_related("customer_profile", "driver_profile", "sales_profile")
+            .order_by("-created_at")
+        )
+        q = (request.query_params.get("q") or "").strip()
+        if q:
+            users = users.filter(
+                Q(phone__icontains=q)
+                | Q(customer_profile__full_name__icontains=q)
+                | Q(driver_profile__full_name__icontains=q)
+                | Q(sales_profile__full_name__icontains=q)
+            )
         return Response(UserListSerializer(users, many=True).data)
 
 

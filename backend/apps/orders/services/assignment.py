@@ -39,7 +39,20 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
     if not driver.is_active:
         raise OrderServiceError("Driver account is inactive.", status_code=400)
 
-    if profile.operational_status != DriverProfile.OperationalStatus.ONLINE:
+    reassigning_declined = order.status == Order.Status.DECLINED
+    if reassigning_declined and order.assigned_driver_id == driver.pk:
+        raise OrderServiceError(
+            "Choose a different driver — this driver already declined this delivery.",
+            status_code=409,
+        )
+
+    if reassigning_declined:
+        if profile.operational_status == DriverProfile.OperationalStatus.OFFLINE:
+            raise OrderServiceError(
+                "Driver must be online or busy to receive a reassignment.",
+                status_code=409,
+            )
+    elif profile.operational_status != DriverProfile.OperationalStatus.ONLINE:
         raise OrderServiceError(
             "Only online drivers can receive new assignments.",
             status_code=409,
@@ -57,10 +70,19 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
         )
 
     order.assigned_driver = driver
-    if order.status in {Order.Status.PENDING, Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.READY_FOR_PICKUP}:
+    if order.status in {
+        Order.Status.PENDING,
+        Order.Status.CONFIRMED,
+        Order.Status.PREPARING,
+        Order.Status.READY_FOR_PICKUP,
+        Order.Status.DECLINED,
+    }:
         order.status = Order.Status.ASSIGNED
+    order.driver_acknowledged_at = None
     order.updated_at = timezone.now()
-    order.save(update_fields=["assigned_driver", "status", "updated_at"])
+    order.save(
+        update_fields=["assigned_driver", "status", "driver_acknowledged_at", "updated_at"],
+    )
 
     DriverAssignmentLog.objects.create(
         order=order,

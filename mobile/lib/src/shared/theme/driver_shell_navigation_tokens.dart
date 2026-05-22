@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import 'driver_app_tokens.dart';
+
 abstract final class DriverShellNavigationTokens {
-  static const Color primary = Color(0xFF800020);
-  static const Color primaryDark = Color(0xFF600018);
-  static const Color bottomBarSurface = Colors.white;
-  static const Color screenBackground = Color(0xFFFFF9F9);
-  static const Color navInactive = Color(0xFF9EABB8);
+  static const Color primary = DriverAppTokens.primary;
+  static const Color primaryDark = DriverAppTokens.primaryDark;
+  static const Color bottomBarSurface = DriverAppTokens.cardSurface;
+  static const Color screenBackground = DriverAppTokens.screenBackground;
+  static const Color navInactive = DriverAppTokens.labelMuted;
 }

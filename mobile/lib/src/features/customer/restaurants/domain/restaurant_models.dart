@@ -9,6 +9,7 @@ final class RestaurantSummary {
     this.logoUrl,
     this.coverImageUrl,
     this.menuItemCount = 0,
+    this.isOpen = false,
   });
 
   final int id;
@@ -17,14 +18,15 @@ final class RestaurantSummary {
   final String? logoUrl;
   final String? coverImageUrl;
   final int menuItemCount;
+  final bool isOpen;
 
   String? get heroImageUrl => coverImageUrl ?? logoUrl;
 
   CustomerHomeRestaurantPreview toPreview() => CustomerHomeRestaurantPreview(
-        id: '$id',
-        displayName: name,
-        imageUrl: heroImageUrl,
-      );
+    id: '$id',
+    displayName: name,
+    imageUrl: heroImageUrl,
+  );
 }
 
 /// Full restaurant row from `GET /api/v1/restaurants/{id}/`.
@@ -40,6 +42,7 @@ final class RestaurantDetail {
     this.addressText = '',
     this.openingHours = '',
     this.isActive = true,
+    this.isOpen = false,
     this.latitude,
     this.longitude,
   });
@@ -54,6 +57,7 @@ final class RestaurantDetail {
   final String addressText;
   final String openingHours;
   final bool isActive;
+  final bool isOpen;
   final double? latitude;
   final double? longitude;
 
@@ -75,19 +79,21 @@ final class RestaurantDetail {
       addressText: m['address_text'] as String? ?? '',
       openingHours: _readString(m['opening_hours']) ?? '',
       isActive: m['is_active'] as bool? ?? true,
+      isOpen: m['is_open'] as bool? ?? false,
       latitude: _readDouble(m['latitude']),
       longitude: _readDouble(m['longitude']),
     );
   }
 
   RestaurantSummary toSummary() => RestaurantSummary(
-        id: id,
-        name: name,
-        description: description,
-        logoUrl: logoUrl,
-        coverImageUrl: coverImageUrl,
-        menuItemCount: menuItemCount,
-      );
+    id: id,
+    name: name,
+    description: description,
+    logoUrl: logoUrl,
+    coverImageUrl: coverImageUrl,
+    menuItemCount: menuItemCount,
+    isOpen: isOpen,
+  );
 }
 
 final class PublicMenuItem {

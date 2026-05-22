@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/data/auth_repository.dart';
+import '../../../shared/driver_session_handler.dart';
 import '../../../../../shared/theme/driver_task_tokens.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
 import '../screens/driver_task_detail_screen.dart';
+import '../../../../../shared/widgets/map/location_map_preview.dart';
+import 'driver_task_map_placeholder.dart';
 import 'driver_tasks_tab_empty_state.dart';
 
 /// Out-for-delivery phase — mark delivered.
@@ -36,11 +39,18 @@ class _DriverTaskDeliveringPanelState extends State<DriverTaskDeliveringPanel> {
       widget.onChanged();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      await handleDriverApiError(context, e);
     } finally {
       if (mounted) setState(() => _actingOnId = null);
     }
   }
+
+  static ButtonStyle get _primaryButtonStyle => FilledButton.styleFrom(
+        backgroundColor: DriverTaskTokens.primary,
+        foregroundColor: DriverTaskTokens.onPrimary,
+        minimumSize: const Size.fromHeight(48),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -75,15 +85,15 @@ class _DriverTaskDeliveringPanelState extends State<DriverTaskDeliveringPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Icon(Icons.navigation_outlined, size: 40, color: DriverTaskTokens.primary),
-                    ),
+                  DriverTaskMapPlaceholder(
+                    icon: Icons.navigation_outlined,
+                    latitude: o.restaurantLatitude,
+                    longitude: o.restaurantLongitude,
+                    destinationLatitude: o.dropoffLatitude,
+                    destinationLongitude: o.dropoffLongitude,
+                    markerRole: MapPreviewMarkerRole.restaurant,
+                    showRoute: true,
+                    height: 120,
                   ),
                   const SizedBox(height: 12),
                   const Text(
@@ -98,23 +108,29 @@ class _DriverTaskDeliveringPanelState extends State<DriverTaskDeliveringPanel> {
                   const SizedBox(height: 4),
                   Text(
                     o.dropoffLine.isNotEmpty ? o.dropoffLine : o.customerName,
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      color: DriverTaskTokens.ink,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  Text('${o.restaurantName} · ${o.reference}', style: const TextStyle(color: DriverTaskTokens.bodyGray)),
+                  Text(
+                    '${o.restaurantName} · ${o.reference}',
+                    style: const TextStyle(color: DriverTaskTokens.bodyGray),
+                  ),
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: busy ? null : () => _complete(o),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: DriverTaskTokens.primary,
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
+                    style: _primaryButtonStyle,
                     child: busy
                         ? const SizedBox(
                             height: 22,
                             width: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: DriverTaskTokens.onPrimary,
+                            ),
                           )
                         : const Text('MARK AS DELIVERED', style: TextStyle(fontWeight: FontWeight.w800)),
                   ),

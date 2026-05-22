@@ -35,6 +35,10 @@ final class DriverOrderApi {
     return _client.post(_u('/api/v1/drivers/orders/$id/accept/'), headers: _headers);
   }
 
+  Future<http.Response> decline(int id) {
+    return _client.post(_u('/api/v1/drivers/orders/$id/decline/'), headers: _headers);
+  }
+
   Future<http.Response> pickup(int id) {
     return _client.post(_u('/api/v1/drivers/orders/$id/pickup/'), headers: _headers);
   }

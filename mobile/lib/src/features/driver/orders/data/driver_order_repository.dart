@@ -2,20 +2,29 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../../auth/data/auth_repository.dart';
+import '../../../../core/http/api_error_message.dart';
 import '../domain/driver_order_models.dart';
 import 'driver_order_api.dart';
 
 final class DriverOrderRepository {
-  DriverOrderRepository({required DriverOrderApi Function(String token) apiFactory})
-      : _apiFactory = apiFactory;
+  DriverOrderRepository({
+    required DriverOrderApi Function(String token) apiFactory,
+    AuthRepository? authRepository,
+  })  : _apiFactory = apiFactory,
+        _auth = authRepository;
 
   final DriverOrderApi Function(String token) _apiFactory;
+  final AuthRepository? _auth;
 
   Future<List<DriverOrderSummary>> fetchOrders({
     required String accessToken,
     String? status,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).listOrders(status: status);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).listOrders(status: status),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load deliveries');
     }
@@ -30,7 +39,10 @@ final class DriverOrderRepository {
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).orderDetail(orderId);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).orderDetail(orderId),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load delivery');
     }
@@ -41,9 +53,26 @@ final class DriverOrderRepository {
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).accept(orderId);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).accept(orderId),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not accept delivery');
+    }
+    return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<DriverOrderDetail> decline({
+    required String accessToken,
+    required int orderId,
+  }) async {
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).decline(orderId),
+    );
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not decline delivery');
     }
     return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -52,7 +81,10 @@ final class DriverOrderRepository {
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).pickup(orderId);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).pickup(orderId),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not mark picked up');
     }
@@ -63,7 +95,10 @@ final class DriverOrderRepository {
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).startDelivery(orderId);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).startDelivery(orderId),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not start delivery');
     }
@@ -74,7 +109,10 @@ final class DriverOrderRepository {
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).complete(orderId);
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).complete(orderId),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not complete delivery');
     }
@@ -82,7 +120,10 @@ final class DriverOrderRepository {
   }
 
   Future<DriverAvailability> fetchAvailability({required String accessToken}) async {
-    final http.Response response = await _apiFactory(accessToken).availability();
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).availability(),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load availability');
     }
@@ -93,8 +134,11 @@ final class DriverOrderRepository {
     required String accessToken,
     required bool online,
   }) async {
-    final http.Response response = await _apiFactory(accessToken).setAvailability(
-      online ? 'online' : 'offline',
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).setAvailability(
+        online ? 'online' : 'offline',
+      ),
     );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not update availability');
@@ -103,20 +147,35 @@ final class DriverOrderRepository {
   }
 
   Future<Map<String, dynamic>> fetchDriverStatus({required String accessToken}) async {
-    final http.Response response = await _apiFactory(accessToken).driverStatus();
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).driverStatus(),
+    );
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load profile');
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Exception _httpError(http.Response response, String fallback) {
-    try {
-      final dynamic body = jsonDecode(response.body);
-      if (body is Map<String, dynamic> && body['detail'] != null) {
-        return Exception('${body['detail']}');
+  Future<http.Response> _request(
+    String accessToken,
+    Future<http.Response> Function(String token) call,
+  ) async {
+    http.Response response = await call(accessToken);
+    if (response.statusCode == 401 && _auth != null) {
+      final String? refreshed = await _auth.refreshAccessToken();
+      if (refreshed != null) {
+        response = await call(refreshed);
       }
-    } catch (_) {}
-    return Exception('$fallback (${response.statusCode})');
+    }
+    return response;
+  }
+
+  AppApiException _httpError(http.Response response, String fallback) {
+    return apiExceptionFromResponse(
+      statusCode: response.statusCode,
+      body: response.body,
+      fallback: fallback,
+    );
   }
 }

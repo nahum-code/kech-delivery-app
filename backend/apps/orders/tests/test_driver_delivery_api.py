@@ -121,6 +121,40 @@ class DriverDeliveryApiTests(TestCase):
         res = self.client.post(f"/api/v1/drivers/orders/{self.order_id}/pickup/")
         self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
 
+    def test_driver_decline_sets_declined_status(self):
+        decline = self.client.post(f"/api/v1/drivers/orders/{self.order_id}/decline/")
+        self.assertEqual(decline.status_code, status.HTTP_200_OK)
+        self.assertEqual(decline.json()["status"], Order.Status.DECLINED)
+
+        pickup = self.client.post(f"/api/v1/drivers/orders/{self.order_id}/pickup/")
+        self.assertEqual(pickup.status_code, status.HTTP_409_CONFLICT)
+
+    def test_reassign_different_driver_after_decline(self):
+        decline = self.client.post(f"/api/v1/drivers/orders/{self.order_id}/decline/")
+        self.assertEqual(decline.status_code, status.HTTP_200_OK)
+        self.assertEqual(decline.json()["status"], Order.Status.DECLINED)
+
+        self.client.force_authenticate(user=self.sales)
+        reassign = self.client.post(
+            f"/api/v1/orders/{self.order_id}/assign-driver/",
+            {"driver_id": self.other_driver.id},
+            format="json",
+        )
+        self.assertEqual(reassign.status_code, status.HTTP_200_OK)
+        self.assertEqual(reassign.json()["status"], Order.Status.ASSIGNED)
+        self.assertEqual(reassign.json()["assigned_driver"], self.other_driver.id)
+
+    def test_cannot_reassign_declined_order_to_same_driver(self):
+        self.client.post(f"/api/v1/drivers/orders/{self.order_id}/decline/")
+        self.client.force_authenticate(user=self.sales)
+        again = self.client.post(
+            f"/api/v1/orders/{self.order_id}/assign-driver/",
+            {"driver_id": self.driver.id},
+            format="json",
+        )
+        self.assertEqual(again.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn("declined", again.json()["detail"].lower())
+
     def test_other_driver_cannot_access_order(self):
         self.client.force_authenticate(user=self.other_driver)
         res = self.client.get(f"/api/v1/drivers/orders/{self.order_id}/")

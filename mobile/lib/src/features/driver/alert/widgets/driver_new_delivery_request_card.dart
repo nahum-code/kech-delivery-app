@@ -1,197 +1,302 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../../../shared/theme/driver_task_tokens.dart';
 import '../../orders/domain/driver_order_models.dart';
 
-/// New delivery request card — matches alert mockup (countdown, route, accept/decline).
-class DriverNewDeliveryRequestCard extends StatefulWidget {
+/// New delivery request bottom sheet — matches driver alert mockup.
+class DriverNewDeliveryRequestCard extends StatelessWidget {
   const DriverNewDeliveryRequestCard({
     super.key,
     required this.order,
+    required this.secondsLeft,
     required this.onAccept,
     required this.onDecline,
     this.submitting = false,
-    this.countdownSeconds = 30,
   });
 
   final DriverOrderSummary order;
+  final int secondsLeft;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
   final bool submitting;
-  final int countdownSeconds;
 
-  @override
-  State<DriverNewDeliveryRequestCard> createState() => _DriverNewDeliveryRequestCardState();
-}
-
-class _DriverNewDeliveryRequestCardState extends State<DriverNewDeliveryRequestCard> {
-  late int _secondsLeft;
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _secondsLeft = widget.countdownSeconds;
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (_secondsLeft <= 1) {
-        _timer?.cancel();
-        setState(() => _secondsLeft = 0);
-        return;
-      }
-      setState(() => _secondsLeft -= 1);
-    });
+  String _formatPayout(DriverOrderSummary o) {
+    final String raw = o.deliveryFee.isNotEmpty ? o.deliveryFee : o.totalAmount;
+    final double? parsed = double.tryParse(raw.replaceAll(RegExp(r'[^0-9.]'), ''));
+    if (parsed == null) return raw;
+    return parsed.toStringAsFixed(2);
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  String _pickupLine(DriverOrderSummary o) {
+    final String name = o.restaurantName.trim();
+    final String addr = o.restaurantAddress.trim();
+    if (name.isEmpty) return addr;
+    if (addr.isEmpty) return name;
+    final String area = addr.split(',').first.trim();
+    return '$name · $area';
+  }
+
+  String _dropoffLine(DriverOrderSummary o) {
+    if (o.dropoffLine.trim().isNotEmpty) return o.dropoffLine.trim();
+    return o.customerName.trim();
   }
 
   @override
   Widget build(BuildContext context) {
-    final DriverOrderSummary o = widget.order;
-    final String payout = o.deliveryFee.isNotEmpty ? o.deliveryFee : o.totalAmount;
+    final DriverOrderSummary o = order;
+    final String payout = _formatPayout(o);
+    final String pickup = _pickupLine(o);
+    final String dropoff = _dropoffLine(o);
+    final int displaySeconds = secondsLeft.clamp(0, 99);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      elevation: 8,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Transform.translate(
-              offset: const Offset(0, -36),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: DriverTaskTokens.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${_secondsLeft}s',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-            const Text(
-              'NEW DELIVERY REQUEST',
-              style: TextStyle(
-                color: DriverTaskTokens.primary,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$payout ETB',
-              style: const TextStyle(
-                color: DriverTaskTokens.primary,
-                fontWeight: FontWeight.w800,
-                fontSize: 40,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Estimated payout · delivery fee',
-              style: TextStyle(color: DriverTaskTokens.primary, fontSize: 13),
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: DriverTaskTokens.routeBox,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                children: <Widget>[
-                  _RouteRow(
-                    icon: Icons.my_location_outlined,
-                    label: 'PICKUP',
-                    value: o.restaurantName.isNotEmpty
-                        ? '${o.restaurantName} · ${o.restaurantAddress}'
-                        : o.restaurantAddress,
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    margin: const EdgeInsets.only(left: 11),
-                    height: 20,
-                    width: 2,
-                    color: DriverTaskTokens.primary.withValues(alpha: 0.25),
-                  ),
-                  const SizedBox(height: 12),
-                  _RouteRow(
-                    icon: Icons.location_on_outlined,
-                    label: 'DROPOFF',
-                    value: o.dropoffLine.isNotEmpty ? o.dropoffLine : o.customerName,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: DriverTaskTokens.card,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(DriverTaskTokens.alertSheetTopRadius),
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 24,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.topCenter,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: widget.submitting ? null : widget.onDecline,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: DriverTaskTokens.primary,
-                      side: const BorderSide(color: DriverTaskTokens.primary, width: 2),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('DECLINE', style: TextStyle(fontWeight: FontWeight.w800)),
+                const Text(
+                  'NEW DELIVERY REQUEST',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DriverTaskTokens.primaryDark,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 1.6,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: widget.submitting ? null : widget.onAccept,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: DriverTaskTokens.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(height: 10),
+                Text(
+                  payout,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: DriverTaskTokens.primaryDark,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 44,
+                    height: 1.05,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Estimated Payout · Delivery fee',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: DriverTaskTokens.subtitleMaroon,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+                  decoration: BoxDecoration(
+                    color: DriverTaskTokens.routeBox,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _RouteRow(
+                        icon: const _PickupTargetIcon(),
+                        label: 'PICKUP',
+                        value: pickup,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 11, top: 10, bottom: 10),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            width: 2,
+                            height: 22,
+                            color: DriverTaskTokens.primaryDark.withValues(alpha: 0.22),
+                          ),
+                        ),
+                      ),
+                      _RouteRow(
+                        icon: Icon(
+                          Icons.location_on,
+                          size: 22,
+                          color: DriverTaskTokens.primaryDark,
+                        ),
+                        label: 'DROPOFF',
+                        value: dropoff,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      flex: 35,
+                      child: OutlinedButton(
+                        onPressed: submitting ? null : onDecline,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: DriverTaskTokens.primaryDark,
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: DriverTaskTokens.declineBorder, width: 1.5),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          'DECLINE',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: widget.submitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('ACCEPT ORDER', style: TextStyle(fontWeight: FontWeight.w800)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 65,
+                      child: FilledButton(
+                        onPressed: submitting ? null : onAccept,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: DriverTaskTokens.primaryDark,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          minimumSize: const Size(0, 52),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: submitting
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'ACCEPT ORDER',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'ORDER ID: ${o.reference.startsWith('#') ? o.reference : '#${o.reference}'}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: DriverTaskTokens.muted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'ORDER ID: ${o.reference}',
-              style: const TextStyle(color: DriverTaskTokens.muted, fontSize: 11, letterSpacing: 0.5),
+          ),
+          Positioned(
+            top: -22,
+            child: Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: DriverTaskTokens.primaryDark,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(
+                    color: Color(0x26000000),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                '${displaySeconds}s',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PickupTargetIcon extends StatelessWidget {
+  const _PickupTargetIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: DriverTaskTokens.primaryDark, width: 2),
+            ),
+          ),
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: DriverTaskTokens.primaryDark,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _RouteRow extends StatelessWidget {
-  const _RouteRow({required this.icon, required this.label, required this.value});
+  const _RouteRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
-  final IconData icon;
+  final Widget icon;
   final String label;
   final String value;
 
@@ -200,25 +305,32 @@ class _RouteRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Icon(icon, size: 22, color: DriverTaskTokens.primary),
-        const SizedBox(width: 10),
+        icon,
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
                 label,
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
-                  color: DriverTaskTokens.primary,
-                  letterSpacing: 0.8,
+                  color: DriverTaskTokens.labelMaroon,
+                  letterSpacing: 1,
+                  height: 1.2,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, height: 1.3),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  height: 1.35,
+                  color: DriverTaskTokens.primaryDark,
+                ),
               ),
             ],
           ),

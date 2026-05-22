@@ -37,6 +37,7 @@ Future<void> main() async {
     );
     final DriverOrderRepository driverOrderRepository = DriverOrderRepository(
       apiFactory: (String token) => DriverOrderApi(baseUrl: baseUrl, accessToken: token),
+      authRepository: authRepository,
     );
     await authRepository.restoreSession();
     await driverOnboarding.restoreOnboarding();

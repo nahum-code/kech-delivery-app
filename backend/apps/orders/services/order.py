@@ -15,6 +15,7 @@ from apps.orders.services.pricing import (
     haversine_km,
 )
 from apps.restaurants.models import MenuItem, Restaurant
+from apps.restaurants.services.hours import restaurant_is_open
 from core.models import User
 
 DEFAULT_DELIVERY_FEE = Decimal("25.00")
@@ -25,7 +26,12 @@ ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     Order.Status.CONFIRMED: {Order.Status.PREPARING, Order.Status.CANCELLED},
     Order.Status.PREPARING: {Order.Status.READY_FOR_PICKUP, Order.Status.CANCELLED},
     Order.Status.READY_FOR_PICKUP: {Order.Status.ASSIGNED, Order.Status.CANCELLED},
-    Order.Status.ASSIGNED: {Order.Status.PICKED_UP, Order.Status.CANCELLED},
+    Order.Status.ASSIGNED: {
+        Order.Status.PICKED_UP,
+        Order.Status.CANCELLED,
+        Order.Status.DECLINED,
+    },
+    Order.Status.DECLINED: {Order.Status.CANCELLED, Order.Status.READY_FOR_PICKUP},
     Order.Status.PICKED_UP: {Order.Status.DELIVERING, Order.Status.CANCELLED},
     Order.Status.DELIVERING: {Order.Status.DELIVERED},
     Order.Status.DELIVERED: set(),
@@ -114,6 +120,9 @@ def create_order(
         restaurant = Restaurant.objects.get(pk=restaurant_id, is_active=True)
     except Restaurant.DoesNotExist as exc:
         raise OrderServiceError("Restaurant not found or inactive.", status_code=404) from exc
+
+    if not restaurant_is_open(restaurant):
+        raise OrderServiceError("Restaurant is currently closed.", status_code=400)
 
     if not items:
         raise OrderServiceError("At least one menu item is required.")

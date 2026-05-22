@@ -44,7 +44,16 @@ class ApprovedDriversListView(APIView):
             .select_related("user")
             .filter(user__is_active=True)
         )
-        if request.query_params.get("all") != "true":
+        if request.query_params.get("all") == "true":
+            pass
+        elif request.query_params.get("include_busy") == "true":
+            queryset = queryset.filter(
+                operational_status__in=(
+                    DriverProfile.OperationalStatus.ONLINE,
+                    DriverProfile.OperationalStatus.BUSY,
+                ),
+            )
+        else:
             queryset = queryset.filter(operational_status=DriverProfile.OperationalStatus.ONLINE)
         queryset = queryset.order_by("full_name")
         data = [

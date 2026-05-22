@@ -270,7 +270,7 @@ export function CreateOrderPage() {
 
   const handleSelectCustomer = (row: CustomerSearchResult) => {
     setCustomer({ id: String(row.id), phone: row.phone, name: row.name });
-    setCustomerExists(true);
+      setCustomerExists(true);
     setCustomerResults([]);
     setErrors({});
     toast.success("Customer selected");
@@ -527,11 +527,11 @@ export function CreateOrderPage() {
                     <Label htmlFor="customer-search">Customer search</Label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
+                    <Input
                         id="customer-search"
                         type="text"
                         placeholder="Phone or name (min 2 characters)"
-                        value={customer.phone}
+                      value={customer.phone}
                         onChange={(e) => {
                           setCustomerExists(false);
                           setCustomer({ phone: e.target.value, name: "", id: undefined });
@@ -567,8 +567,8 @@ export function CreateOrderPage() {
                         disabled={createCustomerLoading}
                       >
                         Cancel
-                      </Button>
-                    </div>
+                  </Button>
+                </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label htmlFor="new-customer-phone">Phone</Label>
@@ -582,15 +582,15 @@ export function CreateOrderPage() {
                           }
                           disabled={createCustomerLoading}
                         />
-                      </div>
+              </div>
                       <div className="space-y-1">
                         <Label htmlFor="new-customer-name">Full name</Label>
-                        <Input
+                <Input
                           id="new-customer-name"
-                          type="text"
+                  type="text"
                           placeholder="Customer name"
                           value={createCustomerForm.name}
-                          onChange={(e) =>
+                  onChange={(e) =>
                             setCreateCustomerForm((prev) => ({ ...prev, name: e.target.value }))
                           }
                           disabled={createCustomerLoading}
@@ -626,8 +626,8 @@ export function CreateOrderPage() {
                       </div>
                     </div>
                     {createCustomerError && (
-                      <p className="text-sm text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" />
+                  <p className="text-sm text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-4 w-4" />
                         {createCustomerError}
                       </p>
                     )}
@@ -885,23 +885,23 @@ export function CreateOrderPage() {
                     <p className="text-sm text-muted-foreground">Select a restaurant with menu items.</p>
                   ) : (
                     menuItems.map((item) => (
-                      <Card
-                        key={item.id}
+                    <Card
+                      key={item.id}
                         className="p-4 cursor-pointer transition-colors hover:bg-accent"
                         onClick={() => handleAddItem(item)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">{item.category}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-medium">
                               {item.price} {item.currency}
-                            </p>
-                          </div>
+                          </p>
                         </div>
-                      </Card>
+                      </div>
+                    </Card>
                     ))
                   )}
                 </div>

@@ -80,6 +80,39 @@ def acknowledge_assignment(*, order_id: int, driver: User) -> Order:
 
 
 @transaction.atomic
+def decline_assignment(*, order_id: int, driver: User) -> Order:
+    """
+    Driver refuses an assigned delivery before pickup.
+    Order moves to ``declined`` so dispatch/admin can reassign.
+    """
+    profile = _driver_profile(driver)
+    if profile.approval_status != DriverProfile.ApprovalStatus.APPROVED:
+        raise OrderServiceError("Driver is not approved.", status_code=403)
+    if not driver.is_active:
+        raise OrderServiceError("Driver account is inactive.", status_code=403)
+
+    order = _locked_order(order_id)
+    _assert_driver_owns_order(order, driver)
+
+    if order.is_terminal:
+        raise OrderServiceError("Order is no longer active.", status_code=409)
+
+    if order.status != Order.Status.ASSIGNED:
+        raise OrderServiceError(
+            "Only assigned orders can be declined.",
+            status_code=409,
+        )
+
+    order = transition_order_status(order, Order.Status.DECLINED)
+    order.driver_acknowledged_at = None
+    order.updated_at = timezone.now()
+    order.save(update_fields=["driver_acknowledged_at", "updated_at"])
+    _log_event(order=order, driver=driver, action=DriverDeliveryEvent.Action.DECLINED)
+    refresh_operational_status(profile)
+    return order
+
+
+@transaction.atomic
 def mark_picked_up(*, order_id: int, driver: User) -> Order:
     profile = _assert_operational(driver)
     order = _locked_order(order_id)

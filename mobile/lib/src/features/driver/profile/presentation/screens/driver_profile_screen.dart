@@ -241,7 +241,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: Color(0xFF1F2937),
+                    color: DriverProfileTokens.ink,
                   ),
                 ),
               ],
@@ -261,7 +261,11 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             const Expanded(
               child: Text(
                 'Earnings Summary',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1F2937)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  color: DriverProfileTokens.ink,
+                ),
               ),
             ),
             Text(

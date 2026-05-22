@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../auth/data/auth_repository.dart';
+import '../../../../../core/http/api_error_message.dart';
 import '../../../../../shared/theme/driver_shell_navigation_tokens.dart';
+import '../../../../../shared/widgets/driver/driver_inline_error.dart';
+import '../../../shared/driver_session_handler.dart';
+import '../../../../../shared/theme/driver_task_tokens.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
+import '../../../../../shared/widgets/map/location_map_preview.dart';
+import '../widgets/driver_task_map_placeholder.dart';
 
 /// Pickup + delivery workflow for a single assigned order (MVP manual assign).
 class DriverTaskDetailScreen extends StatefulWidget {
@@ -48,9 +54,12 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = userMessageFrom(e, fallback: 'Could not load delivery details.');
         _loading = false;
       });
+      if (isSessionExpiredError(e)) {
+        handleDriverApiError(context, e);
+      }
     }
   }
 
@@ -82,13 +91,20 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
       backgroundColor: DriverShellNavigationTokens.screenBackground,
       appBar: AppBar(
         backgroundColor: DriverShellNavigationTokens.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: DriverTaskTokens.onPrimary,
         title: Text(order?.reference ?? 'Delivery'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: DriverTaskTokens.primary),
+            )
           : _error != null
-              ? Center(child: Text(_error!))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: DriverInlineError(message: _error!, onRetry: _load),
+                  ),
+                )
               : order == null
                   ? const SizedBox.shrink()
                   : SingleChildScrollView(
@@ -96,7 +112,16 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          _MapPlaceholder(label: order.restaurantName),
+                          DriverTaskMapPlaceholder(
+                            height: 160,
+                            label: order.restaurantName,
+                            latitude: order.restaurantLatitude,
+                            longitude: order.restaurantLongitude,
+                            destinationLatitude: order.deliveryAddress.latitude,
+                            destinationLongitude: order.deliveryAddress.longitude,
+                            markerRole: MapPreviewMarkerRole.pickup,
+                            showRoute: order.deliveryAddress.latitude != null,
+                          ),
                           const SizedBox(height: 16),
                           _InfoCard(
                             label: 'PICKUP FROM',
@@ -179,33 +204,6 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
   }
 }
 
-class _MapPlaceholder extends StatelessWidget {
-  const _MapPlaceholder({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 160,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE5E7EB),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(Icons.map_outlined, size: 40, color: Colors.grey[600]),
-            const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: Colors.grey[700], fontWeight: FontWeight.w600)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _InfoCard extends StatelessWidget {
   const _InfoCard({required this.label, required this.title, required this.subtitle});
 
@@ -216,17 +214,38 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: DriverTaskTokens.card,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DriverTaskTokens.cardRadius),
+        side: const BorderSide(color: DriverTaskTokens.divider),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF), letterSpacing: 0.5)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: DriverTaskTokens.muted,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: DriverTaskTokens.ink,
+              ),
+            ),
             if (subtitle.isNotEmpty) ...<Widget>[
               const SizedBox(height: 4),
-              Text(subtitle, style: const TextStyle(color: Color(0xFF6B7280))),
+              Text(subtitle, style: const TextStyle(color: DriverTaskTokens.bodyGray)),
             ],
           ],
         ),
@@ -240,7 +259,7 @@ Widget _primaryButton({required String label, required VoidCallback? onPressed})
     onPressed: onPressed,
     style: FilledButton.styleFrom(
       backgroundColor: DriverShellNavigationTokens.primary,
-      foregroundColor: Colors.white,
+      foregroundColor: DriverTaskTokens.onPrimary,
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),

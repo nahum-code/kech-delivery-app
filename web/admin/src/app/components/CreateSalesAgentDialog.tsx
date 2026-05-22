@@ -18,7 +18,12 @@ import { CheckCircle2 } from "lucide-react";
 interface CreateSalesAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated?: (created: { user_id: number; phone: string; role: string }) => void;
+  onCreated?: (created: {
+    user_id: number;
+    phone: string;
+    name: string;
+    role: string;
+  }) => void;
   existingPhones?: string[];
 }
 
@@ -29,6 +34,7 @@ export function CreateSalesAgentDialog({
   existingPhones = [],
 }: CreateSalesAgentDialogProps) {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +46,11 @@ export function CreateSalesAgentDialog({
   }>({});
 
   const validateForm = () => {
-    const newErrors: { phone?: string; password?: string } = {};
+    const newErrors: { name?: string; phone?: string; password?: string } = {};
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required";
+    }
 
     // Validate phone number (+<countrycode><number>)
     if (!phoneNumber) {
@@ -82,9 +92,11 @@ export function CreateSalesAgentDialog({
       const created = await createSalesAgent({
         phone: normalizedPhone,
         password,
+        name: name.trim(),
       });
       setLoading(false);
       onCreated?.(created);
+      setName("");
       setPhoneNumber("");
       setPassword("");
       setErrors({});
@@ -92,7 +104,10 @@ export function CreateSalesAgentDialog({
       setSuccessOpen(true);
     } catch (error) {
       setLoading(false);
-      const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.";
       if (message === "Session expired") {
         toast.error("Session expired");
         onOpenChange(false);
@@ -103,8 +118,13 @@ export function CreateSalesAgentDialog({
         setSubmitError("User already exists");
         return;
       }
-      if (message.toLowerCase().includes("throttled") || message.toLowerCase().includes("too many")) {
-        setSubmitError("Too many attempts. Please wait a moment and try again.");
+      if (
+        message.toLowerCase().includes("throttled") ||
+        message.toLowerCase().includes("too many")
+      ) {
+        setSubmitError(
+          "Too many attempts. Please wait a moment and try again.",
+        );
         return;
       }
       setSubmitError(
@@ -130,11 +150,29 @@ export function CreateSalesAgentDialog({
           <DialogHeader>
             <DialogTitle>Create Sales Agent</DialogTitle>
             <DialogDescription>
-              Create a new sales agent account. The role will be automatically set
-              to &quot;Sales Agent&quot;.
+              Create a new sales agent account. The role will be automatically
+              set to &quot;Sales Agent&quot;.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Full name</Label>
+              <Input
+                id="name"
+                placeholder="e.g. Sara Kebede"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (errors.name) setErrors({ ...errors, name: undefined });
+                  if (submitError) setSubmitError(null);
+                }}
+                className={errors.name ? "border-red-500" : ""}
+              />
+              {errors.name && (
+                <p className="text-sm text-red-500">{errors.name}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number</Label>
               <Input
@@ -162,7 +200,8 @@ export function CreateSalesAgentDialog({
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
-                  if (errors.password) setErrors({ ...errors, password: undefined });
+                  if (errors.password)
+                    setErrors({ ...errors, password: undefined });
                   if (submitError) setSubmitError(null);
                 }}
                 className={errors.password ? "border-red-500" : ""}
@@ -204,7 +243,9 @@ export function CreateSalesAgentDialog({
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
               <CheckCircle2 className="h-7 w-7 text-green-600" />
             </div>
-            <DialogTitle className="text-center">Sales Agent Created</DialogTitle>
+            <DialogTitle className="text-center">
+              Sales Agent Created
+            </DialogTitle>
             <DialogDescription className="text-center">
               Sales agent successfully created. The account is ready for login.
             </DialogDescription>

@@ -46,6 +46,14 @@ final class AuthApi {
     );
   }
 
+  Future<http.Response> refreshToken({required String refresh}) {
+    return _client.post(
+      _u('/api/v1/auth/token/refresh/'),
+      headers: _jsonHeaders,
+      body: jsonEncode(<String, String>{'refresh': refresh}),
+    );
+  }
+
   Future<http.Response> logout({
     required String accessToken,
     required String refreshToken,

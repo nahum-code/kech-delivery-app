@@ -7,5 +7,5 @@
 ///
 /// Emulator keeps using `10.0.2.2:8000` automatically.
 abstract final class DevApiConfig {
-  static const String physicalDeviceHost = 'http://192.168.23.10:8000';
+  static const String physicalDeviceHost = 'http://192.168.57.10:8000';
 }

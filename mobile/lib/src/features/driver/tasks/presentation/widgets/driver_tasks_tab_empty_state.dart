@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/theme/driver_task_tokens.dart';
 
 /// Centered empty state for Tasks sub-tabs (mockup layout).
@@ -31,7 +32,7 @@ class DriverTasksTabEmptyState extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: DriverTaskTokens.routeBox,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE8C4C4), width: 1.5),
+                  border: Border.all(color: DriverAppTokens.emptyIconBorder, width: 1.5),
                 ),
                 child: const Icon(
                   Icons.assignment_outlined,
@@ -46,7 +47,7 @@ class DriverTasksTabEmptyState extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: DriverTaskTokens.primary,
+                  color: DriverTaskTokens.ink,
                   height: 1.25,
                 ),
               ),
@@ -59,7 +60,7 @@ class DriverTasksTabEmptyState extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 15,
                     height: 1.45,
-                    color: Color(0xFF8B6B6B),
+                    color: DriverAppTokens.emptySubtitle,
                   ),
                 ),
               ),

@@ -159,6 +159,40 @@ final class AuthRepository {
     }
   }
 
+  /// Returns a new access token when refresh succeeds; clears session on failure.
+  Future<String?> refreshAccessToken() async {
+    final AuthSessionSnapshot? snap = _memorySession ?? await _persistence.load();
+    if (snap == null) {
+      return null;
+    }
+    try {
+      final http.Response response = await _api.refreshToken(refresh: snap.refreshToken);
+      if (response.statusCode != 200) {
+        await signOut();
+        return null;
+      }
+      final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
+      final String? access = body['access'] as String?;
+      final String? refresh = body['refresh'] as String?;
+      if (access == null) {
+        await signOut();
+        return null;
+      }
+      final AuthSessionSnapshot updated = AuthSessionSnapshot(
+        accessToken: access,
+        refreshToken: refresh ?? snap.refreshToken,
+        role: snap.role,
+        userId: snap.userId,
+      );
+      await _persistence.save(updated);
+      _memorySession = updated;
+      return access;
+    } on Object catch (_) {
+      await signOut();
+      return null;
+    }
+  }
+
   Future<void> signOut() async {
     final AuthSessionSnapshot? snap = _memorySession ?? await _persistence.load();
     if (snap != null) {

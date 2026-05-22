@@ -351,7 +351,7 @@ class _SearchResultsList extends StatelessWidget {
               : ListView.separated(
                   shrinkWrap: true,
                   itemCount: results.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       const Divider(height: 1, color: Color(0xFFEDEDED)),
                   itemBuilder: (BuildContext _, int index) {
                     final PlaceSearchResult r = results[index];

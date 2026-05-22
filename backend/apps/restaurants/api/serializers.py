@@ -3,6 +3,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.restaurants.models import MenuCategory, MenuItem, Restaurant
+from apps.restaurants.services.hours import restaurant_is_open
 from core.currency import DEFAULT_CURRENCY
 
 
@@ -22,6 +23,9 @@ class RestaurantListSerializer(serializers.ModelSerializer):
     menu_item_count = serializers.IntegerField(read_only=True)
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
+    is_open = serializers.SerializerMethodField()
+    opens_at = serializers.TimeField(format="%H:%M", required=False, allow_null=True)
+    closes_at = serializers.TimeField(format="%H:%M", required=False, allow_null=True)
 
     class Meta:
         model = Restaurant
@@ -33,13 +37,19 @@ class RestaurantListSerializer(serializers.ModelSerializer):
             "address_text",
             "latitude",
             "longitude",
+            "opens_at",
+            "closes_at",
             "opening_hours",
             "is_active",
+            "is_open",
             "logo_url",
             "cover_image_url",
             "menu_item_count",
             "updated_at",
         )
+
+    def get_is_open(self, obj: Restaurant) -> bool:
+        return restaurant_is_open(obj)
 
     def get_logo_url(self, obj: Restaurant) -> str | None:
         return _absolute_media_url(self.context.get("request"), obj.logo)
@@ -62,6 +72,8 @@ class RestaurantWriteSerializer(serializers.ModelSerializer):
             "address_text",
             "latitude",
             "longitude",
+            "opens_at",
+            "closes_at",
             "opening_hours",
             "is_active",
             "logo",

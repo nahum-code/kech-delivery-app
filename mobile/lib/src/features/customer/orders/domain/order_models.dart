@@ -87,6 +87,13 @@ final class OrderLineItem {
   final String? imageUrl;
 }
 
+double? _readDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim());
+  return null;
+}
+
 final class OrderDetail {
   const OrderDetail({
     required this.id,
@@ -95,6 +102,8 @@ final class OrderDetail {
     required this.paymentStatus,
     required this.restaurantName,
     required this.restaurantAddress,
+    this.restaurantLatitude,
+    this.restaurantLongitude,
     required this.subtotal,
     required this.deliveryFee,
     required this.totalAmount,
@@ -109,6 +118,8 @@ final class OrderDetail {
   final String paymentStatus;
   final String restaurantName;
   final String restaurantAddress;
+  final double? restaurantLatitude;
+  final double? restaurantLongitude;
   final String subtotal;
   final String deliveryFee;
   final String totalAmount;
@@ -130,6 +141,8 @@ final class OrderDetail {
       paymentStatus: m['payment_status'] as String? ?? 'pending',
       restaurantName: m['restaurant_name'] as String? ?? '',
       restaurantAddress: m['restaurant_address'] as String? ?? '',
+      restaurantLatitude: _readDouble(m['restaurant_latitude']),
+      restaurantLongitude: _readDouble(m['restaurant_longitude']),
       subtotal: '${m['subtotal']}',
       deliveryFee: '${m['delivery_fee']}',
       totalAmount: '${m['total_amount']}',
@@ -139,6 +152,8 @@ final class OrderDetail {
         phone: addr['phone'] as String? ?? '',
         addressLine: addr['address_line'] as String? ?? '',
         landmark: addr['landmark'] as String? ?? '',
+        latitude: _readDouble(addr['latitude']),
+        longitude: _readDouble(addr['longitude']),
       ),
       items: rawItems
           .map(

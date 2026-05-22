@@ -46,10 +46,20 @@ class Restaurant(models.Model):
         decimal_places=6,
         validators=[MinValueValidator(-180), MaxValueValidator(180)],
     )
+    opens_at = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Local opening time (Africa/Addis_Ababa).",
+    )
+    closes_at = models.TimeField(
+        null=True,
+        blank=True,
+        help_text="Local closing time (Africa/Addis_Ababa).",
+    )
     opening_hours = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Human-readable hours, e.g. Mon–Sun 09:00–22:00",
+        help_text="Human-readable hours label (auto-generated from opens/closes when set).",
     )
     is_active = models.BooleanField(default=True, db_index=True)
     logo = models.ImageField(upload_to=restaurant_logo_upload_to, blank=True, null=True)

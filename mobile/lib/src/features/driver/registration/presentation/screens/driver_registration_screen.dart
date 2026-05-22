@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/customer_registration_tokens.dart';
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_labeled_text_field.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
 import '../../../../driver/data/driver_onboarding_repository.dart';
@@ -79,7 +80,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFFFDF8F8),
+        backgroundColor: DriverAppTokens.screenBackground,
         body: SafeArea(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

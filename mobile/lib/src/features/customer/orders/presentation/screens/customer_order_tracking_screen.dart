@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:latlong2/latlong.dart';
+
+import '../../../../../core/geo/map_coordinates.dart';
 import '../../../../../shared/theme/customer_checkout_tokens.dart';
+import '../../../../../shared/widgets/map/location_map_preview.dart';
 import '../../../../auth/data/auth_repository.dart';
 import '../../data/order_repository.dart';
 import '../../domain/order_models.dart';
@@ -128,40 +132,7 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
             ),
           ),
           const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
-            child: AspectRatio(
-              aspectRatio: 16 / 11,
-              child: Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  Container(color: CustomerCheckoutTokens.mapPlaceholder),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(
-                          searchingDriver ? Icons.two_wheeler_rounded : Icons.delivery_dining_rounded,
-                          size: 32,
-                          color: CustomerCheckoutTokens.primaryMaroon,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          searchingDriver ? 'Searching driver…' : _mapCaption(order.status),
-                          style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _TrackingMapCard(order: order, searchingDriver: searchingDriver),
           const SizedBox(height: 16),
           _OrderItemsCard(order: order),
           const SizedBox(height: 16),
@@ -201,20 +172,6 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
     );
   }
 
-  String _mapCaption(String status) {
-    switch (status) {
-      case 'assigned':
-        return 'Driver assigned';
-      case 'picked_up':
-        return 'Order picked up';
-      case 'delivering':
-        return 'On the way';
-      case 'delivered':
-        return 'Delivered';
-      default:
-        return 'Preparing your order';
-    }
-  }
 }
 
 class _OrderItemsCard extends StatelessWidget {
@@ -339,6 +296,86 @@ class _OrderItemRow extends StatelessWidget {
       color: const Color(0xFFF0EBE8),
       child: Icon(Icons.fastfood, color: Colors.grey.shade500, size: 20),
     );
+  }
+}
+
+class _TrackingMapCard extends StatelessWidget {
+  const _TrackingMapCard({required this.order, required this.searchingDriver});
+
+  final OrderDetail order;
+  final bool searchingDriver;
+
+  @override
+  Widget build(BuildContext context) {
+    final LatLng? restaurant = latLngFromValues(
+      order.restaurantLatitude,
+      order.restaurantLongitude,
+    );
+    final LatLng? dropoff = latLngFromValues(
+      order.deliveryAddress.latitude,
+      order.deliveryAddress.longitude,
+    );
+
+    final List<MapPreviewMarker> markers = <MapPreviewMarker>[
+      if (restaurant != null)
+        MapPreviewMarker(position: restaurant, role: MapPreviewMarkerRole.restaurant),
+      if (dropoff != null)
+        MapPreviewMarker(position: dropoff, role: MapPreviewMarkerRole.dropoff),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (markers.isNotEmpty)
+          LocationMapPreview(
+            height: 200,
+            markers: markers,
+            connectRoute: markers.length >= 2,
+            overlayHint: 'Open in Maps',
+            onTapOpenExternal: () {
+              final LatLng target = dropoff ?? restaurant!;
+              LocationMapPreview.openInExternalMaps(target);
+            },
+          )
+        else
+          Container(
+            height: 200,
+            decoration: BoxDecoration(
+              color: CustomerCheckoutTokens.mapPlaceholder,
+              borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    searchingDriver ? Icons.two_wheeler_rounded : Icons.delivery_dining_rounded,
+                    size: 32,
+                    color: CustomerCheckoutTokens.primaryMaroon,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    searchingDriver ? 'Searching driver…' : _mapCaption(order.status),
+                    style: const TextStyle(
+                      color: CustomerCheckoutTokens.bodyGray,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  String _mapCaption(String status) {
+    return switch (status) {
+      'assigned' || 'picked_up' => 'Driver heading to restaurant',
+      'delivering' => 'On the way to you',
+      'delivered' => 'Delivered',
+      _ => 'Tracking your order',
+    };
   }
 }
 

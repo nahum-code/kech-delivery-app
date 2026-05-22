@@ -33,6 +33,7 @@ export function Users() {
       {
         user_id: created.user_id,
         phone: created.phone,
+        name: null,
         role: created.role,
         status: "active",
         created_at: new Date().toISOString(),
@@ -64,7 +65,7 @@ export function Users() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
-            placeholder="Search by phone number..."
+            placeholder="Search by name or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"

@@ -15,12 +15,20 @@ final class DriverOrderSummary {
     required this.placedAt,
     required this.dropoffLine,
     this.driverAcknowledgedAt,
+    this.restaurantLatitude,
+    this.restaurantLongitude,
+    this.dropoffLatitude,
+    this.dropoffLongitude,
   });
 
   final int id;
   final String reference;
   final String restaurantName;
   final String restaurantAddress;
+  final double? restaurantLatitude;
+  final double? restaurantLongitude;
+  final double? dropoffLatitude;
+  final double? dropoffLongitude;
   final String customerName;
   final String status;
   final String totalAmount;
@@ -46,10 +54,15 @@ final class DriverOrderSummary {
       placedAt: m['placed_at'] as String? ?? '',
       dropoffLine: landmark.isNotEmpty ? '$line · $landmark' : line,
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
+      restaurantLatitude: _readDouble(m['restaurant_latitude']),
+      restaurantLongitude: _readDouble(m['restaurant_longitude']),
+      dropoffLatitude: _readDouble(addr['latitude']),
+      dropoffLongitude: _readDouble(addr['longitude']),
     );
   }
 
-  bool get isActive => status != 'delivered' && status != 'cancelled';
+  bool get isActive =>
+      status != 'delivered' && status != 'cancelled' && status != 'declined';
 
   bool get needsAcknowledgment =>
       status == 'assigned' && (driverAcknowledgedAt == null || driverAcknowledgedAt!.isEmpty);
@@ -74,6 +87,8 @@ final class DriverOrderDetail {
     required this.deliveryAddress,
     required this.items,
     this.driverAcknowledgedAt,
+    this.restaurantLatitude,
+    this.restaurantLongitude,
   });
 
   final int id;
@@ -81,6 +96,8 @@ final class DriverOrderDetail {
   final String status;
   final String restaurantName;
   final String restaurantAddress;
+  final double? restaurantLatitude;
+  final double? restaurantLongitude;
   final String customerPhone;
   final String subtotal;
   final String deliveryFee;
@@ -106,11 +123,15 @@ final class DriverOrderDetail {
       totalAmount: '${m['total_amount']}',
       placedAt: m['placed_at'] as String? ?? '',
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
+      restaurantLatitude: _readDouble(m['restaurant_latitude']),
+      restaurantLongitude: _readDouble(m['restaurant_longitude']),
       deliveryAddress: DeliveryAddress(
         receiverName: addr['receiver_name'] as String? ?? '',
         phone: addr['phone'] as String? ?? '',
         addressLine: addr['address_line'] as String? ?? '',
         landmark: addr['landmark'] as String? ?? '',
+        latitude: _readDouble(addr['latitude']),
+        longitude: _readDouble(addr['longitude']),
       ),
       items: rawItems
           .map(
@@ -141,4 +162,11 @@ final class DriverAvailability {
       );
 
   bool get isOnline => operationalStatus == 'online' || operationalStatus == 'busy';
+}
+
+double? _readDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value.trim());
+  return null;
 }

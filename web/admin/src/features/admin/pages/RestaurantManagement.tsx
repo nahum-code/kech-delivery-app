@@ -22,6 +22,10 @@ const RestaurantLocationPicker = dynamic(
 );
 
 import { useRestaurants } from "@/hooks/use-restaurants";
+import {
+  formatHoursRange,
+  normalizeApiTime,
+} from "@/lib/restaurant-hours";
 import { ApiError } from "@/services/http";
 import type { RestaurantRecord } from "@/services/restaurants";
 import { Badge } from "../components/ui/badge";
@@ -53,7 +57,8 @@ type FormState = {
   address_text: string;
   latitude: string;
   longitude: string;
-  opening_hours: string;
+  opens_at: string;
+  closes_at: string;
   is_active: boolean;
   description: string;
   logo: File | null;
@@ -66,7 +71,8 @@ const emptyForm = (): FormState => ({
   address_text: "",
   latitude: "31.6295",
   longitude: "-7.9811",
-  opening_hours: "09:00 - 22:00",
+  opens_at: "09:00",
+  closes_at: "22:00",
   is_active: true,
   description: "",
   logo: null,
@@ -81,7 +87,8 @@ function toForm(r?: RestaurantRecord | null): FormState {
     address_text: r.address_text,
     latitude: r.latitude,
     longitude: r.longitude,
-    opening_hours: r.opening_hours,
+    opens_at: normalizeApiTime(r.opens_at) || "09:00",
+    closes_at: normalizeApiTime(r.closes_at) || "22:00",
     is_active: r.is_active,
     description: r.description,
     logo: null,
@@ -90,7 +97,8 @@ function toForm(r?: RestaurantRecord | null): FormState {
 }
 
 export function RestaurantManagement() {
-  const { restaurants, loading, error, search, setSearch, save, remove } = useRestaurants();
+  const { restaurants, loading, error, search, setSearch, save, remove } =
+    useRestaurants();
   const [view, setView] = useState<RestaurantRecord | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
@@ -138,7 +146,9 @@ export function RestaurantManagement() {
           address_text: form.address_text,
           latitude: form.latitude,
           longitude: form.longitude,
-          opening_hours: form.opening_hours,
+          opens_at: form.opens_at,
+          closes_at: form.closes_at,
+          opening_hours: formatHoursRange(form.opens_at, form.closes_at),
           is_active: form.is_active,
           description: form.description,
           logo: form.logo,
@@ -166,10 +176,17 @@ export function RestaurantManagement() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">Restaurant Management</h1>
-          <p className="mt-1 text-gray-600">Manage restaurant partners and their information</p>
+          <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">
+            Restaurant Management
+          </h1>
+          <p className="mt-1 text-gray-600">
+            Manage restaurant partners and their information
+          </p>
         </div>
-        <Button className="shrink-0 bg-[#800020] hover:bg-[#600018]" onClick={openCreate}>
+        <Button
+          className="shrink-0 bg-[#800020] hover:bg-[#600018]"
+          onClick={openCreate}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Restaurant
         </Button>
@@ -191,7 +208,9 @@ export function RestaurantManagement() {
 
       {error && (
         <Card>
-          <CardContent className="p-4 text-sm text-red-600">{error}</CardContent>
+          <CardContent className="p-4 text-sm text-red-600">
+            {error}
+          </CardContent>
         </Card>
       )}
 
@@ -213,13 +232,19 @@ export function RestaurantManagement() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-gray-500">
+                  <TableCell
+                    colSpan={8}
+                    className="py-8 text-center text-gray-500"
+                  >
                     Loading restaurants...
                   </TableCell>
                 </TableRow>
               ) : restaurants.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-gray-500">
+                  <TableCell
+                    colSpan={8}
+                    className="py-8 text-center text-gray-500"
+                  >
                     No restaurants found
                   </TableCell>
                 </TableRow>
@@ -227,29 +252,66 @@ export function RestaurantManagement() {
                 restaurants.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">{r.name}</TableCell>
-                    <TableCell className="hidden md:table-cell">{r.phone || "-"}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {r.phone || "-"}
+                    </TableCell>
                     <TableCell>
                       <div className="flex max-w-[200px] items-center gap-2">
                         <MapPin className="h-4 w-4 shrink-0 text-gray-400" />
-                        <span className="truncate">{r.address_text || "-"}</span>
+                        <span className="truncate">
+                          {r.address_text || "-"}
+                        </span>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{r.opening_hours || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={r.is_active ? "bg-green-100 text-green-700" : ""}>
-                        {r.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                    <TableCell className="hidden lg:table-cell">
+                      {formatHoursRange(r.opens_at, r.closes_at) ||
+                        r.opening_hours ||
+                        "-"}
                     </TableCell>
-                    <TableCell className="hidden sm:table-cell">{r.menu_item_count}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge
+                          variant="outline"
+                          className={
+                            r.is_active ? "bg-green-100 text-green-700" : ""
+                          }
+                        >
+                          {r.is_active ? "Enabled" : "Disabled"}
+                        </Badge>
+                        {r.is_active && (
+                          <Badge
+                            variant="outline"
+                            className={
+                              r.is_open
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }
+                          >
+                            {r.is_open ? "Open now" : "Closed now"}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {r.menu_item_count}
+                    </TableCell>
                     <TableCell className="hidden xl:table-cell">
                       {format(new Date(r.updated_at), "MMM dd, yyyy")}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => setView(r)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setView(r)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(r)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -261,7 +323,11 @@ export function RestaurantManagement() {
                               await remove(r.id);
                               toast.success("Restaurant deleted");
                             } catch (e) {
-                              toast.error(e instanceof Error ? e.message : "Delete failed");
+                              toast.error(
+                                e instanceof Error
+                                  ? e.message
+                                  : "Delete failed",
+                              );
                             }
                           }}
                         >
@@ -287,16 +353,32 @@ export function RestaurantManagement() {
               </DialogHeader>
               <div className="space-y-2 text-sm">
                 <p>
-                  <span className="text-gray-500">Phone:</span> {view.phone || "-"}
+                  <span className="text-gray-500">Phone:</span>{" "}
+                  {view.phone || "-"}
                 </p>
                 <p>
-                  <span className="text-gray-500">Address:</span> {view.address_text}
+                  <span className="text-gray-500">Address:</span>{" "}
+                  {view.address_text}
                 </p>
                 <p>
-                  <span className="text-gray-500">Hours:</span> {view.opening_hours}
+                  <span className="text-gray-500">Hours:</span>{" "}
+                  {formatHoursRange(view.opens_at, view.closes_at) ||
+                    view.opening_hours ||
+                    "-"}
                 </p>
                 <p>
-                  <span className="text-gray-500">Menu items:</span> {view.menu_item_count}
+                  <span className="text-gray-500">Status:</span>{" "}
+                  {view.is_active ? "Enabled" : "Disabled"}
+                  {view.is_active && (
+                    <>
+                      {" · "}
+                      {view.is_open ? "Open now" : "Closed now"}
+                    </>
+                  )}
+                </p>
+                <p>
+                  <span className="text-gray-500">Menu items:</span>{" "}
+                  {view.menu_item_count}
                 </p>
               </div>
               <DialogFooter>
@@ -322,24 +404,48 @@ export function RestaurantManagement() {
       >
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Restaurant" : "Add Restaurant"}</DialogTitle>
+            <DialogTitle>
+              {editingId ? "Edit Restaurant" : "Add Restaurant"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Name</Label>
-              <Input className="mt-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                className="mt-2"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Phone</Label>
-                <Input className="mt-2" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div>
-                <Label>Opening hours</Label>
                 <Input
                   className="mt-2"
-                  value={form.opening_hours}
-                  onChange={(e) => setForm({ ...form, opening_hours: e.target.value })}
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Opens at</Label>
+                <Input
+                  type="time"
+                  className="mt-2"
+                  value={form.opens_at}
+                  onChange={(e) =>
+                    setForm({ ...form, opens_at: e.target.value })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Closes at</Label>
+                <Input
+                  type="time"
+                  className="mt-2"
+                  value={form.closes_at}
+                  onChange={(e) =>
+                    setForm({ ...form, closes_at: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -348,15 +454,19 @@ export function RestaurantManagement() {
               <Input
                 className="mt-2"
                 value={form.address_text}
-                onChange={(e) => setForm({ ...form, address_text: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, address_text: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label>Location</Label>
               <p className="text-xs text-muted-foreground">
-                Click on the map to set the restaurant&apos;s pin. You can also fine-tune the lat/lng below.
+                Search or click the map — the Address field above fills
+                automatically from your selection.
               </p>
               <RestaurantLocationPicker
+                initialAddress={form.address_text}
                 latitude={Number.parseFloat(form.latitude) || null}
                 longitude={Number.parseFloat(form.longitude) || null}
                 onPick={(pos) =>
@@ -364,6 +474,7 @@ export function RestaurantManagement() {
                     ...form,
                     latitude: pos.latitude.toFixed(6),
                     longitude: pos.longitude.toFixed(6),
+                    address_text: pos.address.trim() || form.address_text,
                   })
                 }
               />
@@ -374,7 +485,9 @@ export function RestaurantManagement() {
                 <Input
                   className="mt-2"
                   value={form.latitude}
-                  onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, latitude: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -382,7 +495,9 @@ export function RestaurantManagement() {
                 <Input
                   className="mt-2"
                   value={form.longitude}
-                  onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, longitude: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -393,7 +508,9 @@ export function RestaurantManagement() {
                   type="file"
                   accept="image/*"
                   className="mt-2"
-                  onChange={(e) => setForm({ ...form, logo: e.target.files?.[0] ?? null })}
+                  onChange={(e) =>
+                    setForm({ ...form, logo: e.target.files?.[0] ?? null })
+                  }
                 />
               </div>
               <div>
@@ -402,7 +519,12 @@ export function RestaurantManagement() {
                   type="file"
                   accept="image/*"
                   className="mt-2"
-                  onChange={(e) => setForm({ ...form, cover_image: e.target.files?.[0] ?? null })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      cover_image: e.target.files?.[0] ?? null,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -411,15 +533,23 @@ export function RestaurantManagement() {
               <Input
                 className="mt-2"
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
               />
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <Label>Active</Label>
-              <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+              <Switch
+                checked={form.is_active}
+                onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+              />
             </div>
             {formError ? (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              <p
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                role="alert"
+              >
                 {formError}
               </p>
             ) : null}
@@ -428,7 +558,11 @@ export function RestaurantManagement() {
             <Button variant="outline" disabled={saving} onClick={closeDialog}>
               Cancel
             </Button>
-            <Button className="bg-[#800020]" disabled={saving} onClick={() => void submit()}>
+            <Button
+              className="bg-[#800020]"
+              disabled={saving}
+              onClick={() => void submit()}
+            >
               {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

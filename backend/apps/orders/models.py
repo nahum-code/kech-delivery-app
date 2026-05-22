@@ -13,6 +13,7 @@ class Order(models.Model):
         PREPARING = "preparing", "Preparing"
         READY_FOR_PICKUP = "ready_for_pickup", "Ready for pickup"
         ASSIGNED = "assigned", "Assigned"
+        DECLINED = "declined", "Declined"
         PICKED_UP = "picked_up", "Picked up"
         DELIVERING = "delivering", "Delivering"
         DELIVERED = "delivered", "Delivered"
@@ -117,6 +118,7 @@ class DriverDeliveryEvent(models.Model):
 
     class Action(models.TextChoices):
         ACKNOWLEDGED = "acknowledged", "Acknowledged"
+        DECLINED = "declined", "Declined"
         PICKED_UP = "picked_up", "Picked up"
         STARTED_DELIVERY = "started_delivery", "Started delivery"
         COMPLETED = "completed", "Completed"

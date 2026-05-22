@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/theme/driver_profile_tokens.dart';
 
 class DriverProfileSettingsTile extends StatelessWidget {
@@ -22,7 +23,7 @@ class DriverProfileSettingsTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: DriverProfileTokens.cardSurface,
         borderRadius: BorderRadius.circular(DriverProfileTokens.cardRadius),
         boxShadow: const <BoxShadow>[
           BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
@@ -34,7 +35,7 @@ class DriverProfileSettingsTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: DriverProfileTokens.cardSurface,
+              color: DriverAppTokens.routeBox,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: DriverProfileTokens.primary, size: 22),
@@ -43,7 +44,11 @@ class DriverProfileSettingsTile extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1F2937)),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                color: DriverProfileTokens.ink,
+              ),
             ),
           ),
           Switch(

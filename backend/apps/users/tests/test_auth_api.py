@@ -164,7 +164,11 @@ class AuthApiTests(TestCase):
 
         res = self.client.post(
             "/api/v1/auth/create-sales-agent/",
-            {"phone": "+40000000002", "password": "ComplexPass1!"},
+            {
+                "phone": "+40000000002",
+                "password": "ComplexPass1!",
+                "name": "Sara Kebede",
+            },
             format="json",
         )
 
@@ -172,12 +176,14 @@ class AuthApiTests(TestCase):
         body = res.json()
         self.assertEqual(body["role"], User.Role.SALES)
         self.assertEqual(body["phone"], "+40000000002")
+        self.assertEqual(body["name"], "Sara Kebede")
         self.assertIn("user_id", body)
         self.assertNotIn("password", body)
 
         created = User.objects.get(id=body["user_id"])
         self.assertEqual(created.role, User.Role.SALES)
         self.assertTrue(created.check_password("ComplexPass1!"))
+        self.assertEqual(created.sales_profile.full_name, "Sara Kebede")
 
     def test_non_admin_cannot_create_sales_agent(self):
         sales_user = User.objects.create_user(
@@ -235,6 +241,8 @@ class AuthApiTests(TestCase):
         self.assertIn("password", res.json())
 
     def test_admin_can_list_users_newest_first(self):
+        from apps.users.models import CustomerProfile
+
         admin = User.objects.create_user(
             phone="+50000000001",
             password="ComplexPass1!",
@@ -245,6 +253,7 @@ class AuthApiTests(TestCase):
             password="ComplexPass1!",
             role=User.Role.CUSTOMER,
         )
+        CustomerProfile.objects.create(user=older, full_name="Ada Customer")
         newer = User.objects.create_user(
             phone="+50000000003",
             password="ComplexPass1!",
@@ -266,6 +275,14 @@ class AuthApiTests(TestCase):
         self.assertLess(ordered_ids.index(newer.id), ordered_ids.index(older.id))
         newer_payload = next(item for item in body if item["user_id"] == newer.id)
         self.assertEqual(newer_payload["status"], "active")
+        self.assertIsNone(newer_payload["name"])
+        older_payload = next(item for item in body if item["user_id"] == older.id)
+        self.assertEqual(older_payload["name"], "Ada Customer")
+
+        by_name = self.client.get("/api/v1/auth/users/?q=Ada")
+        self.assertEqual(by_name.status_code, status.HTTP_200_OK)
+        self.assertTrue(any(item["user_id"] == older.id for item in by_name.json()))
+        self.assertFalse(any(item["user_id"] == newer.id for item in by_name.json()))
 
     def test_non_admin_cannot_list_users(self):
         customer = User.objects.create_user(

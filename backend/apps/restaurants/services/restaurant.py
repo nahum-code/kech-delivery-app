@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 
 from apps.restaurants.models import Restaurant
+from apps.restaurants.services.hours import format_hours_display
 
 
 class RestaurantServiceError(Exception):
@@ -25,6 +26,15 @@ def _ensure_media_root() -> None:
     # Pre-create common upload trees (helps when parent dir is writable but umask blocks subdirs).
     for sub in ("restaurants", "menu_items"):
         os.makedirs(os.path.join(media_root, sub), exist_ok=True)
+
+
+def _sync_opening_hours_label(fields: dict) -> None:
+    if "opens_at" not in fields and "closes_at" not in fields:
+        return
+    fields["opening_hours"] = format_hours_display(
+        fields.get("opens_at"),
+        fields.get("closes_at"),
+    )
 
 
 def _pop_image_fields(fields: dict) -> tuple[object | None, object | None]:
@@ -68,6 +78,7 @@ def create_restaurant(**fields) -> Restaurant:
 
     _ensure_media_root()
     logo, cover_image = _pop_image_fields(fields)
+    _sync_opening_hours_label(fields)
 
     try:
         restaurant = Restaurant.objects.create(**fields)
@@ -93,6 +104,7 @@ def update_restaurant(restaurant: Restaurant, **fields) -> Restaurant:
 
     _ensure_media_root()
     logo, cover_image = _pop_image_fields(fields)
+    _sync_opening_hours_label(fields)
 
     for key, value in fields.items():
         setattr(restaurant, key, value)

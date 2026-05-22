@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/customer_registration_tokens.dart';
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../../onboarding/navigation/driver_onboarding_exit.dart';
@@ -91,7 +92,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F8),
+      backgroundColor: DriverAppTokens.screenBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

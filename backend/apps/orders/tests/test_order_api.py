@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 from apps.drivers.models import DriverProfile
 from apps.orders.models import Order
 from apps.restaurants.models import MenuCategory, MenuItem, Restaurant
+from apps.users.models import CustomerProfile, SalesProfile
 from core.models import User
 
 
@@ -159,6 +160,8 @@ class OrderApiTests(TestCase):
         )
         self.assertEqual(assign.status_code, status.HTTP_200_OK)
         self.assertEqual(assign.json()["assigned_driver"], self.driver.id)
+        self.assertIsNotNone(assign.json().get("restaurant_latitude"))
+        self.assertIsNotNone(assign.json().get("restaurant_longitude"))
 
     def test_driver_sees_assigned_orders_only(self):
         order = Order.objects.create(
@@ -207,3 +210,44 @@ class OrderApiTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_409_CONFLICT)
+
+    def test_admin_list_includes_order_channel(self):
+        CustomerProfile.objects.create(user=self.customer, full_name="Customer A")
+        SalesProfile.objects.create(user=self.sales, full_name="Sales Rep")
+        self.client.force_authenticate(user=self.customer)
+        app_order = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
+        self.assertEqual(app_order.status_code, status.HTTP_201_CREATED)
+
+        sales_order = Order.objects.create(
+            reference="KD-SALE",
+            customer=self.customer,
+            restaurant=self.restaurant,
+            sales_agent=self.sales,
+            status=Order.Status.PENDING,
+            subtotal=Decimal("50"),
+            delivery_fee=Decimal("25"),
+            total_amount=Decimal("75"),
+            delivery_address={"receiver_name": "X", "phone": "+212600000001", "address_line": "Y"},
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        res = self.client.get("/api/v1/orders/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        rows = {row["id"]: row for row in res.json()["results"]}
+        self.assertEqual(rows[app_order.json()["id"]]["order_channel"], "app")
+        self.assertEqual(rows[sales_order.id]["order_channel"], "sales")
+        self.assertEqual(rows[sales_order.id]["sales_agent_name"], "Sales Rep")
+
+    def test_admin_can_cancel_order(self):
+        self.client.force_authenticate(user=self.customer)
+        created = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
+        order_id = created.json()["id"]
+
+        self.client.force_authenticate(user=self.admin)
+        patch = self.client.patch(
+            f"/api/v1/orders/{order_id}/status/",
+            {"status": Order.Status.CANCELLED},
+            format="json",
+        )
+        self.assertEqual(patch.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch.json()["status"], Order.Status.CANCELLED)

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../shared/theme/customer_registration_tokens.dart';
+import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../auth/login/navigation/driver_auth_navigation.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../../data/models/driver_status.dart';
@@ -77,7 +78,7 @@ class _DriverPendingScreenState extends State<DriverPendingScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F8),
+      backgroundColor: DriverAppTokens.screenBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -227,7 +228,7 @@ class _RejectedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F8),
+      backgroundColor: DriverAppTokens.screenBackground,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -262,7 +263,7 @@ class _SuspendedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF8F8),
+      backgroundColor: DriverAppTokens.screenBackground,
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
