@@ -7,6 +7,12 @@ import '../../../../core/http/api_error_message.dart';
 import '../domain/driver_order_models.dart';
 import 'driver_order_api.dart';
 
+class OrderTakenException implements Exception {
+  const OrderTakenException();
+  @override
+  String toString() => 'Order is no longer available.';
+}
+
 final class DriverOrderRepository {
   DriverOrderRepository({
     required DriverOrderApi Function(String token) apiFactory,
@@ -63,16 +69,48 @@ final class DriverOrderRepository {
     return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
-  Future<DriverOrderDetail> decline({
+  Future<DriverOrderDetail> fetchAvailableDetail({
     required String accessToken,
     required int orderId,
   }) async {
-    final http.Response response = await _request(
-      accessToken,
-      (String token) => _apiFactory(token).decline(orderId),
-    );
+    final http.Response response = await _apiFactory(accessToken).availableDetail(orderId);
     if (response.statusCode != 200) {
-      throw _httpError(response, 'Could not decline delivery');
+      throw _httpError(response, 'Could not load offer detail');
+    }
+    return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+  }
+
+  Future<List<DriverOrderSummary>> fetchAvailable({required String accessToken}) async {
+    final http.Response response = await _apiFactory(accessToken).listAvailable();
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not load new requests');
+    }
+    final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
+    final List<dynamic> results = body['results'] as List<dynamic>? ?? <dynamic>[];
+    return results
+        .map((dynamic e) => DriverOrderSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// First-accept-wins claim. Throws [OrderTakenException] **only** when the
+  /// server's detail confirms the order is genuinely gone (someone else won
+  /// or status moved off SEARCHING_DRIVER). Other 409s — e.g. the driver
+  /// hit their active-delivery cap — surface their real reason so the
+  /// driver can react correctly instead of chasing an imaginary race.
+  Future<DriverOrderDetail> claim({
+    required String accessToken,
+    required int orderId,
+  }) async {
+    final http.Response response = await _apiFactory(accessToken).claim(orderId);
+    if (response.statusCode == 409) {
+      final String? detail = _readDetail(response.body);
+      if (detail != null && detail.toLowerCase().contains('no longer available')) {
+        throw const OrderTakenException();
+      }
+      throw Exception(detail ?? 'Could not accept request (409)');
+    }
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not accept request');
     }
     return DriverOrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
@@ -157,6 +195,9 @@ final class DriverOrderRepository {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  /// Run [call] with the given access token, transparently retrying once
+  /// with a refreshed token if the server returns 401. Mirrors the helper
+  /// main introduced so all driver endpoints survive a stale access token.
   Future<http.Response> _request(
     String accessToken,
     Future<http.Response> Function(String token) call,
@@ -171,11 +212,19 @@ final class DriverOrderRepository {
     return response;
   }
 
-  AppApiException _httpError(http.Response response, String fallback) {
-    return apiExceptionFromResponse(
-      statusCode: response.statusCode,
-      body: response.body,
-      fallback: fallback,
-    );
+  Exception _httpError(http.Response response, String fallback) {
+    final String? detail = _readDetail(response.body);
+    if (detail != null) return Exception(detail);
+    return Exception('$fallback (${response.statusCode})');
+  }
+
+  String? _readDetail(String body) {
+    try {
+      final dynamic decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic> && decoded['detail'] is String) {
+        return decoded['detail'] as String;
+      }
+    } catch (_) {/* not JSON */}
+    return null;
   }
 }

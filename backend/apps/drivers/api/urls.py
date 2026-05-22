@@ -5,7 +5,12 @@ from .onboarding_views import (
     DriverOnboardingStatusView,
     DriverRequiredDocumentsView,
 )
-from apps.orders.api.views import DriverOrdersListView
+from apps.orders.api.views import (
+    AcceptOrderView,
+    AvailableOrderDetailView,
+    AvailableOrdersListView,
+    DriverOrdersListView,
+)
 
 from .delivery_views import (
     DriverAvailabilityView,
@@ -20,6 +25,13 @@ from .views import DriverStatusView
 
 urlpatterns = [
     path("orders/", DriverOrdersListView.as_view(), name="driver_orders"),
+    path("orders/available/", AvailableOrdersListView.as_view(), name="driver_orders_available"),
+    path(
+        "orders/available/<int:order_id>/",
+        AvailableOrderDetailView.as_view(),
+        name="driver_order_available_detail",
+    ),
+    path("orders/<int:order_id>/claim/", AcceptOrderView.as_view(), name="driver_order_claim"),
     path("orders/<int:order_id>/", DriverOrderDetailView.as_view(), name="driver_order_detail"),
     path("orders/<int:order_id>/accept/", DriverOrderAcceptView.as_view(), name="driver_order_accept"),
     path("orders/<int:order_id>/decline/", DriverOrderDeclineView.as_view(), name="driver_order_decline"),

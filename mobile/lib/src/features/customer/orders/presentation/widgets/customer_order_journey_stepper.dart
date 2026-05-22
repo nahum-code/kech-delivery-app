@@ -3,62 +3,119 @@ import 'package:flutter/material.dart';
 import '../../../../../shared/theme/customer_checkout_tokens.dart';
 import '../../domain/order_models.dart';
 
+/// Linear journey for an order: Placed → Payment → Searching → Assigned →
+/// On the way → Delivered. The currently-active step lights up; everything
+/// before it shows as done; anything after shows as pending.
 class CustomerOrderJourneyStepper extends StatelessWidget {
   const CustomerOrderJourneyStepper({super.key, required this.order});
 
   final OrderDetail order;
 
+  // Ordered list of customer-meaningful states from the backend lifecycle:
+  // pending → confirmed → searching_driver → assigned → picked_up →
+  // delivering → delivered. We collapse `picked_up` and `delivering` into a
+  // single "On the way" step because the customer's experience is the same:
+  // food is in transit.
+  static const List<String> _progressOrder = <String>[
+    'placed', // synthetic — order exists at all
+    'paid', // payment confirmed
+    'searching_driver',
+    'assigned',
+    'on_the_way',
+    'delivered',
+  ];
+
+  /// Maps backend `status` (+ payment) into the closest progress index.
+  int _currentIndex() {
+    if (order.status == 'cancelled') return -1;
+    if (order.status == 'delivered') return _progressOrder.indexOf('delivered');
+    if (order.status == 'delivering' || order.status == 'picked_up') {
+      return _progressOrder.indexOf('on_the_way');
+    }
+    if (order.status == 'assigned') return _progressOrder.indexOf('assigned');
+    if (order.status == 'searching_driver') return _progressOrder.indexOf('searching_driver');
+    if (order.isPaymentPaid) return _progressOrder.indexOf('paid');
+    return _progressOrder.indexOf('placed');
+  }
+
   @override
   Widget build(BuildContext context) {
     final DateTime? placed = DateTime.tryParse(order.placedAt)?.toLocal();
     final String placedTime = placed != null ? _formatTime(placed) : '';
+    final int currentIndex = _currentIndex();
+    final bool cancelled = order.status == 'cancelled';
 
-    final bool paymentDone = order.isPaymentPaid;
-    final bool searchingDriver = paymentDone &&
-        !<String>['assigned', 'picked_up', 'delivering', 'delivered'].contains(order.status);
+    final List<_StepSpec> steps = <_StepSpec>[
+      _StepSpec(
+        icon: Icons.check_rounded,
+        title: 'Placed',
+        time: placedTime,
+      ),
+      _StepSpec(
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Payment confirmed',
+        time: order.isPaymentPaid ? placedTime : '',
+      ),
+      const _StepSpec(
+        icon: Icons.search_rounded,
+        title: 'Searching driver',
+      ),
+      const _StepSpec(
+        icon: Icons.directions_bike_outlined,
+        title: 'Driver assigned',
+      ),
+      const _StepSpec(
+        icon: Icons.delivery_dining_rounded,
+        title: 'On the way',
+      ),
+      const _StepSpec(
+        icon: Icons.home_outlined,
+        title: 'Delivered',
+      ),
+    ];
 
     return Column(
       children: <Widget>[
-        _Step(
-          icon: Icons.check_rounded,
-          title: 'Placed',
-          time: placedTime,
-          state: _StepState.done,
-          showLineBelow: true,
-          lineActive: paymentDone,
-        ),
-        _Step(
-          icon: Icons.account_balance_wallet_outlined,
-          title: 'Payment confirmed',
-          time: paymentDone ? placedTime : '',
-          state: paymentDone ? _StepState.active : _StepState.pending,
-          showLineBelow: true,
-          lineActive: searchingDriver || _driverAssigned,
-        ),
-        _Step(
-          icon: Icons.search_rounded,
-          title: 'Searching driver',
-          time: '',
-          state: searchingDriver
-              ? _StepState.active
-              : _driverAssigned
-                  ? _StepState.done
-                  : _StepState.pending,
-          showLineBelow: false,
-          lineActive: false,
-        ),
+        for (int i = 0; i < steps.length; i++)
+          _Step(
+            icon: steps[i].icon,
+            title: steps[i].title,
+            time: steps[i].time,
+            state: cancelled
+                ? _StepState.pending
+                : i < currentIndex
+                    ? _StepState.done
+                    : i == currentIndex
+                        ? _StepState.active
+                        : _StepState.pending,
+            showLineBelow: i < steps.length - 1 || cancelled,
+            lineActive: !cancelled && i < currentIndex,
+          ),
+        if (cancelled)
+          const _Step(
+            icon: Icons.cancel_outlined,
+            title: 'Cancelled',
+            time: '',
+            state: _StepState.active,
+            showLineBelow: false,
+            lineActive: false,
+          ),
       ],
     );
   }
-
-  bool get _driverAssigned =>
-      <String>['assigned', 'picked_up', 'delivering', 'delivered'].contains(order.status);
 
   String _formatTime(DateTime dt) {
     final int h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
     final String suffix = dt.hour >= 12 ? 'PM' : 'AM';
     return '$h:${dt.minute.toString().padLeft(2, '0')} $suffix';
   }
+}
+
+class _StepSpec {
+  const _StepSpec({required this.icon, required this.title, this.time = ''});
+  final IconData icon;
+  final String title;
+  final String time;
 }
 
 enum _StepState { done, active, pending }
@@ -91,6 +148,7 @@ class _Step extends StatelessWidget {
             ? CustomerCheckoutTokens.ink
             : CustomerCheckoutTokens.journeyInactive;
     final FontWeight titleWeight = state == _StepState.pending ? FontWeight.w500 : FontWeight.w800;
+    final IconData circleIcon = state == _StepState.done ? Icons.check_rounded : icon;
 
     return IntrinsicHeight(
       child: Row(
@@ -104,18 +162,16 @@ class _Step extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(color: circleColor, shape: BoxShape.circle),
-                  child: Icon(
-                    state == _StepState.done && icon == Icons.search_rounded ? Icons.check_rounded : icon,
-                    color: Colors.white,
-                    size: 18,
-                  ),
+                  child: Icon(circleIcon, color: Colors.white, size: 18),
                 ),
                 if (showLineBelow)
                   Expanded(
                     child: Container(
                       width: 2,
                       margin: const EdgeInsets.symmetric(vertical: 4),
-                      color: lineActive ? CustomerCheckoutTokens.primaryMaroon : CustomerCheckoutTokens.journeyInactive,
+                      color: lineActive
+                          ? CustomerCheckoutTokens.primaryMaroon
+                          : CustomerCheckoutTokens.journeyInactive,
                     ),
                   ),
               ],

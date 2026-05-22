@@ -10,6 +10,7 @@ class Order(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         CONFIRMED = "confirmed", "Confirmed"
+        SEARCHING_DRIVER = "searching_driver", "Searching driver"
         PREPARING = "preparing", "Preparing"
         READY_FOR_PICKUP = "ready_for_pickup", "Ready for pickup"
         ASSIGNED = "assigned", "Assigned"

@@ -19,11 +19,16 @@ from apps.restaurants.services.hours import restaurant_is_open
 from core.models import User
 
 DEFAULT_DELIVERY_FEE = Decimal("25.00")
-MAX_ACTIVE_DRIVER_ORDERS = 5
+MAX_ACTIVE_DRIVER_ORDERS = 2
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     Order.Status.PENDING: {Order.Status.CONFIRMED, Order.Status.CANCELLED},
-    Order.Status.CONFIRMED: {Order.Status.PREPARING, Order.Status.CANCELLED},
+    Order.Status.CONFIRMED: {
+        Order.Status.SEARCHING_DRIVER,
+        Order.Status.PREPARING,
+        Order.Status.CANCELLED,
+    },
+    Order.Status.SEARCHING_DRIVER: {Order.Status.ASSIGNED, Order.Status.CANCELLED},
     Order.Status.PREPARING: {Order.Status.READY_FOR_PICKUP, Order.Status.CANCELLED},
     Order.Status.READY_FOR_PICKUP: {Order.Status.ASSIGNED, Order.Status.CANCELLED},
     Order.Status.ASSIGNED: {
@@ -225,4 +230,67 @@ def mark_order_paid_from_payment(order: Order) -> Order:
 
     if order.status == Order.Status.PENDING:
         order = transition_order_status(order, Order.Status.CONFIRMED)
+    # Auto-broadcast: a confirmed, unassigned order should be visible to
+    # online approved drivers so the first-accept-wins flow can run.
+    if order.status == Order.Status.CONFIRMED and order.assigned_driver_id is None:
+        order = transition_order_status(order, Order.Status.SEARCHING_DRIVER)
     return order
+
+
+ACTIVE_DRIVER_STATUSES = (
+    Order.Status.ASSIGNED,
+    Order.Status.PICKED_UP,
+    Order.Status.DELIVERING,
+)
+
+
+@transaction.atomic
+def accept_order(*, order_id: int, driver: User) -> Order:
+    """Atomic first-accept-wins. Re-checks driver eligibility under lock."""
+    from apps.drivers.models import DriverProfile  # local import avoids cycle
+
+    if driver.role != User.Role.DRIVER:
+        raise OrderServiceError("Only drivers can accept orders.", status_code=403)
+    try:
+        profile = driver.driver_profile
+    except DriverProfile.DoesNotExist as exc:
+        raise OrderServiceError("Driver profile not found.", status_code=404) from exc
+    if profile.approval_status != DriverProfile.ApprovalStatus.APPROVED:
+        raise OrderServiceError("Driver is not approved.", status_code=403)
+    # OFFLINE blocks accept. BUSY drivers (already on one delivery) can still
+    # claim more — up to MAX_ACTIVE_DRIVER_ORDERS below — which mirrors the
+    # operator-side rule of "every approved+online driver sees the broadcast".
+    if profile.operational_status == DriverProfile.OperationalStatus.OFFLINE:
+        raise OrderServiceError("Driver must be online to accept.", status_code=409)
+    if not driver.is_active:
+        raise OrderServiceError("Driver account is inactive.", status_code=403)
+
+    active_count = Order.objects.filter(
+        assigned_driver=driver,
+        status__in=ACTIVE_DRIVER_STATUSES,
+    ).count()
+    if active_count >= MAX_ACTIVE_DRIVER_ORDERS:
+        raise OrderServiceError(
+            f"Driver already has {MAX_ACTIVE_DRIVER_ORDERS} active deliveries.",
+            status_code=409,
+        )
+
+    now = timezone.now()
+    updated = (
+        Order.objects.filter(
+            pk=order_id,
+            assigned_driver__isnull=True,
+            status=Order.Status.SEARCHING_DRIVER,
+        )
+        .update(
+            assigned_driver=driver,
+            status=Order.Status.ASSIGNED,
+            # Self-claim implies acknowledgement, so the order skips the
+            # manual-assignment "Accept / Decline" card on the next poll.
+            driver_acknowledged_at=now,
+            updated_at=now,
+        )
+    )
+    if updated == 0:
+        raise OrderServiceError("Order is no longer available.", status_code=409)
+    return Order.objects.get(pk=order_id)

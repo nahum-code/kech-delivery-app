@@ -27,7 +27,9 @@ class _DriverShellScreenState extends State<DriverShellScreen> {
   @override
   void initState() {
     super.initState();
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _refreshAlertBadge());
+    // ~30 s cadence so newly-broadcast orders appear on the Alerts tab and the
+    // bell badge updates promptly.
+    _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshAlertBadge());
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAlertBadge());
   }
 

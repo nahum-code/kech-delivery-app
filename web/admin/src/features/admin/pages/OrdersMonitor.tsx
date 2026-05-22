@@ -9,7 +9,7 @@ import {
   assignDriver,
   fetchApprovedDrivers,
   fetchOrder,
-  fetchOrders,
+  fetchAllOrders,
   updateOrderStatus,
   type OrderDetail,
   type OrderRecord,
@@ -134,11 +134,11 @@ export function OrdersMonitor() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchOrders({
+      const results = await fetchAllOrders({
         status: statusFilter === "all" ? undefined : statusFilter,
         search: search || undefined,
       });
-      setOrders(data.results);
+      setOrders(results);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to load orders";
       setError(msg);
@@ -407,6 +407,16 @@ export function OrdersMonitor() {
                     </li>
                   ))}
                 </ul>
+                {detail.customer_note && detail.customer_note.trim().length > 0 && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                      Special instructions
+                    </p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-amber-900">
+                      {detail.customer_note}
+                    </p>
+                  </div>
+                )}
                 <Card className="border-[#800020]/20 bg-[#fdf8f9]">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base text-[#800020]">

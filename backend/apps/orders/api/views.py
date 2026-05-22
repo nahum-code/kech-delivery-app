@@ -33,6 +33,7 @@ from apps.orders.permissions import (
 from apps.orders.services.assignment import assign_driver_to_order
 from apps.orders.services.order import (
     OrderServiceError,
+    accept_order,
     create_order,
     mark_order_paid_from_payment,
     transition_order_status,
@@ -285,6 +286,62 @@ class DeliveryFeeQuoteView(APIView):
         )
         pricing = compute_pricing(distance_km)
         return Response(pricing.as_dict())
+
+
+class AvailableOrdersListView(APIView):
+    """GET /api/v1/drivers/orders/available/ — orders waiting for a driver to accept."""
+
+    permission_classes = [IsAuthenticated, CanViewDriverOrders]
+
+    def get(self, request, *args, **kwargs):
+        qs = (
+            _order_queryset()
+            .filter(
+                status=Order.Status.SEARCHING_DRIVER,
+                assigned_driver__isnull=True,
+                payment_status=Order.PaymentStatus.PAID,
+            )
+            .order_by("placed_at")
+        )
+        paginator = OrderPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = OrderListSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
+
+
+class AcceptOrderView(APIView):
+    """POST /api/v1/drivers/orders/{id}/accept/ — atomic first-accept-wins."""
+
+    permission_classes = [IsAuthenticated, CanViewDriverOrders]
+
+    def post(self, request, order_id: int, *args, **kwargs):
+        try:
+            order = accept_order(order_id=order_id, driver=request.user)
+        except OrderServiceError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        order = _order_queryset().get(pk=order.pk)
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+
+class AvailableOrderDetailView(APIView):
+    """GET /api/v1/drivers/orders/available/{id}/ — preview a broadcast offer before claiming."""
+
+    permission_classes = [IsAuthenticated, CanViewDriverOrders]
+
+    def get(self, request, order_id: int, *args, **kwargs):
+        try:
+            order = _order_queryset().get(
+                pk=order_id,
+                status=Order.Status.SEARCHING_DRIVER,
+                assigned_driver__isnull=True,
+                payment_status=Order.PaymentStatus.PAID,
+            )
+        except Order.DoesNotExist:
+            return Response(
+                {"detail": "Order is no longer available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
 
 
 class DriverOrdersListView(APIView):
