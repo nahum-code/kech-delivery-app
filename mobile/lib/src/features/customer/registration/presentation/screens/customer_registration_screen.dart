@@ -23,6 +23,7 @@ class CustomerRegistrationScreen extends StatefulWidget {
 class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _fullName = TextEditingController();
+  final TextEditingController _email = TextEditingController();
   final TextEditingController _phone = TextEditingController();
   final TextEditingController _password = TextEditingController();
   final TextEditingController _confirmPassword = TextEditingController();
@@ -35,6 +36,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
   @override
   void dispose() {
     _fullName.dispose();
+    _email.dispose();
     _phone.dispose();
     _password.dispose();
     _confirmPassword.dispose();
@@ -61,6 +63,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
       final AuthRepository auth = context.read<AuthRepository>();
       final LoginResult result = await auth.registerCustomerAndSignIn(
         fullName: _fullName.text,
+        email: _email.text,
         phoneRaw: _phone.text,
         password: _password.text,
         confirmPassword: _confirmPassword.text,
@@ -169,6 +172,16 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                               prefixIcon: Icons.person_outline_rounded,
                               controller: _fullName,
                               validator: CustomerRegistrationValidators.fullName,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            const SizedBox(height: 18),
+                            RegistrationLabeledTextField(
+                              label: 'Email',
+                              hint: 'you@example.com',
+                              prefixIcon: Icons.mail_outline_rounded,
+                              controller: _email,
+                              validator: CustomerRegistrationValidators.email,
+                              keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                             ),
                             const SizedBox(height: 18),

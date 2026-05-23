@@ -30,6 +30,13 @@ def log_logout(user_id: int | None) -> None:
     logger.info("auth.logout", extra={"user_id": user_id})
 
 
+def log_account_deleted(*, user_id: int, role: str) -> None:
+    logger.info(
+        "auth.account.deleted",
+        extra={"user_id": user_id, "role": role, "action": "deactivated"},
+    )
+
+
 def log_register_success(user_id: int, role: str) -> None:
     logger.info("auth.register.success", extra={"user_id": user_id, "role": role})
 
@@ -70,4 +77,11 @@ def log_driver_suspended(*, admin_id: int, driver_user_id: int) -> None:
     logger.info(
         "driver.suspended",
         extra={"admin_id": admin_id, "driver_user_id": driver_user_id, "action": "suspended"},
+    )
+
+
+def log_driver_reactivated(*, admin_id: int, driver_user_id: int) -> None:
+    logger.info(
+        "driver.reactivated",
+        extra={"admin_id": admin_id, "driver_user_id": driver_user_id, "action": "reactivated"},
     )

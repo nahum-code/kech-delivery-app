@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../features/auth/data/auth_repository.dart';
 import '../core/auth/auth_session_snapshot.dart';
+import '../features/customer/location_access/application/customer_location_onboarding_store.dart';
+import '../features/customer/location_access/presentation/screens/customer_location_access_screen.dart';
 import '../features/customer/shell/presentation/screens/customer_shell_screen.dart';
 import '../features/driver/data/driver_onboarding_repository.dart';
 import '../features/driver/shell/presentation/screens/driver_shell_screen.dart';
@@ -23,6 +25,11 @@ final class _DestinationRoleSelection extends _AppInitDestination {
 /// User is authenticated as customer, show home.
 final class _DestinationCustomerHome extends _AppInitDestination {
   const _DestinationCustomerHome();
+}
+
+/// Customer signed in but has not completed the location onboarding prompt yet.
+final class _DestinationCustomerLocationAccess extends _AppInitDestination {
+  const _DestinationCustomerLocationAccess();
 }
 
 /// User is authenticated as driver, show home.
@@ -98,8 +105,15 @@ class _AppBootstrapState extends State<AppBootstrap> {
     }
 
     // Route based on typed role enum (safer than string literals)
+    if (session.roleEnum == Role.customer) {
+      if (session.customerLocationOnboardingDone) {
+        return const _DestinationCustomerHome();
+      }
+      final bool skip = await CustomerLocationOnboardingStore.shouldSkipPrompt(auth: authRepository);
+      return skip ? const _DestinationCustomerHome() : const _DestinationCustomerLocationAccess();
+    }
+
     return switch (session.roleEnum) {
-      Role.customer => const _DestinationCustomerHome(),
       Role.driver => const _DestinationDriverHome(),
       _ => const _DestinationRoleSelection(), // unknown role fallback
     };
@@ -109,6 +123,7 @@ class _AppBootstrapState extends State<AppBootstrap> {
     return switch (destination) {
       _DestinationRoleSelection() => const RoleSelectionBootstrap(),
       _DestinationCustomerHome() => const CustomerShellScreen(),
+      _DestinationCustomerLocationAccess() => const CustomerLocationAccessScreen(),
       _DestinationDriverHome() => const DriverShellScreen(),
       _DestinationDriverPending() => const DriverPendingScreen(),
     };

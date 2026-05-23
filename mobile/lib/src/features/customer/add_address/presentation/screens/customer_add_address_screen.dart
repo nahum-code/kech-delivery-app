@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../../shared/contracts/customer_address_save_as.dart';
 import '../../../../../shared/contracts/customer_main_tab.dart';
@@ -9,6 +10,8 @@ import '../../../../../shared/widgets/add_address/add_address_save_as_selector.d
 import '../../../../../shared/widgets/add_address/add_address_save_button.dart';
 import '../../../../../shared/widgets/add_address/add_address_screen_top_bar.dart';
 import '../../../auth/login/navigation/customer_auth_navigation.dart';
+import '../../../profile/data/customer_saved_addresses_store.dart';
+import '../../../../auth/data/auth_repository.dart';
 import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
 import '../../../shell/presentation/screens/customer_shell_screen.dart';
 
@@ -67,8 +70,27 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
     }
   }
 
+  String _saveAsLabel() {
+    switch (_saveAs) {
+      case CustomerAddressSaveAs.home:
+        return 'HOME';
+      case CustomerAddressSaveAs.work:
+        return 'WORK';
+      case CustomerAddressSaveAs.other:
+        return 'OTHER';
+    }
+  }
+
   Future<void> _persistAddressDraft() async {
-    await Future<void>.delayed(const Duration(milliseconds: 160));
+    final String street = _streetController.text.trim();
+    final String unit = _unitController.text.trim();
+    await CustomerSavedAddressesStore().upsert(
+      CustomerSavedAddress(
+        label: _saveAsLabel(),
+        addressLine: street,
+        unit: unit,
+      ),
+    );
   }
 
   Future<void> _onSaveAddress() async {
@@ -83,6 +105,10 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
     setState(() => _saving = true);
     try {
       await _persistAddressDraft();
+      if (!mounted) {
+        return;
+      }
+      await context.read<AuthRepository>().markCustomerLocationOnboardingComplete();
       if (!mounted) {
         return;
       }

@@ -145,3 +145,44 @@ def suspend_driver(*, user_id: int, admin: User, suspension_reason: str) -> Driv
 
     auth_logging.log_driver_suspended(admin_id=admin.id, driver_user_id=profile.user_id)
     return profile
+
+
+@transaction.atomic
+def reactivate_driver(*, user_id: int, admin: User) -> DriverProfile:
+    profile = _get_driver_profile_for_user(user_id)
+
+    if profile.approval_status == DriverProfile.ApprovalStatus.APPROVED:
+        raise DriverApprovalError(
+            "Driver is already approved.",
+            status_code=409,
+        )
+
+    if profile.approval_status != DriverProfile.ApprovalStatus.SUSPENDED:
+        raise DriverApprovalError(
+            f"Cannot reactivate driver with status '{profile.approval_status}'.",
+            status_code=400,
+        )
+
+    now = timezone.now()
+    profile.approval_status = DriverProfile.ApprovalStatus.APPROVED
+    profile.approved_at = profile.approved_at or now
+    profile.approved_by = profile.approved_by or admin
+    profile.suspended_at = None
+    profile.suspension_reason = ""
+    profile.operational_status = DriverProfile.OperationalStatus.OFFLINE
+    profile.reviewed_by = admin
+    profile.save(
+        update_fields=[
+            "approval_status",
+            "approved_at",
+            "approved_by",
+            "suspended_at",
+            "suspension_reason",
+            "operational_status",
+            "reviewed_by",
+            "updated_at",
+        ]
+    )
+
+    auth_logging.log_driver_reactivated(admin_id=admin.id, driver_user_id=profile.user_id)
+    return profile

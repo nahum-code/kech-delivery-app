@@ -6,6 +6,7 @@ import '../../../../auth/data/auth_repository.dart';
 import '../../../../../shared/theme/driver_profile_tokens.dart';
 import '../../../orders/data/driver_order_repository.dart';
 import '../../../orders/domain/driver_order_models.dart';
+import '../../../../../shared/widgets/profile/profile_delete_account_button.dart';
 import '../widgets/driver_profile_hero_header.dart';
 import '../widgets/driver_profile_settings_tile.dart';
 
@@ -26,7 +27,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   int _completedCount = 0;
   double _earningsBalance = 0;
   bool _pushNotifications = true;
-  bool _darkMode = false;
   bool _loading = true;
 
   @override
@@ -95,10 +95,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
     return '$_completedCount';
   }
 
-  String get _ratingLabel => _completedCount > 0 ? '4.95' : '—';
-
-  String get _levelLabel => '${(_completedCount ~/ 5 + 1).clamp(1, 99)}';
-
   String get _vehicleLine {
     final String type = switch (_vehicleType) {
       'sedan' => 'Sedan',
@@ -140,8 +136,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                       driverId: _driverId,
                       tierLabel: _tierLabel,
                       deliveriesLabel: _deliveriesLabel,
-                      ratingLabel: _ratingLabel,
-                      levelLabel: _levelLabel,
                       isApproved: _approval == 'approved',
                     ),
                     Padding(
@@ -159,12 +153,6 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                             value: _pushNotifications,
                             onChanged: (bool v) => setState(() => _pushNotifications = v),
                           ),
-                          DriverProfileSettingsTile(
-                            icon: Icons.dark_mode_outlined,
-                            title: 'Dark Mode',
-                            value: _darkMode,
-                            onChanged: (bool v) => setState(() => _darkMode = v),
-                          ),
                           const SizedBox(height: 16),
                           OutlinedButton(
                             onPressed: _signOut,
@@ -180,6 +168,17 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
                               'Sign out',
                               style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                             ),
+                          ),
+                          const SizedBox(height: 8),
+                          ProfileDeleteAccountButton(
+                            foregroundColor: Colors.red.shade700,
+                            onDeleted: () {
+                              if (!mounted) return;
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute<void>(builder: (_) => const RoleSelectionBootstrap()),
+                                (_) => false,
+                              );
+                            },
                           ),
                         ],
                       ),

@@ -23,7 +23,7 @@ class CustomerLoginScreen extends StatelessWidget {
       return result;
     }
     if (result is LoginSuccess) {
-      CustomerAuthNavigation.replaceWithCustomerLocationAccess(context);
+      await CustomerAuthNavigation.continueAfterCustomerAuth(context);
     }
     return result;
   }

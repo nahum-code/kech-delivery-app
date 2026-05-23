@@ -5,8 +5,8 @@ from rest_framework import serializers
 from apps.drivers.models import DriverProfile
 
 
-class PendingDriverSerializer(serializers.ModelSerializer):
-    """Admin list of drivers awaiting review."""
+class SuspendedDriverSerializer(serializers.ModelSerializer):
+    """Admin list of suspended drivers."""
 
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     phone = serializers.CharField(source="user.phone", read_only=True)
@@ -17,10 +17,44 @@ class PendingDriverSerializer(serializers.ModelSerializer):
             "user_id",
             "full_name",
             "phone",
-            "approval_status",
-            "created_at",
+            "vehicle_type",
+            "suspended_at",
+            "suspension_reason",
         )
         read_only_fields = fields
+
+
+class PendingDriverSerializer(serializers.ModelSerializer):
+    """Admin list of drivers awaiting review."""
+
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    phone = serializers.CharField(source="user.phone", read_only=True)
+    documents_submitted = serializers.SerializerMethodField()
+    uploaded_document_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = DriverProfile
+        fields = (
+            "user_id",
+            "full_name",
+            "phone",
+            "approval_status",
+            "created_at",
+            "documents_submitted",
+            "uploaded_document_count",
+        )
+        read_only_fields = fields
+
+    def get_documents_submitted(self, obj: DriverProfile) -> bool:
+        return obj.documents_submitted_at is not None
+
+
+class AdminDriverDocumentSerializer(serializers.Serializer):
+    document_type = serializers.CharField()
+    document_type_label = serializers.CharField()
+    file_url = serializers.URLField(allow_null=True)
+    uploaded_at = serializers.DateTimeField()
+    is_pdf = serializers.BooleanField()
 
 
 class DriverActionResponseSerializer(serializers.Serializer):

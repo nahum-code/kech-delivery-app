@@ -10,6 +10,7 @@ import '../../../core/auth/phone_normalizer.dart';
 import '../../../core/auth/token_persistence.dart';
 import '../../../shared/contracts/login_credentials.dart';
 import '../../../shared/contracts/login_result.dart';
+import '../../customer/location_access/application/customer_location_onboarding_store.dart';
 import 'auth_api.dart';
 
 /// Coordinates JWT auth against the Kech Django API + local session persistence.
@@ -29,12 +30,76 @@ final class AuthRepository {
 
   AuthSessionSnapshot? get currentSession => _memorySession;
 
+  /// True when this customer already completed the post-login location prompt.
+  Future<bool> isCustomerLocationOnboardingComplete() async {
+    final AuthSessionSnapshot? session = _memorySession;
+    if (session == null || session.roleEnum != Role.customer) {
+      return true;
+    }
+    if (session.customerLocationOnboardingDone) {
+      return true;
+    }
+    return CustomerLocationOnboardingStore.isCompletedForUser(session.userId);
+  }
+
+  /// Persists location onboarding completion in prefs + secure session.
+  Future<void> markCustomerLocationOnboardingComplete() async {
+    final AuthSessionSnapshot? session = _memorySession;
+    if (session == null || session.roleEnum != Role.customer) {
+      return;
+    }
+    await CustomerLocationOnboardingStore.markCompleted(session.userId);
+    if (!session.customerLocationOnboardingDone) {
+      final AuthSessionSnapshot updated =
+          session.copyWith(customerLocationOnboardingDone: true);
+      await _persistence.save(updated);
+      _memorySession = updated;
+    }
+  }
+
+  Future<AuthSessionSnapshot> _mergeCustomerLocationOnboarding(AuthSessionSnapshot snap) async {
+    if (snap.roleEnum != Role.customer || snap.customerLocationOnboardingDone) {
+      return snap;
+    }
+    final bool prefsDone = await CustomerLocationOnboardingStore.isCompletedForUser(snap.userId);
+    if (!prefsDone) {
+      return snap;
+    }
+    final AuthSessionSnapshot updated = snap.copyWith(customerLocationOnboardingDone: true);
+    await _persistence.save(updated);
+    return updated;
+  }
+
   Future<Map<String, dynamic>?> fetchMe({required String accessToken}) async {
     final http.Response response = await _api.me(accessToken: accessToken);
     if (response.statusCode != 200) {
       return null;
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  /// PATCH customer profile (name, email).
+  Future<String?> updateCustomerProfile({String? fullName, String? email}) async {
+    final AuthSessionSnapshot? session = _memorySession;
+    if (session == null || session.roleEnum != Role.customer) {
+      return 'Not signed in as a customer.';
+    }
+    try {
+      final http.Response response = await _api.patchMe(
+        accessToken: session.accessToken,
+        fullName: fullName,
+        email: email,
+      );
+      if (response.statusCode != 200) {
+        return _readApiMessage(response.body) ?? 'Could not update profile.';
+      }
+      return null;
+    } on SocketException catch (_) {
+      return _networkHint();
+    } on Object catch (e, st) {
+      debugPrint('updateCustomerProfile: $e\n$st');
+      return 'Something went wrong. Please try again.';
+    }
   }
 
   Future<void> restoreSession() async {
@@ -46,7 +111,7 @@ final class AuthRepository {
       try {
         final http.Response me = await _api.me(accessToken: snap.accessToken);
         if (me.statusCode == 200) {
-          _memorySession = snap;
+          _memorySession = await _mergeCustomerLocationOnboarding(snap);
           return;
         }
       } on Object catch (_) {
@@ -93,11 +158,16 @@ final class AuthRepository {
         );
       }
 
+      final bool customerLocationDone = role == 'customer'
+          ? await CustomerLocationOnboardingStore.isCompletedForUser(userId)
+          : false;
+
       final AuthSessionSnapshot snapshot = AuthSessionSnapshot(
         accessToken: access,
         refreshToken: refresh,
         role: role,
         userId: userId,
+        customerLocationOnboardingDone: customerLocationDone,
       );
       await _persistence.save(snapshot);
       _memorySession = snapshot;
@@ -124,6 +194,7 @@ final class AuthRepository {
   Future<LoginResult> registerCustomerAndSignIn({
     required String fullName,
     required String phoneRaw,
+    required String email,
     required String password,
     required String confirmPassword,
   }) async {
@@ -142,6 +213,7 @@ final class AuthRepository {
         phone: phone,
         password: password,
         name: fullName.trim(),
+        email: email.trim().toLowerCase(),
       );
       if (reg.statusCode != 201) {
         return LoginFailure(_readDetail(reg.body) ?? 'Registration failed.');
@@ -193,6 +265,37 @@ final class AuthRepository {
     }
   }
 
+  /// Deactivates the signed-in customer or driver account. Returns an error message on failure.
+  Future<String?> deleteAccount() async {
+    final AuthSessionSnapshot? snap = _memorySession ?? await _persistence.load();
+    if (snap == null) {
+      return 'You are not signed in.';
+    }
+    try {
+      final http.Response response = await _api.deleteAccount(
+        accessToken: snap.accessToken,
+        refreshToken: snap.refreshToken,
+      );
+      if (response.statusCode != 200) {
+        debugPrint(
+          'deleteAccount failed: HTTP ${response.statusCode} body=${response.body}',
+        );
+        return _readApiMessage(response.body) ??
+            'Could not delete your account. Try again.';
+      }
+      await _persistence.clear();
+      _memorySession = null;
+      return null;
+    } on SocketException catch (_) {
+      return _networkHint();
+    } on HttpException catch (_) {
+      return _networkHint();
+    } on Object catch (e, st) {
+      debugPrint('deleteAccount error: $e\n$st');
+      return 'Something went wrong. Please try again.';
+    }
+  }
+
   Future<void> signOut() async {
     final AuthSessionSnapshot? snap = _memorySession ?? await _persistence.load();
     if (snap != null) {
@@ -214,20 +317,28 @@ final class AuthRepository {
 
   static String _mapLoginHttpFailure(String expectedRole, String body, int status) {
     final String? detail = _readDetail(body);
-    if (RoleHelper.fromString(expectedRole) == Role.driver) {
-      return detail ??
-          'Sign-in failed. If you just registered, your driver account may still be pending approval.';
+    if (detail != null && detail.isNotEmpty) {
+      return detail;
     }
-    return detail ?? 'Sign-in failed (HTTP $status).';
+    if (RoleHelper.fromString(expectedRole) == Role.driver) {
+      return 'Sign-in failed. If you just registered, your driver account may still be pending approval.';
+    }
+    return 'Sign-in failed (HTTP $status).';
+  }
+
+  static String? _readApiMessage(String body) {
+    return _readDetail(body);
   }
 
   static String? _readDetail(String body) {
     try {
       final Object? decoded = jsonDecode(body);
       if (decoded is Map<String, dynamic>) {
-        // Try to get the 'detail' field first (generic errors)
         if (decoded['detail'] is String) {
           return decoded['detail'] as String;
+        }
+        if (decoded['message'] is String) {
+          return decoded['message'] as String;
         }
         // If no 'detail', try to extract the first field error (field-level validation)
         for (final entry in decoded.entries) {

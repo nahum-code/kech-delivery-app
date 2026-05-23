@@ -9,8 +9,6 @@ class DriverProfileHeroHeader extends StatelessWidget {
     required this.driverId,
     required this.tierLabel,
     required this.deliveriesLabel,
-    required this.ratingLabel,
-    required this.levelLabel,
     required this.isApproved,
   });
 
@@ -18,8 +16,6 @@ class DriverProfileHeroHeader extends StatelessWidget {
   final String driverId;
   final String tierLabel;
   final String deliveriesLabel;
-  final String ratingLabel;
-  final String levelLabel;
   final bool isApproved;
 
   @override
@@ -121,15 +117,7 @@ class DriverProfileHeroHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Row(
-            children: <Widget>[
-              Expanded(child: _statBox('DELIVERIES', deliveriesLabel)),
-              const SizedBox(width: 10),
-              Expanded(child: _statBox('RATING', ratingLabel)),
-              const SizedBox(width: 10),
-              Expanded(child: _statBox('LEVEL', levelLabel)),
-            ],
-          ),
+          _statBox('DELIVERIES', deliveriesLabel),
         ],
       ),
     );

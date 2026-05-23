@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { Input } from "./ui/input";
 

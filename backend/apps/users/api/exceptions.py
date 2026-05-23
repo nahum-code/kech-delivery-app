@@ -12,6 +12,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from rest_framework.exceptions import Throttled, ValidationError
 
 from apps.users import auth_logging
+from apps.users.auth_policy import SUSPENDED_ACCOUNT_MESSAGE
 
 _AUTH_PREFIX = "/api/v1/auth/"
 _DETAIL = "Invalid credentials."
@@ -30,6 +31,20 @@ def _should_mask_path(path: str) -> bool:
     if sub.startswith("register"):
         return True
     return False
+
+
+def _extract_detail_message(payload: object) -> str | None:
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, list) and payload:
+        return str(payload[0])
+    if isinstance(payload, dict):
+        for key in ("detail", "non_field_errors"):
+            if key in payload:
+                message = _extract_detail_message(payload[key])
+                if message:
+                    return message
+    return None
 
 
 def auth_safe_exception_handler(exc, context):
@@ -62,6 +77,14 @@ def auth_safe_exception_handler(exc, context):
         auth_logging.log_register_failure(phone, response.status_code)
         return response
     
+    exposed = _extract_detail_message(exc.detail if isinstance(exc, ValidationError) else None)
+    if exposed is None and response is not None:
+        exposed = _extract_detail_message(response.data)
+
+    if exposed == SUSPENDED_ACCOUNT_MESSAGE:
+        auth_logging.log_token_failure(phone, response.status_code)
+        return Response({"detail": SUSPENDED_ACCOUNT_MESSAGE}, status=response.status_code)
+
     # Mask all other errors as generic "Invalid credentials."
     if sub.startswith("register"):
         auth_logging.log_register_failure(phone, response.status_code)

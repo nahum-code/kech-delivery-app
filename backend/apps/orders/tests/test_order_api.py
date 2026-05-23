@@ -251,3 +251,32 @@ class OrderApiTests(TestCase):
         )
         self.assertEqual(patch.status_code, status.HTTP_200_OK)
         self.assertEqual(patch.json()["status"], Order.Status.CANCELLED)
+
+    def test_admin_can_modify_order_items_and_address(self):
+        self.client.force_authenticate(user=self.customer)
+        created = self.client.post("/api/v1/orders/", self._order_payload(), format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        order_id = created.json()["id"]
+        original_item_id = created.json()["items"][0]["menu_item"]
+
+        self.client.force_authenticate(user=self.admin)
+        patch = self.client.patch(
+            f"/api/v1/orders/{order_id}/modify/",
+            {
+                "items": [{"menu_item_id": original_item_id, "quantity": 3}],
+                "delivery_address": {
+                    "receiver_name": "Updated Name",
+                    "phone": "+212600000099",
+                    "address_line": "New street 42",
+                    "landmark": "Gate B",
+                },
+                "customer_note": "Admin adjusted order",
+            },
+            format="json",
+        )
+        self.assertEqual(patch.status_code, status.HTTP_200_OK)
+        body = patch.json()
+        self.assertEqual(body["items"][0]["quantity"], 3)
+        self.assertEqual(body["delivery_address"]["receiver_name"], "Updated Name")
+        self.assertEqual(body["customer_note"], "Admin adjusted order")
+        self.assertNotEqual(body["subtotal"], created.json()["subtotal"])

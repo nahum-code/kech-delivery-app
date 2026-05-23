@@ -6,10 +6,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const accessToken = request.cookies.get("kech_sales_access_token")?.value;
 
-  if (pathname === "/login") {
-    return accessToken
-      ? NextResponse.redirect(new URL("/dashboard", request.url))
-      : NextResponse.next();
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
+    if (accessToken && pathname === "/login") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
   }
 
   const isProtected = PROTECTED_PATHS.some(
@@ -28,5 +29,13 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/create-order/:path*", "/catalog/:path*", "/assign-driver/:path*", "/monitor-orders/:path*", "/login"],
+  matcher: [
+    "/dashboard/:path*",
+    "/create-order/:path*",
+    "/catalog/:path*",
+    "/assign-driver/:path*",
+    "/monitor-orders/:path*",
+    "/login",
+    "/login/:path*",
+  ],
 };

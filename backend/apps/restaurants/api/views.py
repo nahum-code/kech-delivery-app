@@ -56,7 +56,8 @@ class RestaurantListCreateView(APIView):
                 Q(name__icontains=search)
                 | Q(address_text__icontains=search)
                 | Q(phone__icontains=search)
-            )
+                | Q(menu_items__name__icontains=search)
+            ).distinct()
         serializer = RestaurantListSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 

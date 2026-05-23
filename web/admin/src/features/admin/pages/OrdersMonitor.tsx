@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Eye, RefreshCw, Search, ShieldAlert } from "lucide-react";
+import { Eye, Pencil, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -49,6 +49,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { OrderModifyDialog } from "../components/OrderModifyDialog";
 
 const STATUS_OPTIONS = [
   "all",
@@ -129,6 +130,7 @@ export function OrdersMonitor() {
   const [pendingStatus, setPendingStatus] = useState("");
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,6 +227,8 @@ export function OrdersMonitor() {
   };
 
   const canCancel =
+    detail != null && detail.status !== "cancelled" && detail.status !== "delivered";
+  const canModify =
     detail != null && detail.status !== "cancelled" && detail.status !== "delivered";
 
   return (
@@ -374,15 +378,18 @@ export function OrdersMonitor() {
         }}
       >
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          {detail && (
-            <>
-              <SheetHeader>
-                <SheetTitle>{detail.reference}</SheetTitle>
-                <div className="mt-2">
-                  <OrderChannelBadge order={detail} />
-                </div>
-              </SheetHeader>
-              <div className="mt-6 space-y-4 text-sm">
+          <SheetHeader>
+            <SheetTitle>
+              {detail?.reference ?? (selectedId != null ? `Order #${selectedId}` : "Order details")}
+            </SheetTitle>
+            {detail ? (
+              <div className="mt-2">
+                <OrderChannelBadge order={detail} />
+              </div>
+            ) : null}
+          </SheetHeader>
+          {detail ? (
+            <div className="mt-6 space-y-4 text-sm">
                 <p>
                   <span className="text-gray-500">Status:</span>{" "}
                   <Badge variant="outline" className={statusBadgeClass(detail.status)}>
@@ -443,15 +450,27 @@ export function OrdersMonitor() {
                         </Button>
                       </div>
                     </div>
-                    {canCancel && (
-                      <Button
-                        variant="outline"
-                        className="w-full border-red-300 text-red-700 hover:bg-red-50"
-                        onClick={() => setCancelDialogOpen(true)}
-                      >
-                        Cancel order
-                      </Button>
-                    )}
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      {canModify && (
+                        <Button
+                          variant="outline"
+                          className="flex-1 border-[#800020]/40 text-[#800020] hover:bg-[#fdf8f9]"
+                          onClick={() => setModifyDialogOpen(true)}
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Modify order
+                        </Button>
+                      )}
+                      {canCancel && (
+                        <Button
+                          variant="outline"
+                          className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                          onClick={() => setCancelDialogOpen(true)}
+                        >
+                          Cancel order
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
                 <div className="space-y-3 border-t pt-4">
@@ -505,10 +524,22 @@ export function OrdersMonitor() {
                   </div>
                 </div>
               </div>
-            </>
+          ) : (
+            <p className="mt-6 text-sm text-gray-500">Loading order details…</p>
           )}
         </SheetContent>
       </Sheet>
+
+      <OrderModifyDialog
+        order={detail}
+        open={modifyDialogOpen}
+        onOpenChange={setModifyDialogOpen}
+        onSaved={(updated) => {
+          setDetail(updated);
+          setPendingStatus(updated.status);
+          void load();
+        }}
+      />
 
       <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
         <AlertDialogContent>

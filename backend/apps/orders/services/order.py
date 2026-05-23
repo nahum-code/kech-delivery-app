@@ -21,6 +21,19 @@ from core.models import User
 DEFAULT_DELIVERY_FEE = Decimal("25.00")
 MAX_ACTIVE_DRIVER_ORDERS = 5
 
+ADMIN_MODIFIABLE_STATUSES = frozenset(
+    {
+        Order.Status.PENDING,
+        Order.Status.CONFIRMED,
+        Order.Status.PREPARING,
+        Order.Status.READY_FOR_PICKUP,
+        Order.Status.ASSIGNED,
+        Order.Status.DECLINED,
+        Order.Status.PICKED_UP,
+        Order.Status.DELIVERING,
+    }
+)
+
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
     Order.Status.PENDING: {Order.Status.CONFIRMED, Order.Status.CANCELLED},
     Order.Status.CONFIRMED: {Order.Status.PREPARING, Order.Status.CANCELLED},
@@ -189,6 +202,83 @@ def create_order(
     order.subtotal = subtotal
     order.total_amount = subtotal + pricing.delivery_fee
     order.save(update_fields=["subtotal", "total_amount", "updated_at"])
+    return order
+
+
+def _replace_order_items(*, order: Order, items: list[dict[str, Any]]) -> Decimal:
+    """Replace line items and return new subtotal."""
+    if not items:
+        raise OrderServiceError("At least one menu item is required.")
+
+    restaurant = order.restaurant
+    order.items.all().delete()
+    subtotal = Decimal("0.00")
+    for line in items:
+        menu_item_id = line.get("menu_item_id")
+        quantity = int(line.get("quantity") or 0)
+        if quantity < 1:
+            raise OrderServiceError("Item quantity must be at least 1.")
+        try:
+            menu_item = MenuItem.objects.select_related("category").get(
+                pk=menu_item_id,
+                restaurant=restaurant,
+                is_available=True,
+                category__is_active=True,
+            )
+        except MenuItem.DoesNotExist as exc:
+            raise OrderServiceError(f"Menu item {menu_item_id} is unavailable.", status_code=400) from exc
+
+        unit = menu_item.price
+        line_total = unit * quantity
+        subtotal += line_total
+        OrderItem.objects.create(
+            order=order,
+            menu_item=menu_item,
+            item_name=menu_item.name,
+            quantity=quantity,
+            unit_price=unit,
+            total_price=line_total,
+        )
+    return subtotal
+
+
+@transaction.atomic
+def modify_order(
+    *,
+    order: Order,
+    items: list[dict[str, Any]] | None = None,
+    delivery_address: dict[str, Any] | None = None,
+    customer_note: str | None = None,
+) -> Order:
+    if order.is_terminal:
+        raise OrderServiceError("Delivered or cancelled orders cannot be modified.", status_code=409)
+
+    if order.status not in ADMIN_MODIFIABLE_STATUSES:
+        raise OrderServiceError("This order can no longer be modified.", status_code=409)
+
+    update_fields = ["updated_at"]
+
+    if delivery_address is not None:
+        validated_address = _validate_delivery_address(delivery_address)
+        order.delivery_address = validated_address
+        pricing = _pricing_for(order.restaurant, validated_address)
+        order.delivery_fee = pricing.delivery_fee
+        order.driver_payout = pricing.driver_payout
+        order.platform_fee = pricing.platform_fee
+        update_fields.extend(["delivery_address", "delivery_fee", "driver_payout", "platform_fee"])
+
+    if customer_note is not None:
+        order.customer_note = (customer_note or "").strip()
+        update_fields.append("customer_note")
+
+    if items is not None:
+        subtotal = _replace_order_items(order=order, items=items)
+        order.subtotal = subtotal
+        order.total_amount = subtotal + order.delivery_fee
+        update_fields.extend(["subtotal", "total_amount"])
+
+    order.updated_at = timezone.now()
+    order.save(update_fields=list(dict.fromkeys(update_fields)))
     return order
 
 

@@ -60,6 +60,7 @@ class CustomerRegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=150)
+    email = serializers.EmailField()
 
     def validate_phone(self, value: str) -> str:
         normalized = normalize_phone(value)
@@ -78,10 +79,11 @@ class CustomerRegisterSerializer(serializers.Serializer):
         phone = validated_data["phone"]
         password = validated_data["password"]
         name = validated_data["name"]
+        email = validated_data["email"].strip().lower()
 
         with transaction.atomic():
             user = User.objects.create_user(phone=phone, password=password, role=User.Role.CUSTOMER)
-            CustomerProfile.objects.create(user=user, full_name=name)
+            CustomerProfile.objects.create(user=user, full_name=name, email=email)
             return user
 
 
@@ -133,6 +135,7 @@ class SalesAgentCreateSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=150)
+    recovery_email = serializers.EmailField(required=False, allow_blank=True)
 
     def validate_phone(self, value: str) -> str:
         return normalize_phone(value)
@@ -152,14 +155,50 @@ class SalesAgentCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         name = validated_data.pop("name").strip()
+        recovery_email = (validated_data.pop("recovery_email", "") or "").strip()
         with transaction.atomic():
             user = User.objects.create_user(
                 phone=validated_data["phone"],
                 password=validated_data["password"],
                 role=User.Role.SALES,
+                recovery_email=recovery_email,
             )
             SalesProfile.objects.create(user=user, full_name=name)
             return user
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=32)
+    email = serializers.EmailField()
+    code = serializers.CharField(min_length=4, max_length=8)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_new_password(self, value: str) -> str:
+        try:
+            validate_password(value)
+        except DjangoValidationError as e:
+            raise ValidationError(list(e.messages)) from e
+        return value
+
+
+class CustomerMeUpdateSerializer(serializers.Serializer):
+    """PATCH /auth/me — customer profile fields."""
+
+    full_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    recovery_email = serializers.EmailField(required=False, allow_blank=True)
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    refresh = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_refresh(self, value: str) -> str:
+        return (value or "").strip()
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -169,7 +208,17 @@ class MeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "phone", "role", "is_active", "is_staff", "is_superuser", "created_at", "profile")
+        fields = (
+            "id",
+            "phone",
+            "role",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "created_at",
+            "recovery_email",
+            "profile",
+        )
         read_only_fields = fields
 
     def get_profile(self, obj: User) -> dict:
@@ -177,8 +226,12 @@ class MeSerializer(serializers.ModelSerializer):
             try:
                 cp = obj.customer_profile
             except CustomerProfile.DoesNotExist:
-                return {"type": "customer", "full_name": None}
-            return {"type": "customer", "full_name": cp.full_name}
+                return {"type": "customer", "full_name": None, "email": None}
+            return {
+                "type": "customer",
+                "full_name": cp.full_name,
+                "email": cp.email or None,
+            }
 
         if obj.role == User.Role.DRIVER:
             try:
@@ -223,7 +276,13 @@ class UserListSerializer(serializers.ModelSerializer):
         return None
 
     def get_status(self, obj: User) -> str:
-        return "active" if obj.is_active else "inactive"
+        if not obj.is_active:
+            return "inactive"
+        if obj.role == User.Role.DRIVER:
+            profile = getattr(obj, "driver_profile", None)
+            if profile and profile.approval_status == DriverProfile.ApprovalStatus.SUSPENDED:
+                return "suspended"
+        return "active"
 
 
 class CustomerSearchSerializer(serializers.ModelSerializer):

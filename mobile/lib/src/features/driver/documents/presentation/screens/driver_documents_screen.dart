@@ -5,12 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../shared/contracts/login_result.dart';
-import '../../../../../shared/theme/customer_registration_tokens.dart';
 import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../../onboarding/navigation/driver_onboarding_exit.dart';
 import '../../../otp/navigation/driver_otp_navigation.dart';
+import '../widgets/driver_document_upload_card.dart';
 
 /// Upload required driver verification documents before OTP.
 class DriverDocumentsScreen extends StatefulWidget {
@@ -91,54 +91,108 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final int selectedCount = _paths.values.where((String? p) => p != null).length;
+
     return Scaffold(
       backgroundColor: DriverAppTokens.screenBackground,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: DriverAppTokens.screenBackground,
         elevation: 0,
-        foregroundColor: CustomerRegistrationTokens.primaryMaroon,
-        title: const Text('Verification documents', style: TextStyle(fontWeight: FontWeight.w800)),
+        scrolledUnderElevation: 0,
+        foregroundColor: DriverAppTokens.primary,
+        title: const Text(
+          'Verification documents',
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: DriverAppTokens.ink,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close_rounded),
           onPressed: () => DriverOnboardingExit.toRoleSelection(context),
         ),
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              const Text(
-                'Upload clear photos of each document. Max 5 MB per file (JPEG/PNG/PDF).',
-                style: TextStyle(color: CustomerRegistrationTokens.labelGray, height: 1.4),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: DriverAppTokens.routeBox,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE8C4CC)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.info_outline_rounded, color: DriverAppTokens.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            'Upload clear photos',
+                            style: TextStyle(
+                              color: DriverAppTokens.ink,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Each document must be readable and under 5 MB (JPEG, PNG, or PDF).',
+                            style: TextStyle(
+                              color: DriverAppTokens.bodyGray,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
+              Text(
+                '$selectedCount of ${_docs.length} added',
+                style: const TextStyle(
+                  color: DriverAppTokens.bodyGray,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
               Expanded(
                 child: ListView.separated(
                   itemCount: _docs.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 14),
                   itemBuilder: (BuildContext context, int index) {
                     final (_DocMeta type, String title, IconData icon) = _docs[index];
-                    final bool hasFile = _paths[type] != null;
-                    final bool uploading = _uploadingType == type;
-                    return ListTile(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      tileColor: const Color(0xFFF3E8EB),
-                      leading: Icon(icon, color: CustomerRegistrationTokens.primaryMaroon),
-                      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: Text(hasFile ? 'Ready to upload' : 'Tap to select file'),
-                      trailing: uploading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              hasFile ? Icons.check_circle : Icons.upload_file_rounded,
-                              color: hasFile ? Colors.green : CustomerRegistrationTokens.primaryMaroon,
-                            ),
-                      onTap: _submitting ? null : () => _pick(type),
+                    final String? path = _paths[type];
+                    return DriverDocumentUploadCard(
+                      title: title,
+                      icon: icon,
+                      hasFile: path != null,
+                      filePath: path,
+                      uploading: _uploadingType == type,
+                      enabled: !_submitting,
+                      onTap: () => _pick(type),
                     );
                   },
                 ),
@@ -148,14 +202,15 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                 loading: _submitting,
                 onPressed: _submitting ? null : _submit,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               TextButton(
                 onPressed: _submitting ? null : () => DriverOnboardingExit.toRoleSelection(context),
-                child: Text(
+                child: const Text(
                   'Continue as customer instead',
                   style: TextStyle(
-                    color: CustomerRegistrationTokens.primaryMaroon,
-                    fontWeight: FontWeight.w600,
+                    color: DriverAppTokens.primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
                   ),
                 ),
               ),

@@ -2,11 +2,13 @@ from django.conf import settings
 from django.urls import path
 
 from .otp_views import DriverOnboardingOtpSendView, DriverOnboardingOtpVerifyView
+from .password_reset_views import PasswordResetConfirmView, PasswordResetRequestView
 from .views import (
     AdminUsersListView,
     CreateSalesAgentView,
     CustomerRegisterView,
     CustomerSearchView,
+    DeleteAccountView,
     DriverRegisterView,
     LogoutView,
     MeView,
@@ -18,6 +20,16 @@ from .views import (
 )
 
 urlpatterns = [
+    path(
+        "password-reset/request/",
+        PasswordResetRequestView.as_view(),
+        name="password_reset_request",
+    ),
+    path(
+        "password-reset/confirm/",
+        PasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
     path("token/", PhoneTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", RestrictedTokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", ThrottledTokenVerifyView.as_view(), name="token_verify"),
@@ -50,6 +62,8 @@ urlpatterns = [
     ),
     path("logout", LogoutView.as_view(), name="logout"),
     path("me", MeView.as_view(), name="me"),
+    path("me/delete", DeleteAccountView.as_view(), name="me_delete"),
+    path("me/delete/", DeleteAccountView.as_view(), name="me_delete_slash"),
     path("staff/ops-check", StaffOpsCheckView.as_view(), name="staff_ops_check"),
 ]
 

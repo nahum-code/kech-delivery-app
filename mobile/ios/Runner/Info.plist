@@ -61,6 +61,10 @@
 	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Kech uses your location to show nearby delivery options and route orders accurately.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Kech needs camera access so you can take a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kech needs photo library access so you can choose a profile photo.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

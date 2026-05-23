@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.drivers.models import DriverProfile
+from django.db.models import Count
+
+from apps.drivers.models import DriverDocument, DriverProfile
 from apps.drivers.services.approval import (
     DriverApprovalError,
     approve_driver,
+    reactivate_driver,
     reject_driver,
     suspend_driver,
 )
@@ -20,6 +24,7 @@ from .serializers import (
     PendingDriverSerializer,
     RejectDriverSerializer,
     SuspendDriverSerializer,
+    SuspendedDriverSerializer,
 )
 
 
@@ -78,9 +83,25 @@ class PendingDriversListView(APIView):
         queryset = (
             DriverProfile.objects.filter(approval_status=DriverProfile.ApprovalStatus.PENDING)
             .select_related("user")
+            .annotate(uploaded_document_count=Count("user__driver_documents", distinct=True))
             .order_by("-created_at")
         )
         serializer = PendingDriverSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class SuspendedDriversListView(APIView):
+    """GET /api/v1/admin/drivers/suspended/ — admin only."""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def get(self, request, *args, **kwargs):
+        queryset = (
+            DriverProfile.objects.filter(approval_status=DriverProfile.ApprovalStatus.SUSPENDED)
+            .select_related("user")
+            .order_by("-suspended_at")
+        )
+        serializer = SuspendedDriverSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -138,6 +159,57 @@ class SuspendDriverView(APIView):
             return Response({"detail": exc.message}, status=exc.status_code)
 
         return _action_response(profile, "Driver suspended successfully.")
+
+
+class AdminDriverDocumentsView(APIView):
+    """GET /api/v1/admin/drivers/{id}/documents/ — admin review of onboarding uploads."""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def get(self, request, user_id: int, *args, **kwargs):
+        profile = get_object_or_404(
+            DriverProfile.objects.select_related("user"),
+            user_id=user_id,
+        )
+        documents = []
+        for doc in DriverDocument.objects.filter(user_id=user_id).order_by("document_type"):
+            file_url = None
+            is_pdf = False
+            if doc.file:
+                file_url = request.build_absolute_uri(doc.file.url)
+                is_pdf = doc.file.name.lower().endswith(".pdf")
+            documents.append(
+                {
+                    "document_type": doc.document_type,
+                    "document_type_label": doc.get_document_type_display(),
+                    "file_url": file_url,
+                    "uploaded_at": doc.uploaded_at,
+                    "is_pdf": is_pdf,
+                }
+            )
+        return Response(
+            {
+                "user_id": user_id,
+                "full_name": profile.full_name or "",
+                "phone": profile.user.phone,
+                "documents_submitted": profile.documents_submitted_at is not None,
+                "documents": documents,
+            }
+        )
+
+
+class ReactivateDriverView(APIView):
+    """POST /api/v1/admin/drivers/{id}/reactivate/ — restores approved status."""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def post(self, request, user_id: int, *args, **kwargs):
+        try:
+            profile = reactivate_driver(user_id=user_id, admin=request.user)
+        except DriverApprovalError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+
+        return _action_response(profile, "Driver reactivated successfully.")
 
 
 class DriverStatusView(APIView):

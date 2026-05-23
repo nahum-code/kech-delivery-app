@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.drivers.models import DriverProfile
+from apps.users.auth_policy import SUSPENDED_ACCOUNT_MESSAGE
 from core.models import User
 
 
@@ -30,7 +31,12 @@ class AuthApiTests(TestCase):
     def test_customer_register_token_me(self):
         reg = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+10000000001", "password": "ComplexPass1!", "name": "Ada"},
+            {
+                "phone": "+10000000001",
+                "password": "ComplexPass1!",
+                "name": "Ada",
+                "email": "ada@example.com",
+            },
             format="json",
         )
         self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
@@ -52,16 +58,27 @@ class AuthApiTests(TestCase):
         self.assertEqual(me.status_code, status.HTTP_200_OK)
         self.assertEqual(me.json()["phone"], "+10000000001")
         self.assertEqual(me.json()["profile"]["full_name"], "Ada")
+        self.assertEqual(me.json()["profile"]["email"], "ada@example.com")
 
     def test_phone_normalization_duplicate_blocked(self):
         self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+10000000005", "password": "ComplexPass1!", "name": "A"},
+            {
+                "phone": "+10000000005",
+                "password": "ComplexPass1!",
+                "name": "A",
+                "email": "a@example.com",
+            },
             format="json",
         )
         dup = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+10000000005", "password": "ComplexPass1!", "name": "B"},
+            {
+                "phone": "+10000000005",
+                "password": "ComplexPass1!",
+                "name": "B",
+                "email": "b@example.com",
+            },
             format="json",
         )
         self.assertEqual(dup.status_code, status.HTTP_400_BAD_REQUEST)
@@ -85,6 +102,30 @@ class AuthApiTests(TestCase):
         pair = self._obtain_token("+20000000002", "ComplexPass1!")
         self.assertIn(pair.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED))
         self.assertEqual(pair.json().get("detail"), "Invalid credentials.")
+
+    def test_suspended_driver_cannot_obtain_tokens(self):
+        self.client.post(
+            "/api/v1/auth/register/driver",
+            {
+                "phone": "+20000000004",
+                "password": "ComplexPass1!",
+                "name": "Suspended",
+                "email": "suspended@example.com",
+                "vehicle_type": "sedan",
+            },
+            format="json",
+        )
+        user = User.objects.get(phone="+20000000004")
+        dp = user.driver_profile
+        dp.approval_status = DriverProfile.ApprovalStatus.APPROVED
+        dp.save(update_fields=["approval_status"])
+        dp.approval_status = DriverProfile.ApprovalStatus.SUSPENDED
+        dp.suspension_reason = "Policy violation"
+        dp.save(update_fields=["approval_status", "suspension_reason"])
+
+        pair = self._obtain_token("+20000000004", "ComplexPass1!")
+        self.assertIn(pair.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED))
+        self.assertEqual(pair.json().get("detail"), SUSPENDED_ACCOUNT_MESSAGE)
 
     def test_driver_approved_token_refresh_logout(self):
         self.client.post(
@@ -284,6 +325,135 @@ class AuthApiTests(TestCase):
         self.assertTrue(any(item["user_id"] == older.id for item in by_name.json()))
         self.assertFalse(any(item["user_id"] == newer.id for item in by_name.json()))
 
+    def test_admin_user_list_shows_suspended_driver_status(self):
+        admin = User.objects.create_user(
+            phone="+50000000020",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        driver = User.objects.create_user(
+            phone="+50000000021",
+            password="ComplexPass1!",
+            role=User.Role.DRIVER,
+        )
+        profile, _ = DriverProfile.objects.get_or_create(
+            user=driver,
+            defaults={"full_name": "Suspended Driver"},
+        )
+        profile.approval_status = DriverProfile.ApprovalStatus.SUSPENDED
+        profile.suspension_reason = "Policy violation"
+        profile.save(update_fields=["approval_status", "suspension_reason"])
+
+        self.client.force_authenticate(user=admin)
+        res = self.client.get("/api/v1/auth/users/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        payload = next(item for item in res.json() if item["user_id"] == driver.id)
+        self.assertEqual(payload["status"], "suspended")
+
+    def test_customer_with_pending_order_can_delete_account(self):
+        from apps.orders.models import Order
+        from apps.restaurants.models import MenuCategory, MenuItem, Restaurant
+        from decimal import Decimal
+
+        reg = self.client.post(
+            "/api/v1/auth/register/customer",
+            {"phone": "+10000000051", "password": "ComplexPass1!", "name": "Pending Cart"},
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(phone="+10000000051")
+        rest = Restaurant.objects.create(name="R2", latitude=1, longitude=1, is_active=True)
+        cat = MenuCategory.objects.create(restaurant=rest, name="C")
+        MenuItem.objects.create(
+            restaurant=rest,
+            category=cat,
+            name="Item",
+            price=Decimal("10"),
+            is_available=True,
+        )
+        Order.objects.create(
+            reference="KD-PEND",
+            customer=user,
+            restaurant=rest,
+            status=Order.Status.PENDING,
+            subtotal=Decimal("10"),
+            delivery_fee=Decimal("5"),
+            total_amount=Decimal("15"),
+            delivery_address={
+                "receiver_name": "A",
+                "phone": "+10000000051",
+                "address_line": "Line",
+            },
+        )
+        pair = self._obtain_token("+10000000051", "ComplexPass1!")
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.json()['access']}")
+        res = self.client.post(
+            "/api/v1/auth/me/delete",
+            {"refresh": pair.json()["refresh"]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.get(phone="+10000000051").is_active)
+
+    def test_customer_can_delete_own_account(self):
+        reg = self.client.post(
+            "/api/v1/auth/register/customer",
+            {
+                "phone": "+10000000050",
+                "password": "ComplexPass1!",
+                "name": "Delete Me",
+                "email": "delete@example.com",
+            },
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        pair = self._obtain_token("+10000000050", "ComplexPass1!")
+        refresh = pair.json()["refresh"]
+        access = pair.json()["access"]
+
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access}")
+        res = self.client.post("/api/v1/auth/me/delete", {"refresh": refresh}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        user = User.objects.get(phone="+10000000050")
+        self.assertFalse(user.is_active)
+
+        blocked = self._obtain_token("+10000000050", "ComplexPass1!")
+        self.assertIn(blocked.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED))
+
+    def test_driver_can_delete_own_account(self):
+        from apps.drivers.services.approval import approve_driver
+
+        reg = self.client.post(
+            "/api/v1/auth/register/driver",
+            {
+                "phone": "+20000000050",
+                "password": "ComplexPass1!",
+                "name": "Driver Delete",
+                "email": "del@example.com",
+                "vehicle_type": "sedan",
+            },
+            format="json",
+        )
+        self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(phone="+20000000050")
+        admin = User.objects.create_user(
+            phone="+60000000099",
+            password="ComplexPass1!",
+            role=User.Role.ADMIN,
+        )
+        approve_driver(user_id=user.id, admin=admin)
+        pair = self._obtain_token("+20000000050", "ComplexPass1!")
+        self.assertEqual(pair.status_code, status.HTTP_200_OK)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {pair.json()['access']}")
+        res = self.client.post(
+            "/api/v1/auth/me/delete/",
+            {"refresh": pair.json()["refresh"]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertFalse(User.objects.get(phone="+20000000050").is_active)
+
     def test_non_admin_cannot_list_users(self):
         customer = User.objects.create_user(
             phone="+50000000004",
@@ -297,7 +467,12 @@ class AuthApiTests(TestCase):
     def test_sales_can_search_customers_by_phone_and_name(self):
         reg = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+19998887777", "password": "ComplexPass1!", "name": "Zara Customer"},
+            {
+                "phone": "+19998887777",
+                "password": "ComplexPass1!",
+                "name": "Zara Customer",
+                "email": "zara@example.com",
+            },
             format="json",
         )
         self.assertEqual(reg.status_code, status.HTTP_201_CREATED)
@@ -322,7 +497,12 @@ class AuthApiTests(TestCase):
     def test_customer_cannot_search_customers(self):
         reg = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+19998887778", "password": "ComplexPass1!", "name": "Bob"},
+            {
+                "phone": "+19998887778",
+                "password": "ComplexPass1!",
+                "name": "Bob",
+                "email": "bob@example.com",
+            },
             format="json",
         )
         pair = self._obtain_token("+19998887778", "ComplexPass1!")

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../../shared/theme/customer_location_access_tokens.dart';
 import '../../../../../shared/widgets/location_access/location_access_bottom_card.dart';
 import '../../../../../shared/widgets/location_access/location_access_brand_header.dart';
 import '../../../../../shared/widgets/location_access/location_access_hero_copy_block.dart';
 import '../../../../../shared/widgets/location_access/location_access_map_backdrop.dart';
+import '../../../../auth/data/auth_repository.dart';
 import '../../../auth/login/navigation/customer_auth_navigation.dart';
+import '../../application/customer_location_onboarding_store.dart';
 import '../../application/customer_location_permission_coordinator.dart';
 import '../../../add_address/presentation/screens/customer_add_address_screen.dart';
 
@@ -19,6 +22,22 @@ class CustomerLocationAccessScreen extends StatefulWidget {
 class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScreen> {
   bool _allowLocationBusy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _redirectIfAlreadyComplete());
+  }
+
+  Future<void> _redirectIfAlreadyComplete() async {
+    final AuthRepository auth = context.read<AuthRepository>();
+    if (await CustomerLocationOnboardingStore.shouldSkipPrompt(auth: auth)) {
+      if (!mounted) {
+        return;
+      }
+      CustomerAuthNavigation.replaceWithCustomerHome(context);
+    }
+  }
+
   void _toast(BuildContext context, String message) {
     final ScaffoldMessengerState? messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) {
@@ -26,6 +45,18 @@ class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScr
       return;
     }
     messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _markLocationChoiceComplete() async {
+    await context.read<AuthRepository>().markCustomerLocationOnboardingComplete();
+  }
+
+  Future<void> _finishToHome() async {
+    await _markLocationChoiceComplete();
+    if (!mounted) {
+      return;
+    }
+    CustomerAuthNavigation.replaceWithCustomerHome(context);
   }
 
   Future<void> _onAllowLocation() async {
@@ -41,16 +72,18 @@ class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScr
 
     switch (outcome) {
       case CustomerLocationWhenInUseOutcome.granted:
-        CustomerAuthNavigation.replaceWithCustomerHome(context);
+        await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.denied:
         _toast(context, 'Location is off. You can enable it in settings or pick an address manually.');
+        await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.permanentlyDenied:
         await _offerOpenSettings(context);
         return;
       case CustomerLocationWhenInUseOutcome.restricted:
         _toast(context, 'Location is restricted on this device. Try selecting an address manually.');
+        await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.serviceError:
         _toast(context, 'We could not request location access. Please try again or select manually.');
@@ -80,7 +113,11 @@ class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScr
         );
       },
     );
-    if (!context.mounted || shouldOpen != true) {
+    if (!context.mounted) {
+      return;
+    }
+    if (shouldOpen != true) {
+      await _finishToHome();
       return;
     }
     final bool opened = await CustomerLocationPermissionCoordinator.openSystemSettings();
@@ -93,7 +130,11 @@ class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScr
   }
 
   Future<void> _onSelectManually() async {
-    await Navigator.of(context).push<void>(
+    await _markLocationChoiceComplete();
+    if (!mounted) {
+      return;
+    }
+    await Navigator.of(context).pushReplacement<void, void>(
       MaterialPageRoute<void>(
         builder: (BuildContext _) => const CustomerAddAddressScreen(),
       ),

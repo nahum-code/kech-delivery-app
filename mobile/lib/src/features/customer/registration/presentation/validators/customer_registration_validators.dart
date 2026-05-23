@@ -12,6 +12,18 @@ abstract final class CustomerRegistrationValidators {
     return null;
   }
 
+  static String? email(String? raw) {
+    final String value = raw?.trim() ?? '';
+    if (value.isEmpty) {
+      return 'Enter your email';
+    }
+    final RegExp pattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    if (!pattern.hasMatch(value)) {
+      return 'Enter a valid email address';
+    }
+    return null;
+  }
+
   static String? phone(String? raw) {
     try {
       PhoneNormalizer.toE164(raw ?? '');

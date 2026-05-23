@@ -4,7 +4,7 @@ from rest_framework.request import Request as DRFRequest
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
 from apps.drivers.models import DriverProfile
-from apps.drivers.services.approval import approve_driver
+from apps.drivers.services.approval import approve_driver, suspend_driver
 from apps.users.permissions import IsApprovedDriver
 from core.models import User
 
@@ -129,6 +129,58 @@ class DriverApprovalApiTests(TestCase):
         profile = DriverProfile.objects.get(user_id=reg["id"])
         self.assertEqual(profile.approval_status, DriverProfile.ApprovalStatus.SUSPENDED)
         self.assertEqual(profile.suspension_reason, "Policy violation")
+
+    def test_admin_can_list_suspended_drivers(self):
+        reg = self._register_driver("+61000000031")
+        user = User.objects.get(id=reg["id"])
+        approve_driver(user_id=user.id, admin=self.admin)
+        suspend_driver(
+            user_id=user.id,
+            admin=self.admin,
+            suspension_reason="Policy violation",
+        )
+        self._admin_auth()
+        res = self.client.get("/api/v1/admin/drivers/suspended/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()), 1)
+        self.assertEqual(res.json()[0]["user_id"], reg["id"])
+        self.assertEqual(res.json()[0]["suspension_reason"], "Policy violation")
+
+    def test_admin_can_list_driver_documents(self):
+        from apps.drivers.models import DriverDocument
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        reg = self._register_driver("+61000000033")
+        user = User.objects.get(id=reg["id"])
+        DriverDocument.objects.create(
+            user=user,
+            document_type=DriverDocument.DocumentType.LICENSE,
+            file=SimpleUploadedFile("license.jpg", b"fake-image", content_type="image/jpeg"),
+        )
+        self._admin_auth()
+        res = self.client.get(f"/api/v1/admin/drivers/{reg['id']}/documents/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.json()["documents"]), 1)
+        self.assertIn("file_url", res.json()["documents"][0])
+
+    def test_admin_can_reactivate_suspended_driver(self):
+        reg = self._register_driver("+61000000032")
+        user = User.objects.get(id=reg["id"])
+        approve_driver(user_id=user.id, admin=self.admin)
+        suspend_driver(
+            user_id=user.id,
+            admin=self.admin,
+            suspension_reason="Temporary hold",
+        )
+        self._admin_auth()
+        res = self.client.post(f"/api/v1/admin/drivers/{reg['id']}/reactivate/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.json()["approval_status"], "approved")
+        profile = DriverProfile.objects.get(user_id=reg["id"])
+        self.assertEqual(profile.approval_status, DriverProfile.ApprovalStatus.APPROVED)
+        self.assertIsNone(profile.suspended_at)
+        self.assertEqual(profile.suspension_reason, "")
+        self.assertEqual(profile.operational_status, DriverProfile.OperationalStatus.OFFLINE)
 
 
 class IsApprovedDriverPermissionTests(TestCase):
@@ -264,7 +316,12 @@ class SafeJWTAuthenticationTests(TestCase):
     def test_customer_auth_unaffected_by_safe_jwt(self):
         reg = self.client.post(
             "/api/v1/auth/register/customer",
-            {"phone": "+63000000040", "password": "ComplexPass1!", "name": "Cust"},
+            {
+                "phone": "+63000000040",
+                "password": "ComplexPass1!",
+                "name": "Cust",
+                "email": "cust@example.com",
+            },
             format="json",
         )
         access = self._token_for("+63000000040")

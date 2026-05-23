@@ -12,6 +12,7 @@ from apps.drivers.models import DriverProfile
 from core.models import User
 
 _CLIENT_MSG = "Invalid credentials."
+SUSPENDED_ACCOUNT_MESSAGE = "Your account is suspended."
 
 
 def assert_jwt_eligible(user: User) -> None:
@@ -34,6 +35,9 @@ def assert_jwt_eligible(user: User) -> None:
 
     if profile.approval_status == DriverProfile.ApprovalStatus.APPROVED:
         return
+
+    if profile.approval_status == DriverProfile.ApprovalStatus.SUSPENDED:
+        raise ValidationError(SUSPENDED_ACCOUNT_MESSAGE)
 
     raise ValidationError(_CLIENT_MSG)
 

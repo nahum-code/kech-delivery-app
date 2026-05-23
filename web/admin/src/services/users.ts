@@ -5,7 +5,7 @@ export type AdminUser = {
   phone: string;
   name: string | null;
   role: string;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "suspended";
   created_at: string;
 };
 

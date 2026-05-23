@@ -46,8 +46,12 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
     );
   }
 
+  /// Default height when none is passed (e.g. vertical lists must not use unbounded height).
+  static const double defaultHeight = 200;
+
   @override
   Widget build(BuildContext context) {
+    final double resolvedHeight = height ?? defaultHeight;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -55,7 +59,7 @@ class CustomerHomeRestaurantHighlightCard extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           width: width,
-          height: height,
+          height: resolvedHeight,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(CustomerHomeTokens.restaurantCardRadius),
             child: Stack(

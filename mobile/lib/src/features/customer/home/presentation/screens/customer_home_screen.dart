@@ -110,8 +110,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   void _openAllRestaurants() {
     Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (BuildContext _) => const CustomerRestaurantsListScreen()),
+      MaterialPageRoute<void>(
+        builder: (BuildContext _) => const CustomerRestaurantsListScreen(),
+      ),
     );
+  }
+
+  void _runSearch() {
+    final String q = _searchController.text.trim();
+    if (q.isEmpty) {
+      _toast('Type a restaurant or dish name to search.');
+      return;
+    }
+    _onSearchSubmitted(q);
   }
 
   Future<void> _refreshOrderNotifications() async {
@@ -225,6 +236,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     CustomerHomeSearchBar(
                       controller: _searchController,
                       onSubmitted: _onSearchSubmitted,
+                      onSearchTap: _runSearch,
                     ),
                     const SizedBox(height: CustomerHomeTokens.blockSpacing),
                     CustomerHomeServiceCategoryStrip(

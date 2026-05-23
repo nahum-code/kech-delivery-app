@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../auth/data/auth_repository.dart';
+import '../../../location_access/application/customer_location_onboarding_store.dart';
 import '../../../location_access/presentation/screens/customer_location_access_screen.dart';
 import '../../../shell/presentation/screens/customer_shell_screen.dart';
 import '../presentation/screens/customer_login_screen.dart';
@@ -22,6 +25,24 @@ abstract final class CustomerAuthNavigation {
         builder: (BuildContext _) => const CustomerLoginScreen(),
       ),
     );
+  }
+
+  /// After sign-in: home if location was already chosen, otherwise the location prompt.
+  static Future<void> continueAfterCustomerAuth(BuildContext context) async {
+    final AuthRepository auth = context.read<AuthRepository>();
+    if (auth.currentSession?.userId == null) {
+      replaceWithCustomerLogin(context);
+      return;
+    }
+    final bool skip = await CustomerLocationOnboardingStore.shouldSkipPrompt(auth: auth);
+    if (!context.mounted) {
+      return;
+    }
+    if (skip) {
+      replaceWithCustomerHome(context);
+    } else {
+      replaceWithCustomerLocationAccess(context);
+    }
   }
 
   static void replaceWithCustomerLocationAccess(BuildContext context) {

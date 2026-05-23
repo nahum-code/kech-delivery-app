@@ -81,6 +81,27 @@ export async function updateOrderStatus(
   });
 }
 
+export type OrderModifyPayload = {
+  items?: Array<{ menu_item_id: number; quantity: number }>;
+  delivery_address?: {
+    receiver_name: string;
+    phone: string;
+    address_line: string;
+    landmark?: string;
+  };
+  customer_note?: string;
+};
+
+export async function modifyOrder(
+  id: number,
+  payload: OrderModifyPayload,
+): Promise<OrderDetail> {
+  return requestJson<OrderDetail>(`/api/v1/orders/${id}/modify/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function assignDriver(
   orderId: number,
   driverId: number,

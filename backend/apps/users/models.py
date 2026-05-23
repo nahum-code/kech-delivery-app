@@ -17,6 +17,7 @@ class CustomerProfile(models.Model):
         related_name="customer_profile",
     )
     full_name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(max_length=254, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

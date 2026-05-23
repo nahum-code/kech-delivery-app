@@ -13,6 +13,7 @@ from apps.orders.api.serializers import (
     OrderCreateSerializer,
     OrderDetailSerializer,
     OrderListSerializer,
+    OrderModifySerializer,
     OrderStatusUpdateSerializer,
     SalesOrderCreateSerializer,
 )
@@ -35,6 +36,7 @@ from apps.orders.services.order import (
     OrderServiceError,
     create_order,
     mark_order_paid_from_payment,
+    modify_order,
     transition_order_status,
 )
 from apps.payments.services.payment import PaymentServiceError, verify_payment_for_order
@@ -205,6 +207,40 @@ class ConfirmPaymentView(APIView):
         try:
             verify_payment_for_order(order_id=order.pk, customer=request.user)
         except PaymentServiceError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+
+        order = _order_queryset().get(pk=order.pk)
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+
+class OrderModifyView(APIView):
+    permission_classes = [IsAuthenticated, CanUpdateOrderStatus]
+
+    def patch(self, request, order_id: int, *args, **kwargs):
+        try:
+            order = Order.objects.select_related("restaurant").get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        body = OrderModifySerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+
+        items_payload = None
+        if "items" in data:
+            items_payload = [
+                {"menu_item_id": line["menu_item_id"], "quantity": line["quantity"]}
+                for line in data["items"]
+            ]
+
+        try:
+            order = modify_order(
+                order=order,
+                items=items_payload,
+                delivery_address=data.get("delivery_address"),
+                customer_note=data.get("customer_note"),
+            )
+        except OrderServiceError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
 
         order = _order_queryset().get(pk=order.pk)

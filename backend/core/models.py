@@ -53,6 +53,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         SALES = "sales", "Sales"
 
     phone = models.CharField(max_length=20, unique=True)
+    recovery_email = models.EmailField(
+        max_length=254,
+        blank=True,
+        default="",
+        help_text="Staff recovery email for password reset (admin/sales).",
+    )
     role = models.CharField(
         max_length=20,
         choices=Role.choices,

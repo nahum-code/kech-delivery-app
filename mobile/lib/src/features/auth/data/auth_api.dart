@@ -28,11 +28,17 @@ final class AuthApi {
     required String phone,
     required String password,
     required String name,
+    required String email,
   }) {
     return _client.post(
       _u('/api/v1/auth/register/customer'),
       headers: _jsonHeaders,
-      body: jsonEncode(<String, String>{'phone': phone, 'password': password, 'name': name}),
+      body: jsonEncode(<String, String>{
+        'phone': phone,
+        'password': password,
+        'name': name,
+        'email': email,
+      }),
     );
   }
 
@@ -43,6 +49,28 @@ final class AuthApi {
         ..._jsonHeaders,
         HttpHeaders.authorizationHeader: 'Bearer $accessToken',
       },
+    );
+  }
+
+  Future<http.Response> patchMe({
+    required String accessToken,
+    String? fullName,
+    String? email,
+  }) {
+    final Map<String, String> body = <String, String>{};
+    if (fullName != null) {
+      body['full_name'] = fullName;
+    }
+    if (email != null) {
+      body['email'] = email;
+    }
+    return _client.patch(
+      _u('/api/v1/auth/me'),
+      headers: <String, String>{
+        ..._jsonHeaders,
+        HttpHeaders.authorizationHeader: 'Bearer $accessToken',
+      },
+      body: jsonEncode(body),
     );
   }
 
@@ -60,6 +88,20 @@ final class AuthApi {
   }) {
     return _client.post(
       _u('/api/v1/auth/logout'),
+      headers: <String, String>{
+        ..._jsonHeaders,
+        HttpHeaders.authorizationHeader: 'Bearer $accessToken',
+      },
+      body: jsonEncode(<String, String>{'refresh': refreshToken}),
+    );
+  }
+
+  Future<http.Response> deleteAccount({
+    required String accessToken,
+    required String refreshToken,
+  }) {
+    return _client.post(
+      _u('/api/v1/auth/me/delete'),
       headers: <String, String>{
         ..._jsonHeaders,
         HttpHeaders.authorizationHeader: 'Bearer $accessToken',

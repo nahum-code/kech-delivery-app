@@ -16,10 +16,14 @@ from apps.users.onboarding_token import issue as issue_onboarding_token
 from apps.users.permissions import IsAdminOrSales, IsAdminUserRole
 from core.models import User
 
+from apps.users.services.account import AccountDeletionError, delete_own_account
+
 from .serializers import (
     CustomerRegisterSerializer,
     CustomerSearchSerializer,
+    DeleteAccountSerializer,
     DriverRegisterSerializer,
+    CustomerMeUpdateSerializer,
     MeSerializer,
     PhoneTokenObtainPairSerializer,
     RestrictedTokenRefreshSerializer,
@@ -147,6 +151,65 @@ class MeView(APIView):
 
     def get(self, request, *args, **kwargs):
         return Response(MeSerializer(request.user).data)
+
+    def patch(self, request, *args, **kwargs):
+        from apps.users.models import CustomerProfile, User
+
+        user = request.user
+        body = CustomerMeUpdateSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        data = body.validated_data
+
+        if user.role == User.Role.CUSTOMER:
+            try:
+                profile = user.customer_profile
+            except CustomerProfile.DoesNotExist:
+                profile = CustomerProfile.objects.create(user=user, full_name="")
+            if "full_name" in data:
+                profile.full_name = (data["full_name"] or "").strip()
+            if "email" in data:
+                profile.email = (data["email"] or "").strip()
+            profile.save()
+        elif user.role in (User.Role.ADMIN, User.Role.SALES):
+            if "recovery_email" in data:
+                user.recovery_email = (data["recovery_email"] or "").strip()
+                user.save(update_fields=["recovery_email"])
+        else:
+            return Response(
+                {"detail": "Profile updates are not available for this role."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(MeSerializer(user).data)
+
+
+class DeleteAccountView(APIView):
+    """POST /api/v1/auth/me/delete — customer and driver self-service deactivation."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        body = DeleteAccountSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        refresh = body.validated_data.get("refresh") or None
+
+        try:
+            delete_own_account(user=request.user, refresh_token=refresh)
+        except AccountDeletionError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+        except Exception:
+            return Response(
+                {"detail": "Could not delete your account. Please try again."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        auth_logging.log_account_deleted(
+            user_id=request.user.id,
+            role=str(request.user.role),
+        )
+        return Response(
+            {"message": "Your account has been deleted."},
+            status=status.HTTP_200_OK,
+        )
 
 
 class LogoutView(APIView):

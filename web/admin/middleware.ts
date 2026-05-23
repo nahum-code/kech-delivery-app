@@ -29,10 +29,11 @@ export function middleware(request: NextRequest) {
     );
   }
 
-  if (pathname === "/login") {
-    return accessToken
-      ? NextResponse.redirect(new URL("/dashboard", request.url))
-      : NextResponse.next();
+  if (pathname === "/login" || pathname.startsWith("/login/")) {
+    if (accessToken && pathname === "/login") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
   }
 
   if (!isProtectedPath(pathname)) {

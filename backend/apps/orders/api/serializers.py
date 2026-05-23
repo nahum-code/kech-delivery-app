@@ -203,6 +203,17 @@ class OrderDetailSerializer(serializers.ModelSerializer):
         return "sales" if obj.sales_agent_id else "app"
 
 
+class OrderModifySerializer(serializers.Serializer):
+    items = OrderItemInputSerializer(many=True, required=False)
+    delivery_address = DeliveryAddressSerializer(required=False)
+    customer_note = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if not any(key in attrs for key in ("items", "delivery_address", "customer_note")):
+            raise serializers.ValidationError("Provide at least one field to modify.")
+        return attrs
+
+
 class OrderStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Order.Status.choices)
 
