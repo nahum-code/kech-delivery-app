@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from apps.drivers.models import DriverProfile
 from apps.drivers.services.availability import AvailabilityError, get_availability, set_operational_status
 from apps.orders.api.serializers import OrderDetailSerializer
-from apps.orders.api.views import _order_queryset
+from apps.orders.api.views import _driver_context, _order_queryset
 from apps.orders.models import Order
 from apps.orders.permissions import CanViewDriverOrders
 from apps.orders.services.driver_delivery import (
@@ -28,7 +28,7 @@ from .serializers import DriverAvailabilityUpdateSerializer
 
 def _detail_response(request, order: Order) -> Response:
     order = _order_queryset().get(pk=order.pk)
-    return Response(OrderDetailSerializer(order, context={"request": request}).data)
+    return Response(OrderDetailSerializer(order, context=_driver_context(request)).data)
 
 
 class DriverAvailabilityView(APIView):

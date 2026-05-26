@@ -214,7 +214,7 @@ class _DriverBroadcastOfferDetailScreenState extends State<DriverBroadcastOfferD
               const SizedBox(height: 6),
               _moneyRow('Delivery fee', '${order.deliveryFee} ETB'),
               const Divider(height: 18),
-              _moneyRow('You earn', '${order.deliveryFee} ETB', emphasis: true),
+              _moneyRow('You earn', '${order.driverPayout} ETB', emphasis: true),
             ],
           ),
         ),

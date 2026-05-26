@@ -11,6 +11,7 @@ from django.utils import timezone
 from apps.orders.models import Order, OrderItem
 from apps.orders.services.pricing import (
     DeliveryPricing,
+    apply_driver_percentage,
     compute_pricing,
     haversine_km,
 )
@@ -383,4 +384,12 @@ def accept_order(*, order_id: int, driver: User) -> Order:
     )
     if updated == 0:
         raise OrderServiceError("Order is no longer available.", status_code=409)
-    return Order.objects.get(pk=order_id)
+
+    order = Order.objects.get(pk=order_id)
+    driver_payout, platform_fee = apply_driver_percentage(
+        order.delivery_fee, profile.payout_percentage,
+    )
+    order.driver_payout = driver_payout
+    order.platform_fee = platform_fee
+    order.save(update_fields=["driver_payout", "platform_fee"])
+    return order

@@ -8,6 +8,7 @@ from django.utils import timezone
 from apps.drivers.models import DriverProfile
 from apps.orders.models import DriverAssignmentLog, Order
 from apps.orders.services.order import MAX_ACTIVE_DRIVER_ORDERS, OrderServiceError
+from apps.orders.services.pricing import apply_driver_percentage
 from core.models import User
 
 ACTIVE_DRIVER_STATUSES = {
@@ -68,21 +69,29 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
         )
 
     order.assigned_driver = driver
+
+    driver_payout, platform_fee = apply_driver_percentage(
+        order.delivery_fee, profile.payout_percentage,
+    )
+    order.driver_payout = driver_payout
+    order.platform_fee = platform_fee
+
     if order.status in {
         Order.Status.PENDING,
         Order.Status.CONFIRMED,
         Order.Status.SEARCHING_DRIVER,
         Order.Status.PREPARING,
         Order.Status.READY_FOR_PICKUP,
-        # Manual reassignment after a driver declined: rebracket the
-        # order back to assigned so the new driver actually sees it.
         Order.Status.DECLINED,
     }:
         order.status = Order.Status.ASSIGNED
     order.driver_acknowledged_at = None
     order.updated_at = timezone.now()
     order.save(
-        update_fields=["assigned_driver", "status", "driver_acknowledged_at", "updated_at"],
+        update_fields=[
+            "assigned_driver", "status", "driver_acknowledged_at",
+            "driver_payout", "platform_fee", "updated_at",
+        ],
     )
 
     DriverAssignmentLog.objects.create(

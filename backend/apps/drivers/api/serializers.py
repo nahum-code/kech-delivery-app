@@ -81,6 +81,12 @@ class SuspendDriverSerializer(serializers.Serializer):
         return value.strip()
 
 
+class PayoutPercentageSerializer(serializers.Serializer):
+    payout_percentage = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=0, max_value=100,
+    )
+
+
 class DriverAvailabilityUpdateSerializer(serializers.Serializer):
     operational_status = serializers.ChoiceField(
         choices=[

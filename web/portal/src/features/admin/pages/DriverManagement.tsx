@@ -12,6 +12,7 @@ import {
   reactivateDriver,
   rejectDriver,
   suspendDriver,
+  updateDriverPayoutPercentage,
   type ApprovedDriver,
   type PendingDriver,
   type SuspendedDriver,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -58,6 +60,7 @@ export function DriverManagement() {
     userId: number | null;
     driverName: string;
   }>({ open: false, userId: null, driverName: "" });
+  const [editingPayout, setEditingPayout] = useState<{ driverId: number; value: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,6 +130,24 @@ export function DriverManagement() {
       return;
     }
     await confirmReasonAction();
+  };
+
+  const savePayout = async (driverId: number, value: string) => {
+    const num = parseFloat(value);
+    if (isNaN(num) || num < 0 || num > 100) {
+      toast.error("Percentage must be between 0 and 100");
+      return;
+    }
+    try {
+      const res = await updateDriverPayoutPercentage(driverId, num);
+      setApproved((prev) =>
+        prev.map((d) => (d.id === driverId ? { ...d, payout_percentage: res.payout_percentage } : d)),
+      );
+      toast.success("Payout percentage updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+    }
+    setEditingPayout(null);
   };
 
   const dialogTitle =
@@ -299,17 +320,18 @@ export function DriverManagement() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Availability</TableHead>
+                    <TableHead>Payout %</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5}>Loading...</TableCell>
+                      <TableCell colSpan={6}>Loading...</TableCell>
                     </TableRow>
                   ) : approved.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5}>No approved drivers</TableCell>
+                      <TableCell colSpan={6}>No approved drivers</TableCell>
                     </TableRow>
                   ) : (
                     approved.map((d) => (
@@ -319,6 +341,37 @@ export function DriverManagement() {
                         <TableCell>{d.vehicle_type || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{d.operational_status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {editingPayout?.driverId === d.id ? (
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              className="h-8 w-20"
+                              autoFocus
+                              value={editingPayout.value}
+                              onChange={(e) =>
+                                setEditingPayout({ driverId: d.id, value: e.target.value })
+                              }
+                              onBlur={() => void savePayout(d.id, editingPayout.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void savePayout(d.id, editingPayout.value);
+                                if (e.key === "Escape") setEditingPayout(null);
+                              }}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              className="rounded px-2 py-1 text-sm hover:bg-gray-100"
+                              onClick={() =>
+                                setEditingPayout({ driverId: d.id, value: d.payout_percentage })
+                              }
+                            >
+                              {parseFloat(d.payout_percentage)}%
+                            </button>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Button

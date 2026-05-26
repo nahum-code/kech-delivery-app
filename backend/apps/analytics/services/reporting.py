@@ -204,7 +204,7 @@ def driver_payout_report(*, date_range: AnalyticsDateRange, driver_id: int | Non
         .annotate(
             deliveries_count=Count("order_id", distinct=True),
             payout_total=Coalesce(
-                Sum("order__delivery_fee"),
+                Sum("order__driver_payout"),
                 Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
             ),
         )
@@ -215,7 +215,7 @@ def driver_payout_report(*, date_range: AnalyticsDateRange, driver_id: int | Non
         total_drivers=Count("driver_id", distinct=True),
         total_deliveries=Count("order_id", distinct=True),
         payout_total=Coalesce(
-            Sum("order__delivery_fee"),
+            Sum("order__driver_payout"),
             Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
         ),
     )
@@ -224,7 +224,7 @@ def driver_payout_report(*, date_range: AnalyticsDateRange, driver_id: int | Non
         "currency": "ETB",
         "date_range": {"start_date": date_range.start_date, "end_date": date_range.end_date},
         "assumptions": {
-            "driver_payout_formula": "delivery_fee from delivered orders",
+            "driver_payout_formula": "driver_payout from delivered orders (percentage-based)",
         },
         "summary": {
             "total_drivers": summary["total_drivers"] or 0,
@@ -249,19 +249,33 @@ def platform_profit_report(*, date_range: AnalyticsDateRange) -> dict:
 
     gross_revenue = revenue_data["totals"]["revenue_total"]
     driver_payout_total = payout_data["summary"]["driver_payout_total"]
-    estimated_platform_profit = gross_revenue - driver_payout_total
+
+    delivered_orders = Order.objects.filter(
+        status=Order.Status.DELIVERED,
+        placed_at__range=(date_range.start_dt, date_range.end_dt),
+    )
+
+    platform_totals = delivered_orders.aggregate(
+        platform_fee_total=Coalesce(
+            Sum("platform_fee"),
+            Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+        ),
+        delivery_fee_total=Coalesce(
+            Sum("delivery_fee"),
+            Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+        ),
+    )
+
+    platform_balance = platform_totals["platform_fee_total"]
+    delivery_fee_total = platform_totals["delivery_fee_total"]
 
     return {
         "currency": "ETB",
         "date_range": {"start_date": date_range.start_date, "end_date": date_range.end_date},
-        "assumptions": {
-            "formula": "gross_revenue - driver_payout_total",
-            "restaurant_amount_supported": False,
-            "note": "Restaurant payout is not modeled yet, so this is MVP estimated platform profit.",
-        },
         "totals": {
             "gross_revenue": gross_revenue,
+            "delivery_fee_total": delivery_fee_total,
             "driver_payout_total": driver_payout_total,
-            "estimated_platform_profit": estimated_platform_profit,
+            "platform_balance": platform_balance,
         },
     }

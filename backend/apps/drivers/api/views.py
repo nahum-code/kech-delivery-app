@@ -21,6 +21,7 @@ from apps.users.permissions import IsAdminUserRole, IsDriver, IsPlatformStaff
 from .serializers import (
     DriverActionResponseSerializer,
     DriverStatusSerializer,
+    PayoutPercentageSerializer,
     PendingDriverSerializer,
     RejectDriverSerializer,
     SuspendDriverSerializer,
@@ -68,6 +69,7 @@ class ApprovedDriversListView(APIView):
                 "phone": p.user.phone,
                 "vehicle_type": p.vehicle_type,
                 "operational_status": p.operational_status,
+                "payout_percentage": str(p.payout_percentage),
             }
             for p in queryset
         ]
@@ -210,6 +212,24 @@ class ReactivateDriverView(APIView):
             return Response({"detail": exc.message}, status=exc.status_code)
 
         return _action_response(profile, "Driver reactivated successfully.")
+
+
+class UpdatePayoutPercentageView(APIView):
+    """PATCH /api/v1/admin/drivers/{id}/payout-percentage/"""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def patch(self, request, user_id: int, *args, **kwargs):
+        profile = get_object_or_404(DriverProfile, user_id=user_id)
+        body = PayoutPercentageSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        profile.payout_percentage = body.validated_data["payout_percentage"]
+        profile.save(update_fields=["payout_percentage", "updated_at"])
+        return Response({
+            "driver_id": user_id,
+            "payout_percentage": str(profile.payout_percentage),
+            "message": "Payout percentage updated.",
+        })
 
 
 class DriverStatusView(APIView):
