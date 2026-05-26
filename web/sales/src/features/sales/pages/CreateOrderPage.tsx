@@ -380,6 +380,15 @@ export function CreateOrderPage() {
     }
     const backendPaymentStatus: "pending" | "paid" | "failed" =
       paymentStatus === "confirmed" ? "paid" : paymentStatus;
+    // Flatten per-item special instructions into the order-level note —
+    // same pattern the customer mobile uses at checkout. Drivers, admin,
+    // and sales monitors all surface `customer_note`, so this is the
+    // single channel that gets the per-item notes in front of everyone.
+    const customerNote = orderItems
+      .filter((item) => item.notes.trim().length > 0)
+      .map((item) => `${item.name}: ${item.notes.trim()}`)
+      .join("\n");
+
     try {
       const created = await createSalesOrder({
         customer_id: Number(customer.id),
@@ -396,6 +405,7 @@ export function CreateOrderPage() {
             ? { latitude: dropoffCoords.latitude, longitude: dropoffCoords.longitude }
             : {}),
         },
+        ...(customerNote.length > 0 ? { customer_note: customerNote } : {}),
         payment_status: backendPaymentStatus,
       });
       toast.success(`Order ${created.reference} created`, {

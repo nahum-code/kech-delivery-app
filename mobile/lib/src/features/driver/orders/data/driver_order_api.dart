@@ -31,6 +31,18 @@ final class DriverOrderApi {
     return _client.get(_u('/api/v1/drivers/orders/$id/'), headers: _headers);
   }
 
+  Future<http.Response> listAvailable() {
+    return _client.get(_u('/api/v1/drivers/orders/available/'), headers: _headers);
+  }
+
+  Future<http.Response> availableDetail(int id) {
+    return _client.get(_u('/api/v1/drivers/orders/available/$id/'), headers: _headers);
+  }
+
+  Future<http.Response> claim(int id) {
+    return _client.post(_u('/api/v1/drivers/orders/$id/claim/'), headers: _headers);
+  }
+
   Future<http.Response> accept(int id) {
     return _client.post(_u('/api/v1/drivers/orders/$id/accept/'), headers: _headers);
   }

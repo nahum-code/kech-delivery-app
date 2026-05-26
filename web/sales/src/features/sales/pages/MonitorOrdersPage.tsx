@@ -9,7 +9,7 @@ import {
   assignDriver,
   fetchApprovedDrivers,
   fetchOrder,
-  fetchOrders,
+  fetchAllOrders,
   updateOrderStatus,
   type OrderDetail,
   type OrderRecord,
@@ -36,6 +36,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "../components/ui/sheet";
@@ -67,11 +68,11 @@ export function MonitorOrdersPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchOrders({
+      const results = await fetchAllOrders({
         status: statusFilter === "all" ? undefined : statusFilter,
         search: search || undefined,
       });
-      setOrders(data.results);
+      setOrders(results);
     } catch (e) {
       const msg = parseApiError(e, "Failed to load orders");
       setError(msg);
@@ -92,7 +93,7 @@ export function MonitorOrdersPage() {
   }, [load]);
 
   useEffect(() => {
-    void fetchApprovedDrivers()
+    void fetchApprovedDrivers({ includeBusy: true })
       .then((rows) => setDrivers(rows.map((d) => ({ id: d.id, full_name: d.full_name }))))
       .catch(() => setDrivers([]));
   }, []);
@@ -164,7 +165,7 @@ export function MonitorOrdersPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <Package className="h-8 w-8 text-[#800020]" />
             <div>
-              <p className="text-sm text-muted-foreground">Active (page)</p>
+              <p className="text-sm text-muted-foreground">Active</p>
               <p className="text-2xl font-semibold">{stats.active}</p>
             </div>
           </CardContent>
@@ -173,7 +174,7 @@ export function MonitorOrdersPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <Users className="h-8 w-8 text-amber-600" />
             <div>
-              <p className="text-sm text-muted-foreground">Unassigned (page)</p>
+              <p className="text-sm text-muted-foreground">Unassigned</p>
               <p className="text-2xl font-semibold">{stats.unassigned}</p>
             </div>
           </CardContent>
@@ -182,7 +183,7 @@ export function MonitorOrdersPage() {
           <CardContent className="flex items-center gap-3 p-4">
             <PackageCheck className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-sm text-muted-foreground">Delivered (page)</p>
+              <p className="text-sm text-muted-foreground">Delivered</p>
               <p className="text-2xl font-semibold">{stats.delivered}</p>
             </div>
           </CardContent>
@@ -292,11 +293,17 @@ export function MonitorOrdersPage() {
 
       <Sheet open={selectedId != null} onOpenChange={() => setSelectedId(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          {/* SheetTitle / Description are required by Radix for screen
+              readers; render them unconditionally so the warning doesn't
+              fire on the brief loading flash before `detail` resolves. */}
+          <SheetHeader className={detail ? undefined : "sr-only"}>
+            <SheetTitle>{detail?.reference ?? "Order details"}</SheetTitle>
+            <SheetDescription className="sr-only">
+              Order details, items, and admin operations.
+            </SheetDescription>
+          </SheetHeader>
           {detail && (
             <>
-              <SheetHeader>
-                <SheetTitle>{detail.reference}</SheetTitle>
-              </SheetHeader>
               <div className="mt-6 space-y-4 text-sm">
                 <p>
                   <span className="text-muted-foreground">Status:</span>{" "}
@@ -329,6 +336,16 @@ export function MonitorOrdersPage() {
                     </li>
                   ))}
                 </ul>
+                {detail.customer_note && detail.customer_note.trim().length > 0 && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                      Special instructions
+                    </p>
+                    <p className="mt-1 whitespace-pre-line text-sm text-amber-900">
+                      {detail.customer_note}
+                    </p>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 border-t pt-4">
                   {["confirmed", "preparing", "ready_for_pickup", "delivered", "cancelled"].map(
                     (s) => (

@@ -86,6 +86,7 @@ final class DriverOrderDetail {
     required this.placedAt,
     required this.deliveryAddress,
     required this.items,
+    this.customerNote = '',
     this.driverAcknowledgedAt,
     this.restaurantLatitude,
     this.restaurantLongitude,
@@ -105,6 +106,11 @@ final class DriverOrderDetail {
   final String placedAt;
   final DeliveryAddress deliveryAddress;
   final List<OrderLineItem> items;
+  /// Free-form note from the customer. At checkout the customer mobile
+  /// joins each item's `specialInstructions` into this field as
+  /// "<item name>: <instructions>" lines, so a non-empty value here is
+  /// exactly the per-item special instructions the driver should see.
+  final String customerNote;
   final String? driverAcknowledgedAt;
 
   factory DriverOrderDetail.fromJson(Map<String, dynamic> m) {
@@ -122,6 +128,7 @@ final class DriverOrderDetail {
       deliveryFee: '${m['delivery_fee']}',
       totalAmount: '${m['total_amount']}',
       placedAt: m['placed_at'] as String? ?? '',
+      customerNote: (m['customer_note'] as String? ?? '').trim(),
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
       restaurantLatitude: _readDouble(m['restaurant_latitude']),
       restaurantLongitude: _readDouble(m['restaurant_longitude']),

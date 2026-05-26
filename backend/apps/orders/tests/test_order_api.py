@@ -96,7 +96,9 @@ class OrderApiTests(TestCase):
         confirm = self.client.post(f"/api/v1/orders/{order_id}/confirm-payment/")
         self.assertEqual(confirm.status_code, status.HTTP_200_OK)
         self.assertEqual(confirm.json()["payment_status"], Order.PaymentStatus.PAID)
-        self.assertEqual(confirm.json()["status"], Order.Status.CONFIRMED)
+        # Payment confirmation now auto-chains the order into the broadcast
+        # state so eligible drivers can claim it.
+        self.assertEqual(confirm.json()["status"], Order.Status.SEARCHING_DRIVER)
 
         again = self.client.post(f"/api/v1/orders/{order_id}/confirm-payment/")
         self.assertEqual(again.status_code, status.HTTP_200_OK)

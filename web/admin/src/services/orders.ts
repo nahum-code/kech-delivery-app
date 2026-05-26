@@ -57,14 +57,36 @@ export async function fetchOrders(params?: {
   status?: string;
   search?: string;
   page?: number;
+  page_size?: number;
 }): Promise<PaginatedOrders> {
   const q = new URLSearchParams();
   if (params?.status) q.set("status", params.status);
   if (params?.search) q.set("search", params.search);
   if (params?.page) q.set("page", String(params.page));
+  if (params?.page_size) q.set("page_size", String(params.page_size));
   const query = q.toString();
   const path = query ? `/api/v1/orders/?${query}` : "/api/v1/orders/";
   return requestJson<PaginatedOrders>(path);
+}
+
+/**
+ * Fetch every order matching the filter by walking the paginated endpoint
+ * until `next` is null. Uses the max DRF page size (100) to minimise the
+ * number of round trips. Safe for the admin monitor — bound by total
+ * order count, not by a fixed window.
+ */
+export async function fetchAllOrders(params?: {
+  status?: string;
+  search?: string;
+}): Promise<OrderRecord[]> {
+  const out: OrderRecord[] = [];
+  let page = 1;
+  while (true) {
+    const data = await fetchOrders({ ...params, page, page_size: 100 });
+    out.push(...data.results);
+    if (!data.next) return out;
+    page += 1;
+  }
 }
 
 export async function fetchOrder(id: number): Promise<OrderDetail> {

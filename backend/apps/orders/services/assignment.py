@@ -39,20 +39,7 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
     if not driver.is_active:
         raise OrderServiceError("Driver account is inactive.", status_code=400)
 
-    reassigning_declined = order.status == Order.Status.DECLINED
-    if reassigning_declined and order.assigned_driver_id == driver.pk:
-        raise OrderServiceError(
-            "Choose a different driver — this driver already declined this delivery.",
-            status_code=409,
-        )
-
-    if reassigning_declined:
-        if profile.operational_status == DriverProfile.OperationalStatus.OFFLINE:
-            raise OrderServiceError(
-                "Driver must be online or busy to receive a reassignment.",
-                status_code=409,
-            )
-    elif profile.operational_status != DriverProfile.OperationalStatus.ONLINE:
+    if profile.operational_status == DriverProfile.OperationalStatus.OFFLINE:
         raise OrderServiceError(
             "Only online drivers can receive new assignments.",
             status_code=409,
@@ -69,12 +56,26 @@ def assign_driver_to_order(*, order: Order, driver: User, assigned_by: User) -> 
             status_code=409,
         )
 
+    # Don't hand a declined order back to the driver who refused it —
+    # main's policy. Other drivers are fair game.
+    if (
+        order.status == Order.Status.DECLINED
+        and order.assigned_driver_id == driver.id
+    ):
+        raise OrderServiceError(
+            "This driver previously declined this delivery.",
+            status_code=409,
+        )
+
     order.assigned_driver = driver
     if order.status in {
         Order.Status.PENDING,
         Order.Status.CONFIRMED,
+        Order.Status.SEARCHING_DRIVER,
         Order.Status.PREPARING,
         Order.Status.READY_FOR_PICKUP,
+        # Manual reassignment after a driver declined: rebracket the
+        # order back to assigned so the new driver actually sees it.
         Order.Status.DECLINED,
     }:
         order.status = Order.Status.ASSIGNED

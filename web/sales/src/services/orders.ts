@@ -48,15 +48,38 @@ export async function fetchOrders(params?: {
   search?: string;
   assigned?: "true" | "false";
   page?: number;
+  page_size?: number;
 }): Promise<PaginatedOrders> {
   const q = new URLSearchParams();
   if (params?.status) q.set("status", params.status);
   if (params?.search) q.set("search", params.search);
   if (params?.assigned) q.set("assigned", params.assigned);
   if (params?.page) q.set("page", String(params.page));
+  if (params?.page_size) q.set("page_size", String(params.page_size));
   const query = q.toString();
   const path = query ? `/api/v1/orders/?${query}` : "/api/v1/orders/";
   return authJson<PaginatedOrders>(path);
+}
+
+/**
+ * Walk the paginated endpoint until `next` is null. Uses the DRF max
+ * page size (100) to minimise round trips. Same pattern as admin's
+ * fetchAllOrders — used by Monitor Orders so the sales agent sees the
+ * full set instead of the first 20.
+ */
+export async function fetchAllOrders(params?: {
+  status?: string;
+  search?: string;
+  assigned?: "true" | "false";
+}): Promise<OrderRecord[]> {
+  const out: OrderRecord[] = [];
+  let page = 1;
+  while (true) {
+    const data = await fetchOrders({ ...params, page, page_size: 100 });
+    out.push(...data.results);
+    if (!data.next) return out;
+    page += 1;
+  }
 }
 
 export async function fetchOrder(id: number): Promise<OrderDetail> {

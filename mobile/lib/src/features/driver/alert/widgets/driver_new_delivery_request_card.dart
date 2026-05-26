@@ -8,10 +8,10 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
   const DriverNewDeliveryRequestCard({
     super.key,
     required this.order,
-    required this.secondsLeft,
     required this.onAccept,
     required this.onDecline,
     this.submitting = false,
+    this.secondsLeft = 0,
   });
 
   final DriverOrderSummary order;
@@ -223,33 +223,34 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(
-            top: -22,
-            child: Container(
-              width: 56,
-              height: 56,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: DriverTaskTokens.primaryDark,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x26000000),
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
+          if (secondsLeft > 0)
+            Positioned(
+              top: -22,
+              child: Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: DriverTaskTokens.primaryDark,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x26000000),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  '${displaySeconds}s',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
                   ),
-                ],
-              ),
-              child: Text(
-                '${displaySeconds}s',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

@@ -24,8 +24,11 @@ final class OrderApi {
     return _client.post(_u('/api/v1/orders/'), headers: _headers, body: jsonEncode(body));
   }
 
-  Future<http.Response> myOrders({int page = 1}) {
-    return _client.get(_u('/api/v1/orders/my/?page=$page'), headers: _headers);
+  Future<http.Response> myOrders({int page = 1, int pageSize = 100}) {
+    return _client.get(
+      _u('/api/v1/orders/my/?page=$page&page_size=$pageSize'),
+      headers: _headers,
+    );
   }
 
   Future<http.Response> orderDetail(int id) {

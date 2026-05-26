@@ -42,7 +42,7 @@ export function AssignDriverPage() {
     try {
       const [orderData, driverRows] = await Promise.all([
         fetchOrders({ assigned: "false", search: search || undefined }),
-        fetchApprovedDrivers(),
+        fetchApprovedDrivers({ includeBusy: true }),
       ]);
       setOrders(
         orderData.results.filter(

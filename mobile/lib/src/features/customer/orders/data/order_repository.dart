@@ -32,14 +32,26 @@ final class OrderRepository {
     return OrderDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
   }
 
+  /// Fetch every order in this customer's history by walking the paginated
+  /// `/my/` endpoint until `next` is null. Uses the max DRF page size (100)
+  /// to keep round trips minimal.
   Future<List<OrderSummary>> fetchMyOrders({required String accessToken}) async {
-    final http.Response response = await _apiFactory(accessToken).myOrders();
-    if (response.statusCode != 200) {
-      throw _httpError(response, 'Could not load orders');
+    final List<OrderSummary> all = <OrderSummary>[];
+    int page = 1;
+    while (true) {
+      final http.Response response =
+          await _apiFactory(accessToken).myOrders(page: page);
+      if (response.statusCode != 200) {
+        throw _httpError(response, 'Could not load orders');
+      }
+      final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
+      final List<dynamic> results = body['results'] as List<dynamic>? ?? <dynamic>[];
+      all.addAll(
+        results.map((dynamic e) => OrderSummary.fromJson(e as Map<String, dynamic>)),
+      );
+      if (body['next'] == null) return all;
+      page += 1;
     }
-    final Map<String, dynamic> body = jsonDecode(response.body) as Map<String, dynamic>;
-    final List<dynamic> results = body['results'] as List<dynamic>? ?? <dynamic>[];
-    return results.map((dynamic e) => OrderSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<OrderDetail> fetchOrderDetail({required String accessToken, required int orderId}) async {
