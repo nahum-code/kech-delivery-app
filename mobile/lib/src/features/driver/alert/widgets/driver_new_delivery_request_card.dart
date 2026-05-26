@@ -21,7 +21,7 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
   final bool submitting;
 
   String _formatPayout(DriverOrderSummary o) {
-    final String raw = o.deliveryFee.isNotEmpty ? o.deliveryFee : o.totalAmount;
+    final String raw = o.driverPayout.isNotEmpty ? o.driverPayout : o.deliveryFee;
     final double? parsed = double.tryParse(raw.replaceAll(RegExp(r'[^0-9.]'), ''));
     if (parsed == null) return raw;
     return parsed.toStringAsFixed(2);

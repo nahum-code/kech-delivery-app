@@ -9,6 +9,7 @@ from .views import (
     RejectDriverView,
     SuspendDriverView,
     SuspendedDriversListView,
+    UpdatePayoutPercentageView,
 )
 
 urlpatterns = [
@@ -27,5 +28,10 @@ urlpatterns = [
         "<int:user_id>/reactivate/",
         ReactivateDriverView.as_view(),
         name="admin_driver_reactivate",
+    ),
+    path(
+        "<int:user_id>/payout-percentage/",
+        UpdatePayoutPercentageView.as_view(),
+        name="admin_driver_payout_percentage",
     ),
 ]

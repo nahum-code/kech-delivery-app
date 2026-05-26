@@ -76,6 +76,13 @@ def driver_payout_for_distance(distance_km: Decimal) -> Decimal:
     return TIERS[-1] + PER_KM_BEYOND_TABLE * Decimal(extra_km)
 
 
+def apply_driver_percentage(delivery_fee: Decimal, payout_percentage: Decimal) -> tuple[Decimal, Decimal]:
+    """Split delivery_fee into (driver_payout, platform_fee) using the driver's percentage."""
+    driver_payout = (delivery_fee * payout_percentage / Decimal("100")).quantize(_TWO_PLACES, rounding=ROUND_HALF_UP)
+    platform_fee = (delivery_fee - driver_payout).quantize(_TWO_PLACES)
+    return driver_payout, platform_fee
+
+
 def compute_pricing(distance_km: Decimal | None) -> DeliveryPricing:
     """Build the financial snapshot. `None` distance falls back to the 0–1 km tier."""
     if distance_km is None or distance_km < 0:

@@ -57,7 +57,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
       final Map<String, dynamic>? profile = me?['profile'] as Map<String, dynamic>?;
       double earnings = 0;
       for (final DriverOrderSummary o in completed) {
-        earnings += double.tryParse(o.deliveryFee) ?? 0;
+        earnings += double.tryParse(o.driverPayout) ?? 0;
       }
       setState(() {
         _userId = me?['id'] as int? ?? 0;

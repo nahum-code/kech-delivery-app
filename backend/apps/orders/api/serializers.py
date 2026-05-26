@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.orders.models import Order, OrderItem
+from apps.orders.services.pricing import apply_driver_percentage
 from core.models import User
+
+
+class _PayoutOverrideMixin:
+    """Override driver_payout/platform_fee when driver's payout_percentage is in context."""
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        pct = self.context.get("driver_payout_percentage")
+        if pct is not None:
+            delivery_fee = Decimal(str(data["delivery_fee"]))
+            payout, fee = apply_driver_percentage(delivery_fee, pct)
+            data["driver_payout"] = str(payout)
+            data["platform_fee"] = str(fee)
+        return data
 
 
 class DeliveryAddressSerializer(serializers.Serializer):
@@ -78,7 +95,7 @@ def _restaurant_coord(restaurant, field: str) -> float | None:
     return float(value)
 
 
-class OrderListSerializer(serializers.ModelSerializer):
+class OrderListSerializer(_PayoutOverrideMixin, serializers.ModelSerializer):
     restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
     restaurant_address = serializers.CharField(source="restaurant.address_text", read_only=True)
     restaurant_latitude = serializers.SerializerMethodField()
@@ -149,7 +166,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         return "sales" if obj.sales_agent_id else "app"
 
 
-class OrderDetailSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(_PayoutOverrideMixin, serializers.ModelSerializer):
     restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
     restaurant_address = serializers.CharField(source="restaurant.address_text", read_only=True)
     restaurant_latitude = serializers.SerializerMethodField()

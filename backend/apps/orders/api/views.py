@@ -18,7 +18,19 @@ from apps.orders.api.serializers import (
     SalesOrderCreateSerializer,
 )
 from apps.orders.models import Order
+from apps.drivers.models import DriverProfile
 from apps.orders.services.pricing import compute_pricing, haversine_km
+
+
+def _driver_context(request) -> dict:
+    """Build serializer context with the requesting driver's payout percentage."""
+    ctx: dict = {"request": request}
+    try:
+        profile = request.user.driver_profile
+        ctx["driver_payout_percentage"] = profile.payout_percentage
+    except (DriverProfile.DoesNotExist, AttributeError):
+        pass
+    return ctx
 from apps.restaurants.models import Restaurant
 from apps.orders.permissions import (
     CanAssignDriver,
@@ -341,7 +353,7 @@ class AvailableOrdersListView(APIView):
         )
         paginator = OrderPagination()
         page = paginator.paginate_queryset(qs, request)
-        serializer = OrderListSerializer(page, many=True, context={"request": request})
+        serializer = OrderListSerializer(page, many=True, context=_driver_context(request))
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -356,7 +368,7 @@ class AcceptOrderView(APIView):
         except OrderServiceError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
         order = _order_queryset().get(pk=order.pk)
-        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+        return Response(OrderDetailSerializer(order, context=_driver_context(request)).data)
 
 
 class AvailableOrderDetailView(APIView):
@@ -377,7 +389,7 @@ class AvailableOrderDetailView(APIView):
                 {"detail": "Order is no longer available."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+        return Response(OrderDetailSerializer(order, context=_driver_context(request)).data)
 
 
 class DriverOrdersListView(APIView):
@@ -390,5 +402,5 @@ class DriverOrdersListView(APIView):
         )
         paginator = OrderPagination()
         page = paginator.paginate_queryset(qs, request)
-        serializer = OrderListSerializer(page, many=True, context={"request": request})
+        serializer = OrderListSerializer(page, many=True, context=_driver_context(request))
         return paginator.get_paginated_response(serializer.data)

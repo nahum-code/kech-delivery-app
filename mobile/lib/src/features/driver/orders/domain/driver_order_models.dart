@@ -12,6 +12,7 @@ final class DriverOrderSummary {
     required this.status,
     required this.totalAmount,
     required this.deliveryFee,
+    required this.driverPayout,
     required this.placedAt,
     required this.dropoffLine,
     this.driverAcknowledgedAt,
@@ -33,6 +34,7 @@ final class DriverOrderSummary {
   final String status;
   final String totalAmount;
   final String deliveryFee;
+  final String driverPayout;
   final String placedAt;
   final String dropoffLine;
   final String? driverAcknowledgedAt;
@@ -51,6 +53,7 @@ final class DriverOrderSummary {
       status: m['status'] as String? ?? '',
       totalAmount: '${m['total_amount']}',
       deliveryFee: '${m['delivery_fee']}',
+      driverPayout: '${m['driver_payout'] ?? m['delivery_fee']}',
       placedAt: m['placed_at'] as String? ?? '',
       dropoffLine: landmark.isNotEmpty ? '$line · $landmark' : line,
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
@@ -82,6 +85,7 @@ final class DriverOrderDetail {
     required this.customerPhone,
     required this.subtotal,
     required this.deliveryFee,
+    required this.driverPayout,
     required this.totalAmount,
     required this.placedAt,
     required this.deliveryAddress,
@@ -102,6 +106,7 @@ final class DriverOrderDetail {
   final String customerPhone;
   final String subtotal;
   final String deliveryFee;
+  final String driverPayout;
   final String totalAmount;
   final String placedAt;
   final DeliveryAddress deliveryAddress;
@@ -126,6 +131,7 @@ final class DriverOrderDetail {
       customerPhone: m['customer_phone'] as String? ?? '',
       subtotal: '${m['subtotal']}',
       deliveryFee: '${m['delivery_fee']}',
+      driverPayout: '${m['driver_payout'] ?? m['delivery_fee']}',
       totalAmount: '${m['total_amount']}',
       placedAt: m['placed_at'] as String? ?? '',
       customerNote: (m['customer_note'] as String? ?? '').trim(),

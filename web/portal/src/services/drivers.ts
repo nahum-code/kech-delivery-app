@@ -32,6 +32,7 @@ export type ApprovedDriver = {
   phone: string;
   vehicle_type: string;
   operational_status: string;
+  payout_percentage: string;
 };
 
 export type SuspendedDriver = {
@@ -94,5 +95,15 @@ export async function suspendDriver(
 export async function reactivateDriver(userId: number): Promise<DriverActionResponse> {
   return requestJson<DriverActionResponse>(`/api/v1/admin/drivers/${userId}/reactivate/`, {
     method: "POST",
+  });
+}
+
+export async function updateDriverPayoutPercentage(
+  userId: number,
+  payoutPercentage: number,
+): Promise<{ driver_id: number; payout_percentage: string; message: string }> {
+  return requestJson(`/api/v1/admin/drivers/${userId}/payout-percentage/`, {
+    method: "PATCH",
+    body: JSON.stringify({ payout_percentage: payoutPercentage }),
   });
 }

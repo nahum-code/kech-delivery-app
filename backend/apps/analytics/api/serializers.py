@@ -87,12 +87,12 @@ class DriverPayoutResponseSerializer(serializers.Serializer):
 
 class PlatformProfitTotalsSerializer(serializers.Serializer):
     gross_revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
+    delivery_fee_total = serializers.DecimalField(max_digits=12, decimal_places=2)
     driver_payout_total = serializers.DecimalField(max_digits=12, decimal_places=2)
-    estimated_platform_profit = serializers.DecimalField(max_digits=12, decimal_places=2)
+    platform_balance = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 class PlatformProfitResponseSerializer(serializers.Serializer):
     currency = serializers.CharField()
     date_range = DateRangeSerializer()
-    assumptions = serializers.DictField()
     totals = PlatformProfitTotalsSerializer()

@@ -1,5 +1,8 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -51,6 +54,14 @@ class DriverProfile(models.Model):
         choices=OperationalStatus.choices,
         default=OperationalStatus.OFFLINE,
         db_index=True,
+    )
+
+    payout_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("60.00"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Percentage of delivery fee the driver receives (0–100).",
     )
 
     # Approval workflow audit fields (set by admin APIs, not self-service).

@@ -382,7 +382,7 @@ class _BroadcastOfferCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${order.deliveryFee} ETB',
+                '${order.driverPayout} ETB',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
