@@ -389,7 +389,7 @@ export function OrdersMonitor() {
             ) : null}
           </SheetHeader>
           {detail ? (
-            <div className="mt-6 space-y-4 text-sm">
+            <div className="space-y-4 px-4 pb-6 text-sm">
                 <p>
                   <span className="text-gray-500">Status:</span>{" "}
                   <Badge variant="outline" className={statusBadgeClass(detail.status)}>
@@ -414,6 +414,20 @@ export function OrdersMonitor() {
                     </li>
                   ))}
                 </ul>
+                <div className="space-y-1 border-t pt-3">
+                  <div className="flex justify-between text-gray-500">
+                    <span>Subtotal</span>
+                    <span>{detail.subtotal} ETB</span>
+                  </div>
+                  <div className="flex justify-between text-gray-500">
+                    <span>Delivery fee</span>
+                    <span>{detail.delivery_fee} ETB</span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span>{detail.total_amount} ETB</span>
+                  </div>
+                </div>
                 {detail.customer_note && detail.customer_note.trim().length > 0 && (
                   <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
                     <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
@@ -535,7 +549,7 @@ export function OrdersMonitor() {
                 </div>
               </div>
           ) : (
-            <p className="mt-6 text-sm text-gray-500">Loading order details…</p>
+            <p className="px-4 text-sm text-gray-500">Loading order details…</p>
           )}
         </SheetContent>
       </Sheet>
