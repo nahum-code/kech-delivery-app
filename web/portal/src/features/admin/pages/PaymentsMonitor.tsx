@@ -218,7 +218,7 @@ export function PaymentsMonitor() {
             <SheetTitle>Payment details</SheetTitle>
           </SheetHeader>
           {detail && (
-            <dl className="mt-6 space-y-3 text-sm">
+            <dl className="space-y-3 px-4 pb-6 text-sm">
               <div>
                 <dt className="text-gray-500">Transaction ref</dt>
                 <dd className="font-mono">{detail.chapa_tx_ref}</dd>
