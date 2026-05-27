@@ -149,9 +149,9 @@ export function Dashboard() {
           icon={XCircle}
         />
         <KpiCard
-          title="Total Platform Fee"
-          value={money(profit?.totals.estimated_platform_profit ?? "0", profit?.currency ?? "ETB")}
-          change="Estimated platform profit (MVP)"
+          title="Platform Balance"
+          value={money(profit?.totals.platform_balance ?? "0", profit?.currency ?? "ETB")}
+          change="Accumulated platform fees"
           changeType="neutral"
           icon={DollarSign}
         />

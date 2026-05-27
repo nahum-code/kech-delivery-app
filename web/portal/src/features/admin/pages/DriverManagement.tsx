@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
 import {
   approveDriver,
   fetchApprovedDriversAdmin,
+  fetchDriverBalances,
   fetchPendingDrivers,
   fetchSuspendedDrivers,
   reactivateDriver,
@@ -61,18 +62,28 @@ export function DriverManagement() {
     driverName: string;
   }>({ open: false, userId: null, driverName: "" });
   const [editingPayout, setEditingPayout] = useState<{ driverId: number; value: string } | null>(null);
+  const [balances, setBalances] = useState<Record<string, string>>({});
+
+  type AllDriver = { id: number; name: string; phone: string; status: string; vehicle_type: string };
+  const allDrivers: AllDriver[] = useMemo(() => [
+    ...approved.map((d) => ({ id: d.id, name: d.full_name, phone: d.phone, status: "approved", vehicle_type: d.vehicle_type })),
+    ...pending.map((d) => ({ id: d.user_id, name: d.full_name, phone: d.phone, status: "pending", vehicle_type: "" })),
+    ...suspended.map((d) => ({ id: d.user_id, name: d.full_name, phone: d.phone, status: "suspended", vehicle_type: d.vehicle_type })),
+  ], [approved, pending, suspended]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, s, a] = await Promise.all([
+      const [p, s, a, b] = await Promise.all([
         fetchPendingDrivers(),
         fetchSuspendedDrivers(),
         fetchApprovedDriversAdmin(),
+        fetchDriverBalances(),
       ]);
       setPending(p);
       setSuspended(s);
       setApproved(a);
+      setBalances(b);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to load drivers");
     } finally {
@@ -168,12 +179,65 @@ export function DriverManagement() {
         <p className="mt-1 text-gray-600">Approve onboarding and monitor operational drivers.</p>
       </div>
 
-      <Tabs defaultValue="pending">
+      <Tabs defaultValue="all">
         <TabsList>
+          <TabsTrigger value="all">All ({allDrivers.length})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-          <TabsTrigger value="suspended">Suspended accounts ({suspended.length})</TabsTrigger>
+          <TabsTrigger value="suspended">Suspended ({suspended.length})</TabsTrigger>
           <TabsTrigger value="approved">Approved ({approved.length})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="all">
+          <Card>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Balance</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>Loading...</TableCell>
+                    </TableRow>
+                  ) : allDrivers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5}>No drivers</TableCell>
+                    </TableRow>
+                  ) : (
+                    allDrivers.map((d) => (
+                      <TableRow key={`${d.status}-${d.id}`}>
+                        <TableCell className="font-medium">{d.name || "—"}</TableCell>
+                        <TableCell>{d.phone}</TableCell>
+                        <TableCell>{d.vehicle_type || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={
+                              d.status === "approved"
+                                ? "bg-green-100 text-green-800 border-green-200"
+                                : d.status === "suspended"
+                                  ? "bg-red-100 text-red-800 border-red-200"
+                                  : "bg-amber-100 text-amber-800 border-amber-200"
+                            }
+                          >
+                            {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{balances[String(d.id)] ?? "0.00"} ETB</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="pending">
           <Card>

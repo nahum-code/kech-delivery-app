@@ -12,7 +12,6 @@ export type RevenueTrendPoint = {
   date: string;
   revenue: string;
   orders_count: number;
-  successful_payments_count: number;
 };
 
 export type RevenueAnalyticsResponse = {
@@ -33,7 +32,6 @@ export type RevenueAnalyticsResponse = {
     restaurant_name: string;
     revenue: string;
     orders_count: number;
-    successful_payments: number;
   }>;
 };
 
@@ -62,15 +60,12 @@ export type DriverAnalyticsResponse = {
 export type PlatformProfitAnalyticsResponse = {
   currency: string;
   date_range: { start_date: string; end_date: string };
-  assumptions: {
-    formula: string;
-    restaurant_amount_supported: boolean;
-    note: string;
-  };
   totals: {
     gross_revenue: string;
+    delivery_fee_total: string;
     driver_payout_total: string;
-    estimated_platform_profit: string;
+    platform_balance: string;
+    total_deliveries: number;
   };
 };
 

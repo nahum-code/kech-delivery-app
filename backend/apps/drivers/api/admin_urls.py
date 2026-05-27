@@ -4,6 +4,7 @@ from .views import (
     AdminDriverDocumentsView,
     ApprovedDriversListView,
     ApproveDriverView,
+    DriverBalancesView,
     PendingDriversListView,
     ReactivateDriverView,
     RejectDriverView,
@@ -13,6 +14,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("balances/", DriverBalancesView.as_view(), name="admin_drivers_balances"),
     path("approved/", ApprovedDriversListView.as_view(), name="admin_drivers_approved"),
     path("pending/", PendingDriversListView.as_view(), name="admin_drivers_pending"),
     path("suspended/", SuspendedDriversListView.as_view(), name="admin_drivers_suspended"),

@@ -98,6 +98,10 @@ export async function reactivateDriver(userId: number): Promise<DriverActionResp
   });
 }
 
+export async function fetchDriverBalances(): Promise<Record<string, string>> {
+  return requestJson<Record<string, string>>("/api/v1/admin/drivers/balances/");
+}
+
 export async function updateDriverPayoutPercentage(
   userId: number,
   payoutPercentage: number,
