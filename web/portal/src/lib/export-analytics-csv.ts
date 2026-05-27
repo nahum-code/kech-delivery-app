@@ -46,11 +46,9 @@ export function buildAnalyticsCsv(params: {
   lines.push("");
 
   lines.push(row(["Revenue trends"]));
-  lines.push(row(["Date", "Revenue", "Orders", "Successful payments"]));
+  lines.push(row(["Date", "Revenue", "Orders"]));
   for (const point of revenue?.trends ?? []) {
-    lines.push(
-      row([point.date, point.revenue, point.orders_count, point.successful_payments_count]),
-    );
+    lines.push(row([point.date, point.revenue, point.orders_count]));
   }
   lines.push("");
 
@@ -62,9 +60,9 @@ export function buildAnalyticsCsv(params: {
   lines.push("");
 
   lines.push(row(["Top restaurants"]));
-  lines.push(row(["Restaurant", "Revenue", "Orders", "Successful payments"]));
+  lines.push(row(["Restaurant", "Revenue", "Orders"]));
   for (const r of revenue?.top_restaurants ?? []) {
-    lines.push(row([r.restaurant_name, r.revenue, r.orders_count, r.successful_payments]));
+    lines.push(row([r.restaurant_name, r.revenue, r.orders_count]));
   }
   lines.push("");
 
@@ -86,8 +84,10 @@ export function buildAnalyticsCsv(params: {
   lines.push(row(["Platform profit"]));
   if (profit?.totals) {
     lines.push(row(["Gross revenue", profit.totals.gross_revenue]));
+    lines.push(row(["Delivery fee total", profit.totals.delivery_fee_total]));
     lines.push(row(["Driver payout total", profit.totals.driver_payout_total]));
-    lines.push(row(["Estimated platform profit", profit.totals.estimated_platform_profit]));
+    lines.push(row(["Platform balance", profit.totals.platform_balance]));
+    lines.push(row(["Total deliveries", profit.totals.total_deliveries]));
   }
 
   return lines.join("\n");

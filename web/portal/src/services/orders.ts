@@ -59,6 +59,8 @@ export async function fetchOrders(params?: {
   status?: string;
   search?: string;
   assigned?: "true" | "false";
+  date_from?: string;
+  date_to?: string;
   page?: number;
   page_size?: number;
 }): Promise<PaginatedOrders> {
@@ -66,6 +68,8 @@ export async function fetchOrders(params?: {
   if (params?.status) q.set("status", params.status);
   if (params?.search) q.set("search", params.search);
   if (params?.assigned) q.set("assigned", params.assigned);
+  if (params?.date_from) q.set("date_from", params.date_from);
+  if (params?.date_to) q.set("date_to", params.date_to);
   if (params?.page) q.set("page", String(params.page));
   if (params?.page_size) q.set("page_size", String(params.page_size));
   const query = q.toString();

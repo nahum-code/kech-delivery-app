@@ -6,7 +6,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db.models import Count
+from decimal import Decimal
+
+from django.db.models import Count, DecimalField, Sum, Value
+from django.db.models.functions import Coalesce
 
 from apps.drivers.models import DriverDocument, DriverProfile
 from apps.drivers.services.approval import (
@@ -212,6 +215,31 @@ class ReactivateDriverView(APIView):
             return Response({"detail": exc.message}, status=exc.status_code)
 
         return _action_response(profile, "Driver reactivated successfully.")
+
+
+class DriverBalancesView(APIView):
+    """GET /api/v1/admin/drivers/balances/ — accumulated driver_payout per driver from delivered orders."""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def get(self, request, *args, **kwargs):
+        from apps.orders.models import Order
+
+        rows = (
+            Order.objects.filter(
+                status=Order.Status.DELIVERED,
+                assigned_driver__isnull=False,
+            )
+            .values("assigned_driver_id")
+            .annotate(
+                balance=Coalesce(
+                    Sum("driver_payout"),
+                    Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+                ),
+            )
+        )
+        data = {row["assigned_driver_id"]: str(row["balance"]) for row in rows}
+        return Response(data)
 
 
 class UpdatePayoutPercentageView(APIView):

@@ -23,7 +23,8 @@ function rangeToDates(range: AnalyticsRange): { start_date: string; end_date: st
   } else {
     start.setDate(start.getDate() - 89);
   }
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return { start_date: fmt(start), end_date: fmt(end) };
 }
 

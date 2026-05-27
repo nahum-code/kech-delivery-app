@@ -211,12 +211,12 @@ export function Analytics() {
           icon={Clock}
         />
         <KpiCard
-          title="Estimated Platform Profit"
+          title="Platform Balance"
           value={money(
-            profit?.totals.estimated_platform_profit ?? "0",
+            profit?.totals.platform_balance ?? "0",
             profit?.currency ?? "ETB",
           )}
-          change="MVP formula (gross - driver payouts)"
+          change="Accumulated platform fees"
           changeType="neutral"
           icon={DollarSign}
         />
@@ -368,40 +368,36 @@ export function Analytics() {
           <CardTitle>Financial Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">Total Delivery Fees</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">Gross Revenue</p>
               <p className="text-2xl font-semibold">
-                {money(
-                  revenue?.totals.revenue_total ?? "0",
-                  revenue?.currency ?? "ETB",
-                )}
+                {money(profit?.totals.gross_revenue ?? "0", profit?.currency ?? "ETB")}
               </p>
-              <p className="text-sm text-gray-600">
-                Successful payment revenue
+              <p className="text-xs text-gray-400">From successful payments</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">Total Delivery Fees</p>
+              <p className="text-2xl font-semibold">
+                {money(profit?.totals.delivery_fee_total ?? "0", profit?.currency ?? "ETB")}
+              </p>
+              <p className="text-xs text-gray-400">
+                {profit?.totals.total_deliveries ?? 0} delivered orders
               </p>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">Total Driver Payouts</p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">Driver Payouts</p>
               <p className="text-2xl font-semibold">
-                {money(
-                  driver?.summary.driver_payout_total ?? "0",
-                  driver?.currency ?? "ETB",
-                )}
+                {money(profit?.totals.driver_payout_total ?? "0", profit?.currency ?? "ETB")}
               </p>
-              <p className="text-sm text-gray-600">
-                {driver?.summary.total_deliveries ?? 0} delivered orders
-              </p>
+              <p className="text-xs text-gray-400">Percentage-based split</p>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-600">Total Platform Fees</p>
+            <div className="space-y-1">
+              <p className="text-sm text-gray-500">Platform Balance</p>
               <p className="text-2xl font-semibold text-[#800020]">
-                {money(
-                  profit?.totals.estimated_platform_profit ?? "0",
-                  profit?.currency ?? "ETB",
-                )}
+                {money(profit?.totals.platform_balance ?? "0", profit?.currency ?? "ETB")}
               </p>
-              <p className="text-sm text-gray-600">Estimated (MVP formula)</p>
+              <p className="text-xs text-gray-400">Accumulated platform fees</p>
             </div>
           </div>
         </CardContent>

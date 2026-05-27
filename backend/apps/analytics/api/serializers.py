@@ -39,7 +39,6 @@ class RevenueTrendPointSerializer(serializers.Serializer):
     date = serializers.DateField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     orders_count = serializers.IntegerField()
-    successful_payments_count = serializers.IntegerField()
 
 
 class OrderStatusDistributionSerializer(serializers.Serializer):
@@ -52,7 +51,6 @@ class TopRestaurantRevenueSerializer(serializers.Serializer):
     restaurant_name = serializers.CharField()
     revenue = serializers.DecimalField(max_digits=12, decimal_places=2)
     orders_count = serializers.IntegerField()
-    successful_payments = serializers.IntegerField()
 
 
 class RevenueAnalyticsResponseSerializer(serializers.Serializer):
@@ -90,6 +88,7 @@ class PlatformProfitTotalsSerializer(serializers.Serializer):
     delivery_fee_total = serializers.DecimalField(max_digits=12, decimal_places=2)
     driver_payout_total = serializers.DecimalField(max_digits=12, decimal_places=2)
     platform_balance = serializers.DecimalField(max_digits=12, decimal_places=2)
+    total_deliveries = serializers.IntegerField()
 
 
 class PlatformProfitResponseSerializer(serializers.Serializer):

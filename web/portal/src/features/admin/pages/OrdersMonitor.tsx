@@ -9,10 +9,11 @@ import {
   assignDriver,
   fetchApprovedDrivers,
   fetchOrder,
-  fetchAllOrders,
+  fetchOrders,
   updateOrderStatus,
   type OrderDetail,
   type OrderRecord,
+  type PaginatedOrders,
 } from "@/services/orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -115,11 +116,16 @@ function OrderChannelBadge({ order }: { order: OrderRecord }) {
 }
 
 export function OrdersMonitor() {
+  const PAGE_SIZE = 20;
   const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [drivers, setDrivers] = useState<
@@ -132,15 +138,22 @@ export function OrdersMonitor() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
 
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const results = await fetchAllOrders({
+      const data: PaginatedOrders = await fetchOrders({
         status: statusFilter === "all" ? undefined : statusFilter,
         search: search || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        page,
+        page_size: PAGE_SIZE,
       });
-      setOrders(results);
+      setOrders(data.results);
+      setTotalCount(data.count);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to load orders";
       setError(msg);
@@ -148,7 +161,7 @@ export function OrdersMonitor() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, dateFrom, dateTo, page]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), 300);
@@ -252,18 +265,18 @@ export function OrdersMonitor() {
       </div>
 
       <Card>
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
-          <div className="relative flex-1">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               className="pl-10"
               placeholder="Search reference, phone, restaurant..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -274,6 +287,30 @@ export function OrdersMonitor() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              className="w-[150px]"
+              value={dateFrom}
+              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            />
+            <span className="text-sm text-gray-400">to</span>
+            <Input
+              type="date"
+              className="w-[150px]"
+              value={dateTo}
+              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            />
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setDateFrom(""); setDateTo(""); setPage(1); }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -290,7 +327,7 @@ export function OrdersMonitor() {
                 <TableHead>Status</TableHead>
                 <TableHead>Payment</TableHead>
                 <TableHead>Total</TableHead>
-                <TableHead>Placed</TableHead>
+                <TableHead>Created At</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -347,8 +384,8 @@ export function OrdersMonitor() {
                       </Badge>
                     </TableCell>
                     <TableCell>{o.total_amount} ETB</TableCell>
-                    <TableCell>
-                      {format(new Date(o.placed_at), "MMM d, HH:mm")}
+                    <TableCell className="whitespace-nowrap text-xs">
+                      {format(new Date(o.placed_at), "MMM d, yyyy HH:mm")}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -366,6 +403,35 @@ export function OrdersMonitor() {
           </Table>
         </CardContent>
       </Card>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            {totalCount} order{totalCount !== 1 ? "s" : ""} total
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Sheet
         open={selectedId != null}

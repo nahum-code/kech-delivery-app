@@ -10,7 +10,6 @@ from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 
 from apps.orders.models import DriverDeliveryEvent, Order
-from apps.payments.models import Payment
 
 
 @dataclass(frozen=True)
@@ -43,61 +42,54 @@ def resolve_date_range(*, start_date: date | None, end_date: date | None) -> Ana
     )
 
 
-def _successful_payments_qs(date_range: AnalyticsDateRange):
-    return Payment.objects.filter(
-        status=Payment.Status.SUCCESS,
-        paid_at__isnull=False,
-        paid_at__range=(date_range.start_dt, date_range.end_dt),
-    ).select_related("order", "order__restaurant")
+def _paid_orders_qs(date_range: AnalyticsDateRange):
+    """All orders with payment_status=paid in the date range (covers both
+    Chapa payments and sales-agent cash/manual orders)."""
+    return Order.objects.filter(
+        payment_status=Order.PaymentStatus.PAID,
+        placed_at__range=(date_range.start_dt, date_range.end_dt),
+    ).select_related("restaurant")
+
+
+def _paid_orders_revenue(date_range: AnalyticsDateRange) -> Decimal:
+    return _paid_orders_qs(date_range).aggregate(
+        total=Coalesce(
+            Sum("total_amount"),
+            Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+        ),
+    )["total"]
 
 
 def revenue_overview(*, date_range: AnalyticsDateRange) -> dict:
-    paid_qs = _successful_payments_qs(date_range)
+    paid_qs = _paid_orders_qs(date_range)
 
-    revenue_total = paid_qs.aggregate(
-        total=Coalesce(Sum("amount"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)))
-    )["total"]
+    agg = paid_qs.aggregate(
+        revenue_total=Coalesce(
+            Sum("total_amount"),
+            Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+        ),
+    )
+    revenue_total = agg["revenue_total"]
+    paid_orders_count = paid_qs.count()
 
-    unique_paid_orders = paid_qs.values("order_id").distinct()
-    paid_orders_count = unique_paid_orders.count()
-    successful_payments_count = paid_qs.count()
+    successful_payments_count = paid_orders_count
 
     today = timezone.localdate()
     this_week_start = today - timedelta(days=today.weekday())
     this_month_start = today.replace(day=1)
 
-    today_total = _successful_payments_qs(
-        date_range=AnalyticsDateRange(
-            start_dt=_aware_start(today),
-            end_dt=_aware_end(today),
-            start_date=today,
-            end_date=today,
-        )
-    ).aggregate(
-        total=Coalesce(Sum("amount"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)))
-    )["total"]
-
-    weekly_total = _successful_payments_qs(
-        date_range=AnalyticsDateRange(
-            start_dt=_aware_start(this_week_start),
-            end_dt=_aware_end(today),
-            start_date=this_week_start,
-            end_date=today,
-        )
-    ).aggregate(
-        total=Coalesce(Sum("amount"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)))
-    )["total"]
-
-    monthly_total = _successful_payments_qs(
-        date_range=AnalyticsDateRange(
-            start_dt=_aware_start(this_month_start),
-            end_dt=_aware_end(today),
-            start_date=this_month_start,
-            end_date=today,
-        )
-    ).aggregate(
-        total=Coalesce(Sum("amount"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)))
-    )["total"]
+    today_total = _paid_orders_revenue(AnalyticsDateRange(
+        start_dt=_aware_start(today), end_dt=_aware_end(today),
+        start_date=today, end_date=today,
+    ))
+    weekly_total = _paid_orders_revenue(AnalyticsDateRange(
+        start_dt=_aware_start(this_week_start), end_dt=_aware_end(today),
+        start_date=this_week_start, end_date=today,
+    ))
+    monthly_total = _paid_orders_revenue(AnalyticsDateRange(
+        start_dt=_aware_start(this_month_start), end_dt=_aware_end(today),
+        start_date=this_month_start, end_date=today,
+    ))
 
     trend_seed: OrderedDict[str, dict] = OrderedDict()
     pointer = date_range.start_date
@@ -106,20 +98,18 @@ def revenue_overview(*, date_range: AnalyticsDateRange) -> dict:
             "date": pointer.isoformat(),
             "revenue": Decimal("0.00"),
             "orders_count": 0,
-            "successful_payments_count": 0,
         }
         pointer += timedelta(days=1)
 
     trend_rows = (
-        paid_qs.annotate(day=TruncDate("paid_at"))
+        paid_qs.annotate(day=TruncDate("placed_at"))
         .values("day")
         .annotate(
             revenue=Coalesce(
-                Sum("amount"),
+                Sum("total_amount"),
                 Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
             ),
-            successful_payments=Count("id"),
-            paid_orders=Count("order_id", distinct=True),
+            paid_orders=Count("id"),
         )
         .order_by("day")
     )
@@ -130,7 +120,6 @@ def revenue_overview(*, date_range: AnalyticsDateRange) -> dict:
             "date": key,
             "revenue": row["revenue"],
             "orders_count": row["paid_orders"],
-            "successful_payments_count": row["successful_payments"],
         }
     trend = list(trend_index.values())
 
@@ -144,14 +133,13 @@ def revenue_overview(*, date_range: AnalyticsDateRange) -> dict:
     )
 
     top_restaurants = (
-        paid_qs.values("order__restaurant_id", "order__restaurant__name")
+        paid_qs.values("restaurant_id", "restaurant__name")
         .annotate(
             revenue=Coalesce(
-                Sum("amount"),
+                Sum("total_amount"),
                 Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
             ),
-            orders_count=Count("order_id", distinct=True),
-            successful_payments=Count("id"),
+            orders_count=Count("id"),
         )
         .order_by("-revenue", "-orders_count")[:10]
     )
@@ -177,11 +165,10 @@ def revenue_overview(*, date_range: AnalyticsDateRange) -> dict:
         ],
         "top_restaurants": [
             {
-                "restaurant_id": row["order__restaurant_id"],
-                "restaurant_name": row["order__restaurant__name"] or "Unknown",
+                "restaurant_id": row["restaurant_id"],
+                "restaurant_name": row["restaurant__name"] or "Unknown",
                 "revenue": row["revenue"],
                 "orders_count": row["orders_count"],
-                "successful_payments": row["successful_payments"],
             }
             for row in top_restaurants
         ],
@@ -244,10 +231,16 @@ def driver_payout_report(*, date_range: AnalyticsDateRange, driver_id: int | Non
 
 
 def platform_profit_report(*, date_range: AnalyticsDateRange) -> dict:
-    revenue_data = revenue_overview(date_range=date_range)
+    paid_orders = _paid_orders_qs(date_range)
     payout_data = driver_payout_report(date_range=date_range)
 
-    gross_revenue = revenue_data["totals"]["revenue_total"]
+    gross_revenue = paid_orders.aggregate(
+        total=Coalesce(
+            Sum("total_amount"),
+            Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2)),
+        ),
+    )["total"]
+
     driver_payout_total = payout_data["summary"]["driver_payout_total"]
 
     delivered_orders = Order.objects.filter(
@@ -277,5 +270,6 @@ def platform_profit_report(*, date_range: AnalyticsDateRange) -> dict:
             "delivery_fee_total": delivery_fee_total,
             "driver_payout_total": driver_payout_total,
             "platform_balance": platform_balance,
+            "total_deliveries": payout_data["summary"]["total_deliveries"],
         },
     }

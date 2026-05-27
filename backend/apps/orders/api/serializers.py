@@ -10,12 +10,14 @@ from core.models import User
 
 
 class _PayoutOverrideMixin:
-    """Override driver_payout/platform_fee when driver's payout_percentage is in context."""
+    """Override driver_payout/platform_fee for unassigned orders using the
+    requesting driver's payout_percentage. Once a driver is assigned, the
+    stored values are the source of truth."""
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         pct = self.context.get("driver_payout_percentage")
-        if pct is not None:
+        if pct is not None and instance.assigned_driver_id is None:
             delivery_fee = Decimal(str(data["delivery_fee"]))
             payout, fee = apply_driver_percentage(delivery_fee, pct)
             data["driver_payout"] = str(payout)

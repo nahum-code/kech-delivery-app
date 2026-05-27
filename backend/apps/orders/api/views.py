@@ -97,7 +97,13 @@ def _filter_orders(qs, request):
         qs = qs.filter(assigned_driver__isnull=True)
     elif assigned == "true":
         qs = qs.filter(assigned_driver__isnull=False)
-    return qs
+    date_from = request.query_params.get("date_from")
+    if date_from:
+        qs = qs.filter(placed_at__date__gte=date_from)
+    date_to = request.query_params.get("date_to")
+    if date_to:
+        qs = qs.filter(placed_at__date__lte=date_to)
+    return qs.order_by("-placed_at")
 
 
 class OrderListCreateView(APIView):
