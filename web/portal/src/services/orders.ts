@@ -14,6 +14,7 @@ export type OrderRecord = {
   assigned_driver_name: string | null;
   status: string;
   payment_status: string;
+  payment_method: string;
   subtotal: string;
   delivery_fee: string;
   total_amount: string;

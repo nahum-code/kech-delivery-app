@@ -140,6 +140,12 @@ def complete_delivery(*, order_id: int, driver: User) -> Order:
     order = _locked_order(order_id)
     _assert_driver_owns_order(order, driver)
     order = transition_order_status(order, Order.Status.DELIVERED)
+    if (
+        order.payment_method == Order.PaymentMethod.POD
+        and order.payment_status != Order.PaymentStatus.PAID
+    ):
+        order.payment_status = Order.PaymentStatus.PAID
+        order.save(update_fields=["payment_status", "updated_at"])
     _log_event(order=order, driver=driver, action=DriverDeliveryEvent.Action.COMPLETED)
     refresh_operational_status(profile)
     return order

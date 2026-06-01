@@ -48,6 +48,7 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
     final String pickup = _pickupLine(o);
     final String dropoff = _dropoffLine(o);
     final int displaySeconds = secondsLeft.clamp(0, 99);
+    final bool isPod = o.paymentMethod == 'pod';
 
     return Container(
       width: double.infinity,
@@ -84,6 +85,33 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
+                if (isPod) ...<Widget>[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      border: Border.all(color: const Color(0xFFD97706), width: 1.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.payments_outlined, size: 16, color: Color(0xFF92400E)),
+                        SizedBox(width: 6),
+                        Text(
+                          'CASH ON DELIVERY',
+                          style: TextStyle(
+                            color: Color(0xFF92400E),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Text(
                   payout,
@@ -107,6 +135,32 @@ class DriverNewDeliveryRequestCard extends StatelessWidget {
                     height: 1.3,
                   ),
                 ),
+                if (isPod) ...<Widget>[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFBEB),
+                      border: Border.all(color: const Color(0xFFFCD34D)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          'Collect ${o.totalAmount} ETB cash from customer on delivery',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF78350F),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 Container(
                   width: double.infinity,

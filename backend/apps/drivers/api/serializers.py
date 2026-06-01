@@ -16,6 +16,7 @@ class SuspendedDriverSerializer(serializers.ModelSerializer):
         fields = (
             "user_id",
             "full_name",
+            "email",
             "phone",
             "vehicle_type",
             "suspended_at",
@@ -37,6 +38,7 @@ class PendingDriverSerializer(serializers.ModelSerializer):
         fields = (
             "user_id",
             "full_name",
+            "email",
             "phone",
             "approval_status",
             "created_at",
@@ -85,6 +87,21 @@ class PayoutPercentageSerializer(serializers.Serializer):
     payout_percentage = serializers.DecimalField(
         max_digits=5, decimal_places=2, min_value=0, max_value=100,
     )
+
+
+class DriverProfileUpdateSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    vehicle_type = serializers.ChoiceField(
+        choices=DriverProfile.VehicleType.choices,
+        required=False,
+        allow_blank=True,
+    )
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one field to update.")
+        return attrs
 
 
 class DriverAvailabilityUpdateSerializer(serializers.Serializer):

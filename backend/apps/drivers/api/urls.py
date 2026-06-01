@@ -21,7 +21,7 @@ from .delivery_views import (
     DriverOrderPickupView,
     DriverOrderStartDeliveryView,
 )
-from .views import DriverStatusView
+from .views import DriverStatusView, MyBalanceView
 
 urlpatterns = [
     path("orders/", DriverOrdersListView.as_view(), name="driver_orders"),
@@ -44,6 +44,7 @@ urlpatterns = [
     path("orders/<int:order_id>/complete/", DriverOrderCompleteView.as_view(), name="driver_order_complete"),
     path("me/availability/", DriverAvailabilityView.as_view(), name="driver_availability"),
     path("me/status/", DriverStatusView.as_view(), name="driver_me_status"),
+    path("me/balance/", MyBalanceView.as_view(), name="driver_me_balance"),
     path("onboarding/status/", DriverOnboardingStatusView.as_view(), name="driver_onboarding_status"),
     path("onboarding/documents/", DriverDocumentUploadView.as_view(), name="driver_onboarding_documents"),
     path(

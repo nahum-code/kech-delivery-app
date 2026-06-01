@@ -396,9 +396,16 @@ export function MonitorOrdersPage() {
                   <Badge variant="outline" className={paymentBadgeClass(detail.payment_status)}>
                     {paymentLabel(detail.payment_status)}
                   </Badge>
-                  {detail.payment_status === "paid" && (
-                    <span className="text-xs text-green-700">Customer paid via Chapa</span>
-                  )}
+                  <Badge
+                    variant="outline"
+                    className={
+                      detail.payment_method === "pod"
+                        ? "border-amber-300 bg-amber-50 text-amber-900"
+                        : "border-blue-300 bg-blue-50 text-blue-900"
+                    }
+                  >
+                    {detail.payment_method === "pod" ? "Pay on delivery" : "Chapa"}
+                  </Badge>
                 </p>
                 <p>
                   <span className="text-muted-foreground">Customer:</span> {detail.customer_phone}

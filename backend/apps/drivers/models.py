@@ -63,6 +63,26 @@ class DriverProfile(models.Model):
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
         help_text="Percentage of delivery fee the driver receives (0–100).",
     )
+    balance_adjustment = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=(
+            "Manual adjustment applied on top of computed balance "
+            "(sum of driver_payout from delivered orders). "
+            "Typically reduced (negative) when admin pays the driver."
+        ),
+    )
+    debt_adjustment = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=(
+            "Manual adjustment applied on top of computed debt "
+            "(sum of platform_fee from delivered POD orders). "
+            "Typically reduced (negative) when driver settles cash with the platform."
+        ),
+    )
 
     # Approval workflow audit fields (set by admin APIs, not self-service).
     approved_at = models.DateTimeField(null=True, blank=True, db_index=True)

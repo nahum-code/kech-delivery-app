@@ -25,6 +25,10 @@ class Order(models.Model):
         PAID = "paid", "Paid"
         FAILED = "failed", "Failed"
 
+    class PaymentMethod(models.TextChoices):
+        CHAPA = "chapa", "Chapa"
+        POD = "pod", "Pay on delivery"
+
     reference = models.CharField(max_length=32, unique=True, db_index=True)
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -60,6 +64,12 @@ class Order(models.Model):
         max_length=16,
         choices=PaymentStatus.choices,
         default=PaymentStatus.PENDING,
+        db_index=True,
+    )
+    payment_method = models.CharField(
+        max_length=16,
+        choices=PaymentMethod.choices,
+        default=PaymentMethod.CHAPA,
         db_index=True,
     )
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
