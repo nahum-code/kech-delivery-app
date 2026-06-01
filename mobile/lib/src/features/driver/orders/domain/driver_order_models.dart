@@ -13,6 +13,8 @@ final class DriverOrderSummary {
     required this.totalAmount,
     required this.deliveryFee,
     required this.driverPayout,
+    required this.platformFee,
+    required this.paymentMethod,
     required this.placedAt,
     required this.dropoffLine,
     this.driverAcknowledgedAt,
@@ -35,6 +37,8 @@ final class DriverOrderSummary {
   final String totalAmount;
   final String deliveryFee;
   final String driverPayout;
+  final String platformFee;
+  final String paymentMethod;
   final String placedAt;
   final String dropoffLine;
   final String? driverAcknowledgedAt;
@@ -54,6 +58,8 @@ final class DriverOrderSummary {
       totalAmount: '${m['total_amount']}',
       deliveryFee: '${m['delivery_fee']}',
       driverPayout: '${m['driver_payout'] ?? m['delivery_fee']}',
+      platformFee: '${m['platform_fee'] ?? '0'}',
+      paymentMethod: m['payment_method'] as String? ?? 'chapa',
       placedAt: m['placed_at'] as String? ?? '',
       dropoffLine: landmark.isNotEmpty ? '$line · $landmark' : line,
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,
@@ -87,6 +93,7 @@ final class DriverOrderDetail {
     required this.deliveryFee,
     required this.driverPayout,
     required this.totalAmount,
+    required this.paymentMethod,
     required this.placedAt,
     required this.deliveryAddress,
     required this.items,
@@ -108,6 +115,7 @@ final class DriverOrderDetail {
   final String deliveryFee;
   final String driverPayout;
   final String totalAmount;
+  final String paymentMethod;
   final String placedAt;
   final DeliveryAddress deliveryAddress;
   final List<OrderLineItem> items;
@@ -133,6 +141,7 @@ final class DriverOrderDetail {
       deliveryFee: '${m['delivery_fee']}',
       driverPayout: '${m['driver_payout'] ?? m['delivery_fee']}',
       totalAmount: '${m['total_amount']}',
+      paymentMethod: m['payment_method'] as String? ?? 'chapa',
       placedAt: m['placed_at'] as String? ?? '',
       customerNote: (m['customer_note'] as String? ?? '').trim(),
       driverAcknowledgedAt: m['driver_acknowledged_at'] as String?,

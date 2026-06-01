@@ -14,7 +14,9 @@ import '../../domain/checkout_draft.dart';
 import '../widgets/customer_delivery_address_sheet.dart';
 import '../widgets/customer_maroon_primary_button.dart';
 
-/// Pay-with-Chapa checkout — creates order then opens payment pending.
+enum _PaymentMethod { chapa, pod }
+
+/// Checkout screen with Chapa and Pay-on-Delivery options.
 class CustomerCheckoutScreen extends StatefulWidget {
   const CustomerCheckoutScreen({super.key, required this.draft, this.restaurant});
 
@@ -29,6 +31,7 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
   late CheckoutDraft _draft;
   final TextEditingController _driverNote = TextEditingController();
   bool _submitting = false;
+  _PaymentMethod _paymentMethod = _PaymentMethod.chapa;
 
   DeliveryFeeQuote? _quote;
   bool _quoteLoading = false;
@@ -110,6 +113,23 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
     }
   }
 
+  String _buildNote(CartState cart) {
+    return <String>[
+      if (_driverNote.text.trim().isNotEmpty) _driverNote.text.trim(),
+      ...cart.lines
+          .where((CartLine l) => l.specialInstructions.isNotEmpty)
+          .map((CartLine l) => '${l.name}: ${l.specialInstructions}'),
+    ].join('\n');
+  }
+
+  Future<void> _submit() async {
+    if (_paymentMethod == _PaymentMethod.pod) {
+      await _payOnDelivery();
+    } else {
+      await _payWithChapa();
+    }
+  }
+
   Future<void> _payWithChapa() async {
     final CartState? cart = context.read<CartRepository>().current;
     if (cart == null || cart.isEmpty) return;
@@ -119,18 +139,12 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
       final String? token = context.read<AuthRepository>().currentSession?.accessToken;
       if (token == null) throw Exception('Not signed in');
 
-      final String note = <String>[
-        if (_driverNote.text.trim().isNotEmpty) _driverNote.text.trim(),
-        ...cart.lines
-            .where((CartLine l) => l.specialInstructions.isNotEmpty)
-            .map((CartLine l) => '${l.name}: ${l.specialInstructions}'),
-      ].join('\n');
-
       final OrderDetail placed = await context.read<OrderRepository>().placeOrder(
             accessToken: token,
             cart: cart,
             address: _draft.address,
-            customerNote: note,
+            customerNote: _buildNote(cart),
+            paymentMethod: 'chapa',
           );
       final paymentInit = await context.read<PaymentRepository>().initPayment(
             accessToken: token,
@@ -149,6 +163,37 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
         txRef: paymentInit.txRef,
         order: placed,
       );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _payOnDelivery() async {
+    final CartState? cart = context.read<CartRepository>().current;
+    if (cart == null || cart.isEmpty) return;
+
+    setState(() => _submitting = true);
+    try {
+      final String? token = context.read<AuthRepository>().currentSession?.accessToken;
+      if (token == null) throw Exception('Not signed in');
+
+      final OrderDetail placed = await context.read<OrderRepository>().placeOrder(
+            accessToken: token,
+            cart: cart,
+            address: _draft.address,
+            customerNote: _buildNote(cart),
+            paymentMethod: 'pod',
+          );
+      if (!mounted) return;
+      await context.read<CartRepository>().clear();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Order ${placed.reference} placed. Pay the driver on delivery.')),
+      );
+      Navigator.of(context).popUntil((Route<dynamic> r) => r.isFirst);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -259,7 +304,23 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                       const SizedBox(height: 24),
                       Text('Payment method', style: CustomerCheckoutTokens.sectionTitle(context)),
                       const SizedBox(height: 10),
-                      const _ChapaTile(),
+                      _PaymentMethodTile(
+                        title: 'Chapa',
+                        subtitle: 'Fast & secure online payment',
+                        selected: _paymentMethod == _PaymentMethod.chapa,
+                        iconBg: CustomerCheckoutTokens.chapaBlue,
+                        iconText: 'C',
+                        onTap: () => setState(() => _paymentMethod = _PaymentMethod.chapa),
+                      ),
+                      const SizedBox(height: 10),
+                      _PaymentMethodTile(
+                        title: 'Pay on delivery',
+                        subtitle: 'Pay cash to the driver when your order arrives',
+                        selected: _paymentMethod == _PaymentMethod.pod,
+                        iconBg: CustomerCheckoutTokens.primaryMaroon,
+                        iconChild: const Icon(Icons.payments_outlined, color: Colors.white, size: 24),
+                        onTap: () => setState(() => _paymentMethod = _PaymentMethod.pod),
+                      ),
                       const SizedBox(height: 24),
                       Container(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -316,9 +377,11 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                   top: false,
                   minimum: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                   child: CustomerMaroonPrimaryButton(
-                    label: 'PAY WITH CHAPA',
+                    label: _paymentMethod == _PaymentMethod.pod
+                        ? 'PLACE ORDER (PAY ON DELIVERY)'
+                        : 'PAY WITH CHAPA',
                     loading: _submitting,
-                    onPressed: _payWithChapa,
+                    onPressed: _submit,
                   ),
                 ),
               ],
@@ -411,71 +474,85 @@ class _AddressCard extends StatelessWidget {
   }
 }
 
-class _ChapaTile extends StatelessWidget {
-  const _ChapaTile();
+class _PaymentMethodTile extends StatelessWidget {
+  const _PaymentMethodTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.iconBg,
+    required this.onTap,
+    this.iconText,
+    this.iconChild,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final Color iconBg;
+  final String? iconText;
+  final Widget? iconChild;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: CustomerCheckoutTokens.cardSurface,
-        borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: CustomerCheckoutTokens.chapaBlue,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: const Text('C', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22)),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: CustomerCheckoutTokens.cardSurface,
+          borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+          border: Border.all(
+            color: selected
+                ? CustomerCheckoutTokens.primaryMaroon
+                : const Color(0xFFE5E5E5),
+            width: selected ? 2 : 1,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    const Text(
-                      'Chapa',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: CustomerCheckoutTokens.ink,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: CustomerCheckoutTokens.primaryMaroon.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'PRIMARY',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          color: CustomerCheckoutTokens.primaryMaroon,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Fast & secure local payment', style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13)),
-              ],
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: iconChild ??
+                  Text(
+                    iconText ?? '',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22),
+                  ),
             ),
-          ),
-          const Icon(Icons.check_circle_rounded, color: CustomerCheckoutTokens.primaryMaroon),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: CustomerCheckoutTokens.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+              color: selected ? CustomerCheckoutTokens.primaryMaroon : CustomerCheckoutTokens.mutedGray,
+            ),
+          ],
+        ),
       ),
     );
   }

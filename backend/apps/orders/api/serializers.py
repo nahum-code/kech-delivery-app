@@ -45,6 +45,11 @@ class OrderCreateSerializer(serializers.Serializer):
     delivery_address = DeliveryAddressSerializer()
     customer_note = serializers.CharField(required=False, allow_blank=True, default="")
     delivery_fee = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    payment_method = serializers.ChoiceField(
+        choices=Order.PaymentMethod.choices,
+        required=False,
+        default=Order.PaymentMethod.CHAPA,
+    )
 
 
 class SalesOrderCreateSerializer(OrderCreateSerializer):
@@ -128,6 +133,7 @@ class OrderListSerializer(_PayoutOverrideMixin, serializers.ModelSerializer):
             "assigned_driver_name",
             "status",
             "payment_status",
+            "payment_method",
             "subtotal",
             "delivery_fee",
             "driver_payout",
@@ -196,6 +202,7 @@ class OrderDetailSerializer(_PayoutOverrideMixin, serializers.ModelSerializer):
             "assigned_driver",
             "status",
             "payment_status",
+            "payment_method",
             "subtotal",
             "delivery_fee",
             "driver_payout",

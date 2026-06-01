@@ -17,6 +17,7 @@ final class OrderRepository {
     required CartState cart,
     required DeliveryAddress address,
     String customerNote = '',
+    String paymentMethod = 'chapa',
   }) async {
     final http.Response response = await _apiFactory(accessToken).createOrder(<String, dynamic>{
       'restaurant_id': cart.restaurantId,
@@ -25,6 +26,7 @@ final class OrderRepository {
           .toList(),
       'delivery_address': address.toJson(),
       'customer_note': customerNote,
+      'payment_method': paymentMethod,
     });
     if (response.statusCode != 201) {
       throw _httpError(response, 'Could not place order');

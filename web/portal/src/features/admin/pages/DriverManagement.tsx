@@ -13,8 +13,11 @@ import {
   reactivateDriver,
   rejectDriver,
   suspendDriver,
+  updateDriverBalance,
   updateDriverPayoutPercentage,
+  updateDriverProfile,
   type ApprovedDriver,
+  type DriverBalanceEntry,
   type PendingDriver,
   type SuspendedDriver,
 } from "@/services/drivers";
@@ -62,14 +65,124 @@ export function DriverManagement() {
     driverName: string;
   }>({ open: false, userId: null, driverName: "" });
   const [editingPayout, setEditingPayout] = useState<{ driverId: number; value: string } | null>(null);
-  const [balances, setBalances] = useState<Record<string, string>>({});
+  const [balances, setBalances] = useState<Record<string, DriverBalanceEntry>>({});
 
-  type AllDriver = { id: number; name: string; phone: string; status: string; vehicle_type: string };
+  type AllDriver = {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    status: string;
+    vehicle_type: string;
+  };
   const allDrivers: AllDriver[] = useMemo(() => [
-    ...approved.map((d) => ({ id: d.id, name: d.full_name, phone: d.phone, status: "approved", vehicle_type: d.vehicle_type })),
-    ...pending.map((d) => ({ id: d.user_id, name: d.full_name, phone: d.phone, status: "pending", vehicle_type: "" })),
-    ...suspended.map((d) => ({ id: d.user_id, name: d.full_name, phone: d.phone, status: "suspended", vehicle_type: d.vehicle_type })),
+    ...approved.map((d) => ({ id: d.id, name: d.full_name, email: d.email, phone: d.phone, status: "approved", vehicle_type: d.vehicle_type })),
+    ...pending.map((d) => ({ id: d.user_id, name: d.full_name, email: d.email, phone: d.phone, status: "pending", vehicle_type: "" })),
+    ...suspended.map((d) => ({ id: d.user_id, name: d.full_name, email: d.email, phone: d.phone, status: "suspended", vehicle_type: d.vehicle_type })),
   ], [approved, pending, suspended]);
+
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    driver: AllDriver | null;
+    full_name: string;
+    email: string;
+    vehicle_type: string;
+    balance: string;
+    debt: string;
+    initialBalance: string;
+    initialDebt: string;
+    saving: boolean;
+  }>({
+    open: false,
+    driver: null,
+    full_name: "",
+    email: "",
+    vehicle_type: "",
+    balance: "",
+    debt: "",
+    initialBalance: "",
+    initialDebt: "",
+    saving: false,
+  });
+
+  const closeEditDialog = () =>
+    setEditDialog({
+      open: false,
+      driver: null,
+      full_name: "",
+      email: "",
+      vehicle_type: "",
+      balance: "",
+      debt: "",
+      initialBalance: "",
+      initialDebt: "",
+      saving: false,
+    });
+
+  const openEditDialog = (d: AllDriver) => {
+    const b = balances[String(d.id)]?.balance ?? "0.00";
+    const dt = balances[String(d.id)]?.debt ?? "0.00";
+    setEditDialog({
+      open: true,
+      driver: d,
+      full_name: d.name || "",
+      email: d.email || "",
+      vehicle_type: d.vehicle_type || "",
+      balance: b,
+      debt: dt,
+      initialBalance: b,
+      initialDebt: dt,
+      saving: false,
+    });
+  };
+
+  const saveDriverEdit = async () => {
+    if (!editDialog.driver) return;
+    const driverId = editDialog.driver.id;
+
+    const balanceChanged = editDialog.balance !== editDialog.initialBalance;
+    const debtChanged = editDialog.debt !== editDialog.initialDebt;
+
+    if (balanceChanged) {
+      const n = parseFloat(editDialog.balance);
+      if (isNaN(n) || n < 0) {
+        toast.error("Balance must be a non-negative number");
+        return;
+      }
+    }
+    if (debtChanged) {
+      const n = parseFloat(editDialog.debt);
+      if (isNaN(n) || n < 0) {
+        toast.error("Debt must be a non-negative number");
+        return;
+      }
+    }
+
+    setEditDialog((s) => ({ ...s, saving: true }));
+    try {
+      await updateDriverProfile(driverId, {
+        full_name: editDialog.full_name.trim(),
+        email: editDialog.email.trim(),
+        vehicle_type: editDialog.vehicle_type,
+      });
+      if (balanceChanged || debtChanged) {
+        const payload: { balance?: number; debt?: number } = {};
+        if (balanceChanged) payload.balance = parseFloat(editDialog.balance);
+        if (debtChanged) payload.debt = parseFloat(editDialog.debt);
+        const res = await updateDriverBalance(driverId, payload);
+        setBalances((prev) => ({
+          ...prev,
+          [String(driverId)]: { balance: res.balance, debt: res.debt },
+        }));
+      }
+      toast.success("Driver updated");
+      closeEditDialog();
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Update failed");
+      setEditDialog((s) => ({ ...s, saving: false }));
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -198,16 +311,18 @@ export function DriverManagement() {
                     <TableHead>Vehicle</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Balance</TableHead>
+                    <TableHead>Debt</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={5}>Loading...</TableCell>
+                      <TableCell colSpan={7}>Loading...</TableCell>
                     </TableRow>
                   ) : allDrivers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5}>No drivers</TableCell>
+                      <TableCell colSpan={7}>No drivers</TableCell>
                     </TableRow>
                   ) : (
                     allDrivers.map((d) => (
@@ -229,7 +344,25 @@ export function DriverManagement() {
                             {d.status.charAt(0).toUpperCase() + d.status.slice(1)}
                           </Badge>
                         </TableCell>
-                        <TableCell>{balances[String(d.id)] ?? "0.00"} ETB</TableCell>
+                        <TableCell>{balances[String(d.id)]?.balance ?? "0.00"} ETB</TableCell>
+                        <TableCell
+                          className={
+                            balances[String(d.id)]?.debt && parseFloat(balances[String(d.id)].debt) > 0
+                              ? "text-red-700 font-medium"
+                              : ""
+                          }
+                        >
+                          {balances[String(d.id)]?.debt ?? "0.00"} ETB
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditDialog(d)}
+                          >
+                            Edit
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -518,6 +651,88 @@ export function DriverManagement() {
               disabled={needsReason && !dialog.reason.trim()}
             >
               Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editDialog.open}
+        onOpenChange={(open) => !open && closeEditDialog()}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit driver</DialogTitle>
+            <DialogDescription>
+              Update driver information, balance, and debt. Phone number cannot be changed.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input id="edit-phone" value={editDialog.driver?.phone ?? ""} disabled readOnly />
+            </div>
+            <div>
+              <Label htmlFor="edit-name">Full name</Label>
+              <Input
+                id="edit-name"
+                value={editDialog.full_name}
+                onChange={(e) => setEditDialog((s) => ({ ...s, full_name: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editDialog.email}
+                onChange={(e) => setEditDialog((s) => ({ ...s, email: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-vehicle">Vehicle type</Label>
+              <select
+                id="edit-vehicle"
+                className="mt-1 block h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm"
+                value={editDialog.vehicle_type}
+                onChange={(e) => setEditDialog((s) => ({ ...s, vehicle_type: e.target.value }))}
+              >
+                <option value="">—</option>
+                <option value="sedan">Sedan</option>
+                <option value="motorbike">Motorbike</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-balance">Balance (ETB)</Label>
+                <Input
+                  id="edit-balance"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editDialog.balance}
+                  onChange={(e) => setEditDialog((s) => ({ ...s, balance: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-debt">Debt (ETB)</Label>
+                <Input
+                  id="edit-debt"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={editDialog.debt}
+                  onChange={(e) => setEditDialog((s) => ({ ...s, debt: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeEditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveDriverEdit()} disabled={editDialog.saving}>
+              {editDialog.saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -164,9 +164,19 @@ class OrderListCreateView(APIView):
                     delivery_address=data["delivery_address"],
                     customer_note=data.get("customer_note", ""),
                     delivery_fee=data.get("delivery_fee"),
+                    payment_method=data.get("payment_method", Order.PaymentMethod.CHAPA),
                 )
             except OrderServiceError as exc:
                 return Response({"detail": exc.message}, status=exc.status_code)
+
+            # POD orders skip the Chapa payment step — broadcast immediately.
+            if order.payment_method == Order.PaymentMethod.POD:
+                try:
+                    order = transition_order_status(order, Order.Status.CONFIRMED)
+                    if order.assigned_driver_id is None:
+                        order = transition_order_status(order, Order.Status.SEARCHING_DRIVER)
+                except OrderServiceError as exc:
+                    return Response({"detail": exc.message}, status=exc.status_code)
 
         order = _order_queryset().get(pk=order.pk)
         return Response(
@@ -348,12 +358,17 @@ class AvailableOrdersListView(APIView):
     permission_classes = [IsAuthenticated, CanViewDriverOrders]
 
     def get(self, request, *args, **kwargs):
+        # POD orders are broadcastable even though payment_status=pending
+        # (driver collects cash on delivery).
         qs = (
             _order_queryset()
             .filter(
                 status=Order.Status.SEARCHING_DRIVER,
                 assigned_driver__isnull=True,
-                payment_status=Order.PaymentStatus.PAID,
+            )
+            .filter(
+                Q(payment_status=Order.PaymentStatus.PAID)
+                | Q(payment_method=Order.PaymentMethod.POD),
             )
             .order_by("placed_at")
         )
@@ -384,11 +399,17 @@ class AvailableOrderDetailView(APIView):
 
     def get(self, request, order_id: int, *args, **kwargs):
         try:
-            order = _order_queryset().get(
-                pk=order_id,
-                status=Order.Status.SEARCHING_DRIVER,
-                assigned_driver__isnull=True,
-                payment_status=Order.PaymentStatus.PAID,
+            order = (
+                _order_queryset()
+                .filter(
+                    Q(payment_status=Order.PaymentStatus.PAID)
+                    | Q(payment_method=Order.PaymentMethod.POD),
+                )
+                .get(
+                    pk=order_id,
+                    status=Order.Status.SEARCHING_DRIVER,
+                    assigned_driver__isnull=True,
+                )
             )
         except Order.DoesNotExist:
             return Response(

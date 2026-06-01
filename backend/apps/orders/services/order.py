@@ -131,6 +131,7 @@ def create_order(
     customer_note: str = "",
     sales_agent: User | None = None,
     delivery_fee: Decimal | None = None,
+    payment_method: str = Order.PaymentMethod.CHAPA,
 ) -> Order:
     if customer.role != User.Role.CUSTOMER:
         raise OrderServiceError("Orders must be placed for a customer account.", status_code=403)
@@ -168,6 +169,7 @@ def create_order(
         restaurant=restaurant,
         sales_agent=sales_agent if sales_agent and sales_agent.role == User.Role.SALES else None,
         status=Order.Status.PENDING,
+        payment_method=payment_method,
         delivery_address=validated_address,
         customer_note=(customer_note or "").strip(),
         delivery_fee=pricing.delivery_fee,

@@ -78,4 +78,8 @@ final class DriverOrderApi {
   Future<http.Response> driverStatus() {
     return _client.get(_u('/api/v1/drivers/me/status/'), headers: _headers);
   }
+
+  Future<http.Response> myBalance() {
+    return _client.get(_u('/api/v1/drivers/me/balance/'), headers: _headers);
+  }
 }

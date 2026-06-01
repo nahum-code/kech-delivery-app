@@ -209,6 +209,17 @@ final class DriverOrderRepository {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> fetchMyBalance({required String accessToken}) async {
+    final http.Response response = await _request(
+      accessToken,
+      (String token) => _apiFactory(token).myBalance(),
+    );
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not load balance');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   /// Run [call] with the given access token, transparently retrying once
   /// with a refreshed token if the server returns 401. Mirrors the helper
   /// main introduced so all driver endpoints survive a stale access token.

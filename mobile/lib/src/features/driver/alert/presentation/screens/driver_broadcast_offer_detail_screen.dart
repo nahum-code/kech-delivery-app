@@ -108,9 +108,53 @@ class _DriverBroadcastOfferDetailScreenState extends State<DriverBroadcastOfferD
   }
 
   Widget _buildContent(DriverOrderDetail order) {
+    final bool isPod = order.paymentMethod == 'pod';
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: <Widget>[
+        if (isPod) ...<Widget>[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFBEB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFD97706), width: 1.5),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Icon(Icons.payments_outlined, color: Color(0xFF92400E)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'CASH ON DELIVERY',
+                        style: TextStyle(
+                          color: Color(0xFF92400E),
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Collect ${order.totalAmount} ETB cash from the customer on delivery.',
+                        style: const TextStyle(
+                          color: Color(0xFF78350F),
+                          fontSize: 13,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         _section(
           icon: Icons.storefront_outlined,
           label: 'PICKUP',

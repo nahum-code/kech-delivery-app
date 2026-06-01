@@ -26,6 +26,7 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
   int _userId = 0;
   int _completedCount = 0;
   double _earningsBalance = 0;
+  double _cashDebt = 0;
   bool _pushNotifications = true;
   bool _loading = true;
 
@@ -49,16 +50,14 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         auth.fetchMe(accessToken: session.accessToken),
         repo.fetchDriverStatus(accessToken: session.accessToken),
         repo.fetchOrders(accessToken: session.accessToken, status: 'delivered'),
+        repo.fetchMyBalance(accessToken: session.accessToken),
       ]);
       if (!mounted) return;
       final Map<String, dynamic>? me = results[0] as Map<String, dynamic>?;
       final Map<String, dynamic> status = results[1]! as Map<String, dynamic>;
       final List<DriverOrderSummary> completed = results[2]! as List<DriverOrderSummary>;
+      final Map<String, dynamic> balanceData = results[3]! as Map<String, dynamic>;
       final Map<String, dynamic>? profile = me?['profile'] as Map<String, dynamic>?;
-      double earnings = 0;
-      for (final DriverOrderSummary o in completed) {
-        earnings += double.tryParse(o.driverPayout) ?? 0;
-      }
       setState(() {
         _userId = me?['id'] as int? ?? 0;
         _phone = me?['phone'] as String? ?? '';
@@ -66,7 +65,8 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
         _vehicleType = profile?['vehicle_type'] as String? ?? '';
         _approval = status['approval_status'] as String? ?? profile?['approval_status'] as String? ?? 'pending';
         _completedCount = completed.length;
-        _earningsBalance = earnings;
+        _earningsBalance = double.tryParse('${balanceData['balance']}') ?? 0;
+        _cashDebt = double.tryParse('${balanceData['debt']}') ?? 0;
         _loading = false;
       });
     } catch (_) {
@@ -328,6 +328,66 @@ class _DriverProfileScreenState extends State<DriverProfileScreen> {
             ],
           ),
         ),
+        if (_cashDebt > 0) ...<Widget>[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(DriverProfileTokens.cardRadius),
+              border: const Border(left: BorderSide(color: Color(0xFFDC2626), width: 4)),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
+              ],
+            ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        'Cash owed to platform',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF991B1B),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'ETB ${_cashDebt.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 26,
+                          color: Color(0xFFDC2626),
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Settle this amount with the platform from your cash-on-delivery collections.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF991B1B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.payments_outlined, color: Colors.white, size: 26),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

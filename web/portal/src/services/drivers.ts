@@ -3,6 +3,7 @@ import { requestJson } from "@/services/http";
 export type PendingDriver = {
   user_id: number;
   full_name: string;
+  email: string;
   phone: string;
   approval_status: string;
   created_at: string;
@@ -29,6 +30,7 @@ export type DriverDocumentsResponse = {
 export type ApprovedDriver = {
   id: number;
   full_name: string;
+  email: string;
   phone: string;
   vehicle_type: string;
   operational_status: string;
@@ -38,6 +40,7 @@ export type ApprovedDriver = {
 export type SuspendedDriver = {
   user_id: number;
   full_name: string;
+  email: string;
   phone: string;
   vehicle_type: string;
   suspended_at: string | null;
@@ -98,8 +101,10 @@ export async function reactivateDriver(userId: number): Promise<DriverActionResp
   });
 }
 
-export async function fetchDriverBalances(): Promise<Record<string, string>> {
-  return requestJson<Record<string, string>>("/api/v1/admin/drivers/balances/");
+export type DriverBalanceEntry = { balance: string; debt: string };
+
+export async function fetchDriverBalances(): Promise<Record<string, DriverBalanceEntry>> {
+  return requestJson<Record<string, DriverBalanceEntry>>("/api/v1/admin/drivers/balances/");
 }
 
 export async function updateDriverPayoutPercentage(
@@ -109,5 +114,31 @@ export async function updateDriverPayoutPercentage(
   return requestJson(`/api/v1/admin/drivers/${userId}/payout-percentage/`, {
     method: "PATCH",
     body: JSON.stringify({ payout_percentage: payoutPercentage }),
+  });
+}
+
+export async function updateDriverBalance(
+  userId: number,
+  payload: { balance?: number; debt?: number },
+): Promise<{ driver_id: number; balance: string; debt: string; message: string }> {
+  return requestJson(`/api/v1/admin/drivers/${userId}/balance/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateDriverProfile(
+  userId: number,
+  payload: { full_name?: string; email?: string; vehicle_type?: string },
+): Promise<{
+  driver_id: number;
+  full_name: string;
+  email: string;
+  vehicle_type: string;
+  message: string;
+}> {
+  return requestJson(`/api/v1/admin/drivers/${userId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
