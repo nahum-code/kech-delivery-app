@@ -14,8 +14,9 @@ abstract final class CustomerRegistrationValidators {
 
   static String? email(String? raw) {
     final String value = raw?.trim() ?? '';
+    // Email is optional; only validate the format when one is provided.
     if (value.isEmpty) {
-      return 'Enter your email';
+      return null;
     }
     final RegExp pattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!pattern.hasMatch(value)) {

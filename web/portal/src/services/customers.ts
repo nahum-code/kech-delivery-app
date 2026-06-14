@@ -23,6 +23,7 @@ export type CreateCustomerInput = {
   phone: string;
   name: string;
   password: string;
+  email?: string;
 };
 
 export async function createCustomer(input: CreateCustomerInput): Promise<CustomerSearchResult> {

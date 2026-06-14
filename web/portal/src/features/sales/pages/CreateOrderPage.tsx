@@ -115,7 +115,7 @@ export function CreateOrderPage() {
   const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([]);
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
-  const [createCustomerForm, setCreateCustomerForm] = useState({ phone: "", name: "", password: "" });
+  const [createCustomerForm, setCreateCustomerForm] = useState({ phone: "", name: "", email: "", password: "" });
   const [createCustomerError, setCreateCustomerError] = useState<string | null>(null);
   const [createCustomerLoading, setCreateCustomerLoading] = useState(false);
   const [selectedRestaurant, setSelectedRestaurant] = useState("");
@@ -286,6 +286,7 @@ export function CreateOrderPage() {
     setCreateCustomerForm({
       phone: customer.phone.trim(),
       name: "",
+      email: "",
       password: "",
     });
   };
@@ -293,12 +294,13 @@ export function CreateOrderPage() {
   const handleCancelCreateCustomer = () => {
     setShowCreateCustomer(false);
     setCreateCustomerError(null);
-    setCreateCustomerForm({ phone: "", name: "", password: "" });
+    setCreateCustomerForm({ phone: "", name: "", email: "", password: "" });
   };
 
   const handleSubmitCreateCustomer = async () => {
     const phone = createCustomerForm.phone.trim();
     const name = createCustomerForm.name.trim();
+    const email = createCustomerForm.email.trim();
     const password = createCustomerForm.password;
     if (!phone || !name || !password) {
       setCreateCustomerError("Phone, name, and temp password are all required.");
@@ -307,10 +309,10 @@ export function CreateOrderPage() {
     setCreateCustomerLoading(true);
     setCreateCustomerError(null);
     try {
-      const created = await createCustomer({ phone, name, password });
+      const created = await createCustomer({ phone, name, password, email: email || undefined });
       handleSelectCustomer(created);
       setShowCreateCustomer(false);
-      setCreateCustomerForm({ phone: "", name: "", password: "" });
+      setCreateCustomerForm({ phone: "", name: "", email: "", password: "" });
       setCustomerSearchError(null);
       toast.success("Customer created and selected");
     } catch (e) {
@@ -416,7 +418,7 @@ export function CreateOrderPage() {
       setCustomer({ phone: "", name: "" });
       setCustomerExists(false);
       setShowCreateCustomer(false);
-      setCreateCustomerForm({ phone: "", name: "", password: "" });
+      setCreateCustomerForm({ phone: "", name: "", email: "", password: "" });
       setCreateCustomerError(null);
       setSelectedRestaurant("");
       setDropoffAddress("");
@@ -602,6 +604,19 @@ export function CreateOrderPage() {
                           value={createCustomerForm.name}
                   onChange={(e) =>
                             setCreateCustomerForm((prev) => ({ ...prev, name: e.target.value }))
+                          }
+                          disabled={createCustomerLoading}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="new-customer-email">Email (optional)</Label>
+                        <Input
+                          id="new-customer-email"
+                          type="email"
+                          placeholder="customer@example.com"
+                          value={createCustomerForm.email}
+                          onChange={(e) =>
+                            setCreateCustomerForm((prev) => ({ ...prev, email: e.target.value }))
                           }
                           disabled={createCustomerLoading}
                         />

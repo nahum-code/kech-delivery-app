@@ -57,7 +57,7 @@ export function CreateSalesAgentDialog({
     if (!phoneNumber) {
       newErrors.phone = "Phone number is required";
     } else if (!/^\+[1-9]\d{7,14}$/.test(phoneNumber.trim())) {
-      newErrors.phone = "Invalid phone number format (e.g., +251983204356)";
+      newErrors.phone = "Invalid phone number format (e.g., +251900000000)";
     }
 
     // Validate password
@@ -151,8 +151,7 @@ export function CreateSalesAgentDialog({
           <DialogHeader>
             <DialogTitle>Create Sales Agent</DialogTitle>
             <DialogDescription>
-              Create a new sales agent account. The role will be automatically
-              set to &quot;Sales Agent&quot;.
+              Create a new sales agent account.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -160,7 +159,7 @@ export function CreateSalesAgentDialog({
               <Label htmlFor="name">Full name</Label>
               <Input
                 id="name"
-                placeholder="e.g. Sara Kebede"
+                placeholder="Full Name"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -178,7 +177,7 @@ export function CreateSalesAgentDialog({
               <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
-                placeholder="+251983204356"
+                placeholder="Phone Number (e.g., +251900000000)"
                 value={phoneNumber}
                 onChange={(e) => {
                   setPhoneNumber(e.target.value);

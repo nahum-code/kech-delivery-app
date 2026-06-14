@@ -28,6 +28,7 @@ from .serializers import (
     PhoneTokenObtainPairSerializer,
     RestrictedTokenRefreshSerializer,
     SalesAgentCreateSerializer,
+    SalesAgentUpdateSerializer,
     UserListSerializer,
 )
 
@@ -255,6 +256,27 @@ class StaffOpsCheckView(APIView):
                 "role": request.user.role,
             }
         )
+
+
+class SalesAgentDetailView(APIView):
+    """PATCH /api/v1/auth/sales-agents/{id}/ — update name and/or active status."""
+
+    permission_classes = [IsAuthenticated, IsAdminUserRole]
+
+    def patch(self, request, user_id, *args, **kwargs):
+        try:
+            user = User.objects.select_related("sales_profile").get(
+                id=user_id, role=User.Role.SALES
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "Sales agent not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = SalesAgentUpdateSerializer(instance=user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserListSerializer(user).data)
 
 
 class AdminUsersListView(APIView):

@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -8,17 +10,25 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Briefcase } from "lucide-react";
+import { Briefcase, Pencil } from "lucide-react";
 import { AdminUserStatusBadge } from "@/features/admin/components/AdminUserStatusBadge";
+import { EditSalesAgentDialog } from "@/features/admin/components/EditSalesAgentDialog";
 import { adminUserDisplayName, filterAdminUsers } from "@/lib/admin-user-utils";
 import type { AdminUser } from "@/services/users";
 
 interface UsersSalesAgentsProps {
   searchQuery: string;
   users?: AdminUser[];
+  onUserUpdated?: (updated: AdminUser) => void;
 }
 
-export function UsersSalesAgents({ searchQuery, users = [] }: UsersSalesAgentsProps) {
+export function UsersSalesAgents({
+  searchQuery,
+  users = [],
+  onUserUpdated,
+}: UsersSalesAgentsProps) {
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
   const filteredUsers = filterAdminUsers(users, searchQuery);
 
   if (filteredUsers.length === 0) {
@@ -67,12 +77,30 @@ export function UsersSalesAgents({ searchQuery, users = [] }: UsersSalesAgentsPr
                     year: "numeric",
                   })}
                 </TableCell>
-                <TableCell className="text-right text-sm text-gray-500">--</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditing(user);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Pencil className="mr-1 h-4 w-4" />
+                    Edit
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+      <EditSalesAgentDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        agent={editing}
+        onUpdated={onUserUpdated}
+      />
     </Card>
   );
 }
