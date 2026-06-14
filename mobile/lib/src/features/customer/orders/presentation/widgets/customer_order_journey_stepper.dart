@@ -38,12 +38,28 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
     return _progressOrder.indexOf('placed');
   }
 
+  /// Resolves the visual state of step [i]. The payment step (index 1) is
+  /// special-cased for pay-on-delivery: it must not be inferred "done" from how
+  /// far delivery has progressed — it only completes once the order is paid.
+  _StepState _stepState(int i, int currentIndex, {required bool cancelled, required bool pod}) {
+    if (cancelled) return _StepState.pending;
+    if (i == 1 && pod && !order.isPaymentPaid) return _StepState.pending;
+    if (i < currentIndex) return _StepState.done;
+    if (i == currentIndex) return _StepState.active;
+    return _StepState.pending;
+  }
+
   @override
   Widget build(BuildContext context) {
     final DateTime? placed = DateTime.tryParse(order.placedAt)?.toLocal();
     final String placedTime = placed != null ? _formatTime(placed) : '';
     final int currentIndex = _currentIndex();
     final bool cancelled = order.status == 'cancelled';
+
+    // Pay-on-delivery is collected by the driver at handover, so its payment
+    // milestone is only "done" once the order is actually paid — never inferred
+    // from how far the delivery has progressed.
+    final bool pod = order.isPayOnDelivery;
 
     final List<_StepSpec> steps = <_StepSpec>[
       _StepSpec(
@@ -52,8 +68,10 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
         time: placedTime,
       ),
       _StepSpec(
-        icon: Icons.account_balance_wallet_outlined,
-        title: 'Payment confirmed',
+        icon: pod ? Icons.payments_outlined : Icons.account_balance_wallet_outlined,
+        title: pod
+            ? (order.isPaymentPaid ? 'Paid on delivery' : 'Pay on delivery')
+            : 'Payment confirmed',
         time: order.isPaymentPaid ? placedTime : '',
       ),
       const _StepSpec(
@@ -81,13 +99,7 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
             icon: steps[i].icon,
             title: steps[i].title,
             time: steps[i].time,
-            state: cancelled
-                ? _StepState.pending
-                : i < currentIndex
-                    ? _StepState.done
-                    : i == currentIndex
-                        ? _StepState.active
-                        : _StepState.pending,
+            state: _stepState(i, currentIndex, cancelled: cancelled, pod: pod),
             showLineBelow: i < steps.length - 1 || cancelled,
             lineActive: !cancelled && i < currentIndex,
           ),

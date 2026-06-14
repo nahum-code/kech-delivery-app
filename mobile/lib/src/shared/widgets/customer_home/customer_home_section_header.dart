@@ -7,14 +7,14 @@ class CustomerHomeSectionHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    required this.actionLabel,
-    required this.onActionPressed,
+    this.actionLabel,
+    this.onActionPressed,
   });
 
   final String title;
   final String subtitle;
-  final String actionLabel;
-  final VoidCallback onActionPressed;
+  final String? actionLabel;
+  final VoidCallback? onActionPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -45,24 +45,25 @@ class CustomerHomeSectionHeader extends StatelessWidget {
             ],
           ),
         ),
-        TextButton(
-          onPressed: onActionPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: CustomerHomeTokens.primaryMaroon,
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
-            padding: const EdgeInsets.only(left: 8, top: 0, bottom: 0),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        if (actionLabel != null && onActionPressed != null)
+          TextButton(
+            onPressed: onActionPressed,
+            style: TextButton.styleFrom(
+              foregroundColor: CustomerHomeTokens.primaryMaroon,
+              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+              padding: const EdgeInsets.only(left: 8, top: 0, bottom: 0),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(actionLabel!),
+                const SizedBox(width: 2),
+                const Icon(Icons.chevron_right_rounded, size: 20),
+              ],
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text(actionLabel),
-              const SizedBox(width: 2),
-              const Icon(Icons.chevron_right_rounded, size: 20),
-            ],
-          ),
-        ),
       ],
     );
   }

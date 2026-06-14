@@ -95,7 +95,7 @@ class CustomerHomeNotificationsButton extends StatelessWidget {
                               child: Row(
                                 children: <Widget>[
                                   Icon(
-                                    order.isPaymentPending
+                                    order.isAwaitingOnlinePayment
                                         ? Icons.payments_outlined
                                         : Icons.delivery_dining_outlined,
                                     color: CustomerHomeTokens.primaryMaroon,

@@ -9,7 +9,7 @@ import '../screens/customer_payment_pending_screen.dart';
 abstract final class CustomerOrderNavigation {
   static void openOrder(BuildContext context, {required int orderId, OrderDetail? snapshot}) {
     if (snapshot != null) {
-      if (snapshot.isPaymentPending) {
+      if (snapshot.isAwaitingOnlinePayment) {
         Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => CustomerPaymentPendingScreen(orderId: orderId, initial: snapshot),
@@ -32,7 +32,7 @@ abstract final class CustomerOrderNavigation {
   }
 
   static void openSummary(BuildContext context, OrderSummary summary) {
-    if (summary.isPaymentPending) {
+    if (summary.isAwaitingOnlinePayment) {
       Navigator.of(context).push<void>(
         MaterialPageRoute<void>(builder: (_) => CustomerPaymentPendingScreen(orderId: summary.id)),
       );

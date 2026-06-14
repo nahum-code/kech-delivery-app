@@ -24,8 +24,10 @@ final class RestaurantRepository {
 
   Future<List<RestaurantSummary>> fetchActiveRestaurants({
     String? search,
+    String? category,
   }) async {
-    final http.Response response = await _api.listRestaurants(search: search);
+    final http.Response response =
+        await _api.listRestaurants(search: search, category: category);
     if (response.statusCode != 200) {
       throw _httpError(response, 'Could not load restaurants');
     }
@@ -34,6 +36,57 @@ final class RestaurantRepository {
       throw const FormatException('Unexpected restaurants response');
     }
     return decoded.map(_parseRestaurant).toList(growable: false);
+  }
+
+  /// Distinct active menu-category names across restaurants, used for the
+  /// customer home category filters.
+  Future<List<String>> fetchMenuCategoryNames() async {
+    final http.Response response = await _api.listMenuCategories();
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not load categories');
+    }
+    final dynamic decoded = jsonDecode(response.body);
+    if (decoded is! List<dynamic>) {
+      throw const FormatException('Unexpected categories response');
+    }
+    return decoded
+        .map((dynamic e) => '$e'.trim())
+        .where((String e) => e.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  /// Available menu items across all restaurants, optionally restricted to a
+  /// single category name.
+  Future<List<CatalogMenuItem>> fetchCatalogItems({String? category}) async {
+    final http.Response response = await _api.listMenuItems(category: category);
+    if (response.statusCode != 200) {
+      throw _httpError(response, 'Could not load menu items');
+    }
+    final dynamic decoded = jsonDecode(response.body);
+    if (decoded is! List<dynamic>) {
+      throw const FormatException('Unexpected menu items response');
+    }
+    return decoded.map(_parseCatalogItem).toList(growable: false);
+  }
+
+  CatalogMenuItem _parseCatalogItem(dynamic raw) {
+    final Map<String, dynamic> m = raw as Map<String, dynamic>;
+    final int? id = _readInt(m['id']);
+    final int? restaurantId = _readInt(m['restaurant_id']);
+    if (id == null || restaurantId == null) {
+      throw const FormatException('Menu item is missing id or restaurant');
+    }
+    return CatalogMenuItem(
+      id: id,
+      name: m['name'] as String? ?? '',
+      description: m['description'] as String? ?? '',
+      price: '${m['price']}',
+      currency: m['currency'] as String? ?? 'ETB',
+      restaurantId: restaurantId,
+      restaurantName: m['restaurant_name'] as String? ?? '',
+      categoryName: m['category_name'] as String? ?? '',
+      imageUrl: m['image_url'] as String?,
+    );
   }
 
   Future<RestaurantMenu> fetchMenu(int restaurantId) async {

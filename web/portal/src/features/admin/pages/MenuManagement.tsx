@@ -11,6 +11,7 @@ import {
 import {
   createCategory,
   createMenuItem,
+  deleteCategory,
   deleteMenuItem,
   fetchCategories,
   fetchMenuItems,
@@ -62,6 +63,8 @@ export function MenuManagement() {
     null,
   );
   const [categoryForm, setCategoryForm] = useState({ name: "" });
+  const [deleteCategoryTarget, setDeleteCategoryTarget] =
+    useState<MenuCategoryRecord | null>(null);
   const [itemForm, setItemForm] = useState({
     name: "",
     description: "",
@@ -138,6 +141,26 @@ export function MenuManagement() {
       await loadMenu();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const deleteCategoryItemCount = items.filter(
+    (i) => i.category_id === deleteCategoryTarget?.id,
+  ).length;
+
+  const confirmDeleteCategory = async () => {
+    const target = deleteCategoryTarget;
+    if (restaurantId == null || target == null) return;
+    try {
+      await deleteCategory(restaurantId, target.id);
+      toast.success("Category deleted");
+      if (selectedCategoryId === target.id) {
+        setSelectedCategoryId(null);
+      }
+      setDeleteCategoryTarget(null);
+      await loadMenu();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
     }
   };
 
@@ -263,6 +286,14 @@ export function MenuManagement() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setDeleteCategoryTarget(c)}
+                >
+                  <Trash2 className="h-4 w-4 text-red-600" />
+                </Button>
               </div>
             ))}
           </CardContent>
@@ -369,6 +400,39 @@ export function MenuManagement() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={deleteCategoryTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCategoryTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete category</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Delete &quot;{deleteCategoryTarget?.name}&quot;? This also
+            permanently removes {deleteCategoryItemCount} menu item
+            {deleteCategoryItemCount === 1 ? "" : "s"} in this category. This
+            action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteCategoryTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => void confirmDeleteCategory()}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={categoryDialog} onOpenChange={setCategoryDialog}>
         <DialogContent>

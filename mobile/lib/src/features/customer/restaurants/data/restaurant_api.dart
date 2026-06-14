@@ -15,10 +15,28 @@ final class RestaurantApi {
 
   Uri _u(String path) => Uri.parse('$_base$path');
 
-  Future<http.Response> listRestaurants({String? search}) {
-    final Uri uri = search != null && search.trim().isNotEmpty
-        ? _u('/api/v1/restaurants/').replace(queryParameters: <String, String>{'search': search.trim()})
-        : _u('/api/v1/restaurants/');
+  Future<http.Response> listRestaurants({String? search, String? category}) {
+    final Map<String, String> query = <String, String>{
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (category != null && category.trim().isNotEmpty) 'category': category.trim(),
+    };
+    final Uri uri = query.isEmpty
+        ? _u('/api/v1/restaurants/')
+        : _u('/api/v1/restaurants/').replace(queryParameters: query);
+    return _client.get(uri, headers: _jsonHeaders);
+  }
+
+  /// Distinct active menu-category names across restaurants (public).
+  Future<http.Response> listMenuCategories() {
+    return _client.get(_u('/api/v1/restaurants/menu-categories/'), headers: _jsonHeaders);
+  }
+
+  /// Available menu items across restaurants, optionally one category (public).
+  Future<http.Response> listMenuItems({String? category}) {
+    final Uri uri = category != null && category.trim().isNotEmpty
+        ? _u('/api/v1/restaurants/menu-items/')
+            .replace(queryParameters: <String, String>{'category': category.trim()})
+        : _u('/api/v1/restaurants/menu-items/');
     return _client.get(uri, headers: _jsonHeaders);
   }
 

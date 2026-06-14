@@ -14,7 +14,7 @@ abstract final class CustomerOrderNotificationUtils {
   }
 
   static String headline(OrderSummary order) {
-    if (order.isPaymentPending) {
+    if (order.isAwaitingOnlinePayment) {
       return 'Payment required';
     }
     return switch (order.status) {
@@ -31,7 +31,7 @@ abstract final class CustomerOrderNotificationUtils {
 
   static String subtitle(OrderSummary order) {
     final String ref = order.reference.isNotEmpty ? '#${order.reference}' : 'Order #${order.id}';
-    if (order.isPaymentPending) {
+    if (order.isAwaitingOnlinePayment) {
       return '$ref · Complete payment for ${order.restaurantName}';
     }
     return '$ref · ${order.restaurantName}';

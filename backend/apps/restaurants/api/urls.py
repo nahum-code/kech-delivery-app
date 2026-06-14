@@ -5,6 +5,8 @@ from .views import (
     MenuCategoryListCreateView,
     MenuItemDetailView,
     MenuItemListCreateView,
+    PublicMenuCategoryNamesView,
+    PublicMenuItemsView,
     RestaurantDetailView,
     RestaurantListCreateView,
     RestaurantMenuView,
@@ -12,6 +14,16 @@ from .views import (
 
 urlpatterns = [
     path("", RestaurantListCreateView.as_view(), name="restaurant_list"),
+    path(
+        "menu-categories/",
+        PublicMenuCategoryNamesView.as_view(),
+        name="public_menu_categories",
+    ),
+    path(
+        "menu-items/",
+        PublicMenuItemsView.as_view(),
+        name="public_menu_items",
+    ),
     path("<int:restaurant_id>/", RestaurantDetailView.as_view(), name="restaurant_detail"),
     path("<int:restaurant_id>/menu/", RestaurantMenuView.as_view(), name="restaurant_menu"),
     path(
