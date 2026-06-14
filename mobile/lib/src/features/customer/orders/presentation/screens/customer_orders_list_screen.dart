@@ -21,6 +21,9 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
   bool _loading = true;
   String? _error;
 
+  /// Currently selected status filter; null means "All".
+  String? _statusFilter;
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +46,11 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
       setState(() {
         _orders = data;
         _loading = false;
+        // Drop a stale filter if no loaded order has that status anymore.
+        if (_statusFilter != null &&
+            !data.any((OrderSummary o) => o.status == _statusFilter)) {
+          _statusFilter = null;
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -58,6 +66,22 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
       if (w.isEmpty) return w;
       return '${w[0].toUpperCase()}${w.substring(1)}';
     }).join(' ');
+  }
+
+  /// Distinct statuses present in the loaded orders, preserving first-seen order.
+  List<String> get _availableStatuses {
+    final List<String> seen = <String>[];
+    for (final OrderSummary o in _orders) {
+      if (o.status.isNotEmpty && !seen.contains(o.status)) seen.add(o.status);
+    }
+    return seen;
+  }
+
+  List<OrderSummary> get _visibleOrders {
+    if (_statusFilter == null) return _orders;
+    return _orders
+        .where((OrderSummary o) => o.status == _statusFilter)
+        .toList(growable: false);
   }
 
   @override
@@ -80,9 +104,42 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
                 ),
               ),
             ),
+            _buildStatusFilter(),
             Expanded(child: _buildBody()),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusFilter() {
+    // Only worth showing when there are multiple statuses to filter between.
+    final List<String> statuses = _availableStatuses;
+    if (_loading || _error != null || statuses.length < 2) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      height: 48,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+        itemCount: statuses.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (BuildContext context, int index) {
+          if (index == 0) {
+            return _StatusChip(
+              label: 'All',
+              selected: _statusFilter == null,
+              onTap: () => setState(() => _statusFilter = null),
+            );
+          }
+          final String status = statuses[index - 1];
+          return _StatusChip(
+            label: _statusLabel(status),
+            selected: _statusFilter == status,
+            onTap: () => setState(() => _statusFilter = status),
+          );
+        },
       ),
     );
   }
@@ -175,15 +232,52 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
       );
     }
 
+    final List<OrderSummary> visible = _visibleOrders;
+    if (visible.isEmpty) {
+      return RefreshIndicator(
+        color: CustomerCheckoutTokens.primaryMaroon,
+        onRefresh: _load,
+        child: ListView(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(32, 64, 32, 32),
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    'No ${_statusFilter != null ? '${_statusLabel(_statusFilter!).toLowerCase()} ' : ''}orders',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: CustomerCheckoutTokens.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Try a different status filter.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: CustomerCheckoutTokens.bodyGray,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       color: CustomerCheckoutTokens.primaryMaroon,
       onRefresh: _load,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        itemCount: _orders.length,
+        itemCount: visible.length,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (BuildContext context, int index) {
-          final OrderSummary o = _orders[index];
+          final OrderSummary o = visible[index];
           return Material(
             color: CustomerCheckoutTokens.cardSurface,
             borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
@@ -252,6 +346,48 @@ class CustomerOrdersListScreenState extends State<CustomerOrdersListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? CustomerCheckoutTokens.primaryMaroon : CustomerCheckoutTokens.cardSurface,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? CustomerCheckoutTokens.primaryMaroon : const Color(0xFFE5E5E5),
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: selected ? CustomerCheckoutTokens.onPrimary : CustomerCheckoutTokens.bodyGray,
+            ),
+          ),
+        ),
       ),
     );
   }

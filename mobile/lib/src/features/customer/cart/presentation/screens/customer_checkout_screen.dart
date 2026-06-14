@@ -31,7 +31,9 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
   late CheckoutDraft _draft;
   final TextEditingController _driverNote = TextEditingController();
   bool _submitting = false;
-  _PaymentMethod _paymentMethod = _PaymentMethod.chapa;
+  // Chapa online payment is temporarily disabled (coming soon), so default to
+  // pay-on-delivery.
+  _PaymentMethod _paymentMethod = _PaymentMethod.pod;
 
   DeliveryFeeQuote? _quote;
   bool _quoteLoading = false;
@@ -310,7 +312,7 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                         selected: _paymentMethod == _PaymentMethod.chapa,
                         iconBg: CustomerCheckoutTokens.chapaBlue,
                         iconText: 'C',
-                        onTap: () => setState(() => _paymentMethod = _PaymentMethod.chapa),
+                        comingSoon: true,
                       ),
                       const SizedBox(height: 10),
                       _PaymentMethodTile(
@@ -480,9 +482,10 @@ class _PaymentMethodTile extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     required this.iconBg,
-    required this.onTap,
+    this.onTap,
     this.iconText,
     this.iconChild,
+    this.comingSoon = false,
   });
 
   final String title;
@@ -491,67 +494,96 @@ class _PaymentMethodTile extends StatelessWidget {
   final Color iconBg;
   final String? iconText;
   final Widget? iconChild;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool comingSoon;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: CustomerCheckoutTokens.cardSurface,
-          borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
-          border: Border.all(
-            color: selected
-                ? CustomerCheckoutTokens.primaryMaroon
-                : const Color(0xFFE5E5E5),
-            width: selected ? 2 : 1,
+    return Opacity(
+      opacity: comingSoon ? 0.55 : 1,
+      child: InkWell(
+        onTap: comingSoon ? null : onTap,
+        borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: CustomerCheckoutTokens.cardSurface,
+            borderRadius: BorderRadius.circular(CustomerCheckoutTokens.cardRadius),
+            border: Border.all(
+              color: selected
+                  ? CustomerCheckoutTokens.primaryMaroon
+                  : const Color(0xFFE5E5E5),
+              width: selected ? 2 : 1,
+            ),
           ),
-        ),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: iconChild ??
-                  Text(
-                    iconText ?? '',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22),
-                  ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: CustomerCheckoutTokens.ink,
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: iconChild ??
+                    Text(
+                      iconText ?? '',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 22),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13),
-                  ),
-                ],
               ),
-            ),
-            Icon(
-              selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-              color: selected ? CustomerCheckoutTokens.primaryMaroon : CustomerCheckoutTokens.mutedGray,
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              color: CustomerCheckoutTokens.ink,
+                            ),
+                          ),
+                        ),
+                        if (comingSoon) ...<Widget>[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: CustomerCheckoutTokens.fieldFill,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Coming soon',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                                color: CustomerCheckoutTokens.bodyGray,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(color: CustomerCheckoutTokens.bodyGray, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              if (!comingSoon)
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                  color: selected ? CustomerCheckoutTokens.primaryMaroon : CustomerCheckoutTokens.mutedGray,
+                ),
+            ],
+          ),
         ),
       ),
     );

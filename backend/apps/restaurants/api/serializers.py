@@ -143,6 +143,33 @@ class PublicMenuItemSerializer(serializers.ModelSerializer):
         return _absolute_media_url(self.context.get("request"), obj.image)
 
 
+class PublicCatalogItemSerializer(serializers.ModelSerializer):
+    """A menu item enriched with its restaurant, for the cross-restaurant
+    category browse on the customer home."""
+
+    image_url = serializers.SerializerMethodField()
+    restaurant_id = serializers.IntegerField(source="restaurant.id", read_only=True)
+    restaurant_name = serializers.CharField(source="restaurant.name", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+
+    class Meta:
+        model = MenuItem
+        fields = (
+            "id",
+            "name",
+            "description",
+            "price",
+            "currency",
+            "image_url",
+            "restaurant_id",
+            "restaurant_name",
+            "category_name",
+        )
+
+    def get_image_url(self, obj: MenuItem) -> str | None:
+        return _absolute_media_url(self.context.get("request"), obj.image)
+
+
 class PublicMenuCategorySerializer(serializers.ModelSerializer):
     items = serializers.SerializerMethodField()
 

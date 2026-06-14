@@ -15,6 +15,7 @@ from .serializers import (
     MenuCategorySerializer,
     MenuItemSerializer,
     MenuItemWriteSerializer,
+    PublicCatalogItemSerializer,
     PublicMenuCategorySerializer,
     RestaurantListSerializer,
     RestaurantWriteSerializer,
@@ -58,6 +59,12 @@ class RestaurantListCreateView(APIView):
                 | Q(phone__icontains=search)
                 | Q(menu_items__name__icontains=search)
             ).distinct()
+        category = (request.query_params.get("category") or "").strip()
+        if category:
+            qs = qs.filter(
+                menu_categories__name__iexact=category,
+                menu_categories__is_active=True,
+            ).distinct()
         serializer = RestaurantListSerializer(qs, many=True, context={"request": request})
         return Response(serializer.data)
 
@@ -72,6 +79,52 @@ class RestaurantListCreateView(APIView):
             RestaurantListSerializer(restaurant, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class PublicMenuCategoryNamesView(APIView):
+    """
+    GET /api/v1/restaurants/menu-categories/ — distinct active menu category
+    names across active restaurants. Powers the customer home category filters.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        raw_names = (
+            MenuCategory.objects.filter(is_active=True, restaurant__is_active=True)
+            .values_list("name", flat=True)
+        )
+        # Case-insensitive de-duplication; keep the first-seen display casing.
+        unique: dict[str, str] = {}
+        for name in raw_names:
+            cleaned = (name or "").strip()
+            if not cleaned:
+                continue
+            unique.setdefault(cleaned.lower(), cleaned)
+        ordered = sorted(unique.values(), key=lambda value: value.lower())
+        return Response(ordered)
+
+
+class PublicMenuItemsView(APIView):
+    """
+    GET /api/v1/restaurants/menu-items/?category=<name> — available menu items
+    across active restaurants, optionally filtered to one category name. Powers
+    the cross-restaurant category browse on the customer home.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        qs = (
+            MenuItem.objects.filter(is_available=True, restaurant__is_active=True)
+            .select_related("restaurant", "category")
+            .order_by("name")
+        )
+        category = (request.query_params.get("category") or "").strip()
+        if category:
+            qs = qs.filter(category__name__iexact=category, category__is_active=True)
+        serializer = PublicCatalogItemSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data)
 
 
 class RestaurantDetailView(APIView):

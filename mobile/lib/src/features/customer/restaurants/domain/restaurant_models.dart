@@ -114,6 +114,32 @@ final class PublicMenuItem {
   final String? imageUrl;
 }
 
+/// A menu item paired with its restaurant, used for the cross-restaurant
+/// category browse on the customer home.
+final class CatalogMenuItem {
+  const CatalogMenuItem({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.currency,
+    required this.restaurantId,
+    required this.restaurantName,
+    this.categoryName = '',
+    this.imageUrl,
+  });
+
+  final int id;
+  final String name;
+  final String description;
+  final String price;
+  final String currency;
+  final int restaurantId;
+  final String restaurantName;
+  final String categoryName;
+  final String? imageUrl;
+}
+
 final class PublicMenuCategory {
   const PublicMenuCategory({
     required this.id,

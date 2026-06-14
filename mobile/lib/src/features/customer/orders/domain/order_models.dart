@@ -32,6 +32,7 @@ final class OrderSummary {
     required this.restaurantName,
     required this.status,
     required this.paymentStatus,
+    required this.paymentMethod,
     required this.totalAmount,
     required this.placedAt,
   });
@@ -41,12 +42,24 @@ final class OrderSummary {
   final String restaurantName;
   final String status;
   final String paymentStatus;
+  final String paymentMethod;
   final String totalAmount;
   final String placedAt;
 
   bool get isPaymentPending => paymentStatus == 'pending';
+
+  /// Pay-on-delivery orders are collected by the driver, not paid in-app — so
+  /// a pending payment status is expected and must not trigger online-payment UI.
+  bool get isPayOnDelivery => paymentMethod == 'pod';
+
+  /// True only when the customer still needs to complete an online (Chapa)
+  /// payment. POD orders are never "awaiting online payment".
+  bool get isAwaitingOnlinePayment => paymentStatus == 'pending' && !isPayOnDelivery;
+
   bool get isActiveForTracking =>
-      status != 'delivered' && status != 'cancelled' && paymentStatus == 'paid';
+      status != 'delivered' &&
+      status != 'cancelled' &&
+      (isPayOnDelivery || paymentStatus == 'paid');
 
   factory OrderSummary.fromJson(Map<String, dynamic> m) => OrderSummary(
         id: m['id'] as int,
@@ -54,6 +67,7 @@ final class OrderSummary {
         restaurantName: m['restaurant_name'] as String? ?? '',
         status: m['status'] as String? ?? '',
         paymentStatus: m['payment_status'] as String? ?? 'pending',
+        paymentMethod: m['payment_method'] as String? ?? 'chapa',
         totalAmount: '${m['total_amount']}',
         placedAt: m['placed_at'] as String? ?? '',
       );
@@ -100,6 +114,7 @@ final class OrderDetail {
     required this.reference,
     required this.status,
     required this.paymentStatus,
+    required this.paymentMethod,
     required this.restaurantName,
     required this.restaurantAddress,
     this.restaurantLatitude,
@@ -116,6 +131,7 @@ final class OrderDetail {
   final String reference;
   final String status;
   final String paymentStatus;
+  final String paymentMethod;
   final String restaurantName;
   final String restaurantAddress;
   final double? restaurantLatitude;
@@ -129,6 +145,14 @@ final class OrderDetail {
 
   bool get isPaymentPending => paymentStatus == 'pending';
   bool get isPaymentPaid => paymentStatus == 'paid';
+
+  /// Pay-on-delivery orders are collected by the driver, not paid in-app.
+  bool get isPayOnDelivery => paymentMethod == 'pod';
+
+  /// True only when the customer still needs to complete an online (Chapa)
+  /// payment. POD orders are never "awaiting online payment".
+  bool get isAwaitingOnlinePayment => paymentStatus == 'pending' && !isPayOnDelivery;
+
   bool get isTerminal => status == 'delivered' || status == 'cancelled';
 
   factory OrderDetail.fromJson(Map<String, dynamic> m) {
@@ -139,6 +163,7 @@ final class OrderDetail {
       reference: m['reference'] as String? ?? '',
       status: m['status'] as String? ?? '',
       paymentStatus: m['payment_status'] as String? ?? 'pending',
+      paymentMethod: m['payment_method'] as String? ?? 'chapa',
       restaurantName: m['restaurant_name'] as String? ?? '',
       restaurantAddress: m['restaurant_address'] as String? ?? '',
       restaurantLatitude: _readDouble(m['restaurant_latitude']),
