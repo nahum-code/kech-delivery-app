@@ -168,7 +168,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                             const SizedBox(height: 26),
                             RegistrationLabeledTextField(
                               label: 'Full name',
-                              hint: 'Yassine El Amrani',
+                              hint: 'Full Name',
                               prefixIcon: Icons.person_outline_rounded,
                               controller: _fullName,
                               validator: CustomerRegistrationValidators.fullName,
@@ -176,8 +176,8 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                             ),
                             const SizedBox(height: 18),
                             RegistrationLabeledTextField(
-                              label: 'Email',
-                              hint: 'you@example.com',
+                              label: 'Email (optional)',
+                              hint: 'Email address',
                               prefixIcon: Icons.mail_outline_rounded,
                               controller: _email,
                               validator: CustomerRegistrationValidators.email,
@@ -187,7 +187,7 @@ class _CustomerRegistrationScreenState extends State<CustomerRegistrationScreen>
                             const SizedBox(height: 18),
                             RegistrationLabeledTextField(
                               label: 'Phone number',
-                              hint: '+212 600 000 000',
+                              hint: 'Phone Number (e.g., +251900000000)',
                               prefixIcon: Icons.smartphone_rounded,
                               controller: _phone,
                               validator: CustomerRegistrationValidators.phone,

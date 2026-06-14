@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { UsersSalesAgents } from "@/features/admin/pages/users/UsersSalesAgents";
 import { CreateSalesAgentDialog } from "@/features/admin/components/CreateSalesAgentDialog";
 import { useAdminUsers } from "@/hooks/use-admin-users";
+import type { AdminUser } from "@/services/users";
 
 export const dynamic = "force-dynamic";
 
@@ -15,18 +16,29 @@ export default function SalesAgentsRoute() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { users, setUsers, loading } = useAdminUsers("sales");
 
-  const handleCreated = (created: { user_id: number; phone: string; role: string }) => {
+  const handleCreated = (created: {
+    user_id: number;
+    phone: string;
+    name: string;
+    role: string;
+  }) => {
     setUsers((prev) => [
       {
         user_id: created.user_id,
         phone: created.phone,
-        name: null,
+        name: created.name || null,
         role: created.role,
         status: "active",
         created_at: new Date().toISOString(),
       },
       ...prev,
     ]);
+  };
+
+  const handleUpdated = (updated: AdminUser) => {
+    setUsers((prev) =>
+      prev.map((user) => (user.user_id === updated.user_id ? updated : user)),
+    );
   };
 
   return (
@@ -55,7 +67,11 @@ export default function SalesAgentsRoute() {
       {loading ? (
         <p className="text-sm text-gray-600">Loading users...</p>
       ) : (
-        <UsersSalesAgents searchQuery={searchQuery} users={users} />
+        <UsersSalesAgents
+          searchQuery={searchQuery}
+          users={users}
+          onUserUpdated={handleUpdated}
+        />
       )}
       <CreateSalesAgentDialog
         open={createDialogOpen}

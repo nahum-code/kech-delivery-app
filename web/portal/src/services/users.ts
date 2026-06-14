@@ -34,6 +34,21 @@ export async function createSalesAgent(
   );
 }
 
+export type UpdateSalesAgentInput = {
+  name?: string;
+  status?: "active" | "inactive";
+};
+
+export async function updateSalesAgent(
+  userId: number,
+  payload: UpdateSalesAgentInput,
+): Promise<AdminUser> {
+  return requestJson<AdminUser>(`/api/v1/auth/sales-agents/${userId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchAdminUsers(search?: string): Promise<AdminUser[]> {
   const q = search?.trim();
   const path =

@@ -14,6 +14,7 @@ from .views import (
     MeView,
     PhoneTokenObtainPairView,
     RestrictedTokenRefreshView,
+    SalesAgentDetailView,
     StaffOpsCheckView,
     ThrottledTokenVerifyView,
     test_auth,
@@ -49,6 +50,11 @@ urlpatterns = [
         "create-sales-agent/",
         CreateSalesAgentView.as_view(),
         name="create_sales_agent",
+    ),
+    path(
+        "sales-agents/<int:user_id>/",
+        SalesAgentDetailView.as_view(),
+        name="sales_agent_detail",
     ),
     path(
         "users/",

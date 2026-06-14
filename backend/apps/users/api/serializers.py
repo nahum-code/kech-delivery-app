@@ -60,7 +60,7 @@ class CustomerRegisterSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=32)
     password = serializers.CharField(write_only=True)
     name = serializers.CharField(max_length=150)
-    email = serializers.EmailField()
+    email = serializers.EmailField(required=False, allow_blank=True)
 
     def validate_phone(self, value: str) -> str:
         normalized = normalize_phone(value)
@@ -79,7 +79,7 @@ class CustomerRegisterSerializer(serializers.Serializer):
         phone = validated_data["phone"]
         password = validated_data["password"]
         name = validated_data["name"]
-        email = validated_data["email"].strip().lower()
+        email = (validated_data.get("email") or "").strip().lower()
 
         with transaction.atomic():
             user = User.objects.create_user(phone=phone, password=password, role=User.Role.CUSTOMER)
@@ -165,6 +165,32 @@ class SalesAgentCreateSerializer(serializers.Serializer):
             )
             SalesProfile.objects.create(user=user, full_name=name)
             return user
+
+
+class SalesAgentUpdateSerializer(serializers.Serializer):
+    """Update a sales-agent's display name and/or active status (admin only)."""
+
+    name = serializers.CharField(max_length=150, required=False, allow_blank=False)
+    status = serializers.ChoiceField(choices=["active", "inactive"], required=False)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "name" not in attrs and "status" not in attrs:
+            raise ValidationError("Provide at least one field to update.")
+        return attrs
+
+    def update(self, instance: User, validated_data):
+        with transaction.atomic():
+            name = validated_data.get("name")
+            if name is not None:
+                profile, _ = SalesProfile.objects.get_or_create(user=instance)
+                profile.full_name = name.strip()
+                profile.save(update_fields=["full_name"])
+            status_value = validated_data.get("status")
+            if status_value is not None:
+                instance.is_active = status_value == "active"
+                instance.save(update_fields=["is_active"])
+            return instance
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
