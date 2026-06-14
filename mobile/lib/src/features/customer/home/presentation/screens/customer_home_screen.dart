@@ -506,6 +506,15 @@ class _CatalogItemCard extends StatelessWidget {
                         color: CustomerHomeTokens.primaryMaroon,
                       ),
                     ),
+                    if ((double.tryParse(item.takeawayBoxPrice) ?? 0) > 0)
+                      Text(
+                        '+ ${item.takeawayBoxPrice} ${item.currency} box',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
+                          color: CustomerHomeTokens.labelGray,
+                        ),
+                      ),
                   ],
                 ),
               ),

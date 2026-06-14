@@ -84,6 +84,7 @@ final class RestaurantRepository {
       currency: m['currency'] as String? ?? 'ETB',
       restaurantId: restaurantId,
       restaurantName: m['restaurant_name'] as String? ?? '',
+      takeawayBoxPrice: '${m['takeaway_box_price'] ?? '0'}',
       categoryName: m['category_name'] as String? ?? '',
       imageUrl: m['image_url'] as String?,
     );
@@ -163,6 +164,7 @@ final class RestaurantRepository {
       description: m['description'] as String? ?? '',
       price: '${m['price']}',
       currency: m['currency'] as String? ?? 'ETB',
+      takeawayBoxPrice: '${m['takeaway_box_price'] ?? '0'}',
       imageUrl: m['image_url'] as String?,
     );
   }

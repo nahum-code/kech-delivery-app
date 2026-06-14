@@ -254,13 +254,27 @@ class _CustomerCheckoutScreenState extends State<CustomerCheckoutScreen> {
                                     ),
                                   ),
                                 ),
-                                Text(
-                                  '${line.quantity} × ${line.unitPrice} ${line.currency}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    color: CustomerCheckoutTokens.ink,
-                                  ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: <Widget>[
+                                    Text(
+                                      '${line.quantity} × ${line.unitPrice} ${line.currency}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: CustomerCheckoutTokens.ink,
+                                      ),
+                                    ),
+                                    if (line.boxPrice > 0)
+                                      Text(
+                                        '+ ${line.takeawayBoxPrice} ${line.currency} box',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 11,
+                                          color: CustomerCheckoutTokens.mutedGray,
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ],
                             ),

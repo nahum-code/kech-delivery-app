@@ -14,6 +14,7 @@ export type MenuItemRecord = {
   name: string;
   description: string;
   price: string;
+  takeaway_box_price: string;
   currency: string;
   is_available: boolean;
   image_url: string | null;
@@ -66,6 +67,7 @@ export async function createMenuItem(
     name: string;
     description?: string;
     price: string | number;
+    takeaway_box_price?: string | number;
     is_available?: boolean;
     image?: File | null;
     sort_order?: number;
@@ -76,6 +78,8 @@ export async function createMenuItem(
   fd.append("name", payload.name);
   if (payload.description) fd.append("description", payload.description);
   fd.append("price", String(payload.price));
+  if (payload.takeaway_box_price != null)
+    fd.append("takeaway_box_price", String(payload.takeaway_box_price));
   fd.append("currency", "ETB");
   if (payload.is_available != null) fd.append("is_available", payload.is_available ? "true" : "false");
   if (payload.sort_order != null) fd.append("sort_order", String(payload.sort_order));
@@ -94,6 +98,7 @@ export async function updateMenuItem(
     name: string;
     description: string;
     price: string | number;
+    takeaway_box_price: string | number;
     is_available: boolean;
     image: File | null;
     sort_order: number;
@@ -104,6 +109,8 @@ export async function updateMenuItem(
   if (payload.name != null) fd.append("name", payload.name);
   if (payload.description != null) fd.append("description", payload.description);
   if (payload.price != null) fd.append("price", String(payload.price));
+  if (payload.takeaway_box_price != null)
+    fd.append("takeaway_box_price", String(payload.takeaway_box_price));
   fd.append("currency", "ETB");
   if (payload.is_available != null) fd.append("is_available", payload.is_available ? "true" : "false");
   if (payload.sort_order != null) fd.append("sort_order", String(payload.sort_order));

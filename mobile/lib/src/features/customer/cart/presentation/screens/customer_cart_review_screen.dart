@@ -322,6 +322,15 @@ class _CartLineCard extends StatelessWidget {
                           color: CustomerCheckoutTokens.primaryMaroon,
                         ),
                       ),
+                      if (line.boxPrice > 0)
+                        Text(
+                          '+ ${line.takeawayBoxPrice} ${line.currency} box',
+                          style: TextStyle(
+                            color: CustomerCheckoutTokens.bodyGray,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
                   ),
                 ),

@@ -21,6 +21,7 @@ export type PublicMenuItem = {
   name: string;
   description: string;
   price: string;
+  takeaway_box_price: string;
   currency: string;
   image_url: string | null;
   sort_order: number;

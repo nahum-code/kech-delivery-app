@@ -196,7 +196,8 @@ def create_order(
             raise OrderServiceError(f"Menu item {menu_item_id} is unavailable.", status_code=400) from exc
 
         unit = menu_item.price
-        line_total = unit * quantity
+        box_price = menu_item.takeaway_box_price
+        line_total = (unit + box_price) * quantity
         subtotal += line_total
         OrderItem.objects.create(
             order=order,
@@ -204,6 +205,7 @@ def create_order(
             item_name=menu_item.name,
             quantity=quantity,
             unit_price=unit,
+            takeaway_box_price=box_price,
             total_price=line_total,
         )
 
@@ -237,7 +239,8 @@ def _replace_order_items(*, order: Order, items: list[dict[str, Any]]) -> Decima
             raise OrderServiceError(f"Menu item {menu_item_id} is unavailable.", status_code=400) from exc
 
         unit = menu_item.price
-        line_total = unit * quantity
+        box_price = menu_item.takeaway_box_price
+        line_total = (unit + box_price) * quantity
         subtotal += line_total
         OrderItem.objects.create(
             order=order,
@@ -245,6 +248,7 @@ def _replace_order_items(*, order: Order, items: list[dict[str, Any]]) -> Decima
             item_name=menu_item.name,
             quantity=quantity,
             unit_price=unit,
+            takeaway_box_price=box_price,
             total_price=line_total,
         )
     return subtotal

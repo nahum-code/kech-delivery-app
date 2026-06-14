@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -120,6 +121,12 @@ class MenuItem(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    takeaway_box_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Per-unit takeaway box cost added to the item price.",
+    )
     currency = models.CharField(max_length=8, default=DEFAULT_CURRENCY)
     is_available = models.BooleanField(default=True, db_index=True)
     image = models.ImageField(upload_to=menu_item_image_upload_to, blank=True, null=True)
