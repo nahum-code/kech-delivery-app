@@ -69,6 +69,7 @@ export function MenuManagement() {
     name: "",
     description: "",
     price: "",
+    takeaway_box_price: "",
     category_id: 0,
     is_available: true,
     image: null as File | null,
@@ -170,6 +171,7 @@ export function MenuManagement() {
       name: "",
       description: "",
       price: "",
+      takeaway_box_price: "",
       category_id: selectedCategoryId ?? categories[0]?.id ?? 0,
       is_available: true,
       image: null,
@@ -183,6 +185,7 @@ export function MenuManagement() {
       name: item.name,
       description: item.description,
       price: item.price,
+      takeaway_box_price: item.takeaway_box_price,
       category_id: item.category_id,
       is_available: item.is_available,
       image: null,
@@ -199,6 +202,7 @@ export function MenuManagement() {
           name: itemForm.name,
           description: itemForm.description,
           price: itemForm.price,
+          takeaway_box_price: itemForm.takeaway_box_price || "0",
           is_available: itemForm.is_available,
           image: itemForm.image,
         });
@@ -209,6 +213,7 @@ export function MenuManagement() {
           name: itemForm.name,
           description: itemForm.description,
           price: itemForm.price,
+          takeaway_box_price: itemForm.takeaway_box_price || "0",
           is_available: itemForm.is_available,
           image: itemForm.image,
         });
@@ -337,6 +342,11 @@ export function MenuManagement() {
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
                         {item.price} {item.currency}
+                        {Number(item.takeaway_box_price) > 0 && (
+                          <span className="block text-xs text-gray-500">
+                            + {item.takeaway_box_price} {item.currency} box
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
@@ -511,6 +521,23 @@ export function MenuManagement() {
                   setItemForm({ ...itemForm, price: e.target.value })
                 }
               />
+            </div>
+            <div>
+              <Label>Takeaway box price (ETB)</Label>
+              <Input
+                inputMode="decimal"
+                placeholder="0"
+                value={itemForm.takeaway_box_price}
+                onChange={(e) =>
+                  setItemForm({
+                    ...itemForm,
+                    takeaway_box_price: e.target.value,
+                  })
+                }
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Added on top of the item price for each unit ordered.
+              </p>
             </div>
             <div>
               <Label>Description</Label>

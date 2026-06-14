@@ -5,6 +5,7 @@ final class CartLine {
     required this.name,
     required this.unitPrice,
     required this.quantity,
+    this.takeawayBoxPrice = '0',
     this.imageUrl,
     this.currency = 'ETB',
     this.subtitle = '',
@@ -15,12 +16,17 @@ final class CartLine {
   final String name;
   final String unitPrice;
   final int quantity;
+  final String takeawayBoxPrice;
   final String? imageUrl;
   final String currency;
   final String subtitle;
   final String specialInstructions;
 
-  double get lineTotal => (double.tryParse(unitPrice) ?? 0) * quantity;
+  /// Per-unit takeaway box cost, added on top of the item price.
+  double get boxPrice => double.tryParse(takeawayBoxPrice) ?? 0;
+
+  double get lineTotal =>
+      ((double.tryParse(unitPrice) ?? 0) + boxPrice) * quantity;
 
   CartLine copyWith({
     int? quantity,
@@ -32,6 +38,7 @@ final class CartLine {
         name: name,
         unitPrice: unitPrice,
         quantity: quantity ?? this.quantity,
+        takeawayBoxPrice: takeawayBoxPrice,
         imageUrl: imageUrl,
         currency: currency,
         subtitle: subtitle ?? this.subtitle,

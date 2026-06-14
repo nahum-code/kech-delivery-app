@@ -114,6 +114,11 @@ class OrderItem(models.Model):
     item_name = models.CharField(max_length=200)
     quantity = models.PositiveIntegerField(default=1)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    takeaway_box_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
     total_price = models.DecimalField(max_digits=12, decimal_places=2)
 
     class Meta:

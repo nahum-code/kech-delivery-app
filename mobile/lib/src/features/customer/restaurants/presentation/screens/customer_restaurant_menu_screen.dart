@@ -106,6 +106,7 @@ class _CustomerRestaurantMenuScreenState
         name: item.name,
         unitPrice: item.price,
         quantity: 1,
+        takeawayBoxPrice: item.takeawayBoxPrice,
         imageUrl: item.imageUrl,
         currency: item.currency,
       ),

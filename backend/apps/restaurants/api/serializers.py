@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from apps.restaurants.models import MenuCategory, MenuItem, Restaurant
@@ -101,6 +103,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "price",
+            "takeaway_box_price",
             "currency",
             "is_available",
             "image_url",
@@ -117,6 +120,13 @@ class MenuItemWriteSerializer(serializers.ModelSerializer):
     category_id = serializers.IntegerField()
     currency = serializers.CharField(required=False, default=DEFAULT_CURRENCY, max_length=8)
     is_available = serializers.BooleanField(required=False, default=True)
+    takeaway_box_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.00"),
+        required=False,
+        default=Decimal("0.00"),
+    )
 
     class Meta:
         model = MenuItem
@@ -125,6 +135,7 @@ class MenuItemWriteSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "price",
+            "takeaway_box_price",
             "currency",
             "is_available",
             "image",
@@ -137,7 +148,16 @@ class PublicMenuItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MenuItem
-        fields = ("id", "name", "description", "price", "currency", "image_url", "sort_order")
+        fields = (
+            "id",
+            "name",
+            "description",
+            "price",
+            "takeaway_box_price",
+            "currency",
+            "image_url",
+            "sort_order",
+        )
 
     def get_image_url(self, obj: MenuItem) -> str | None:
         return _absolute_media_url(self.context.get("request"), obj.image)
@@ -159,6 +179,7 @@ class PublicCatalogItemSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "price",
+            "takeaway_box_price",
             "currency",
             "image_url",
             "restaurant_id",

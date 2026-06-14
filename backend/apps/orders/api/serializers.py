@@ -71,6 +71,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "item_name",
             "quantity",
             "unit_price",
+            "takeaway_box_price",
             "total_price",
             "image_url",
         )

@@ -50,6 +50,7 @@ class _CustomerMenuItemDetailScreenState extends State<CustomerMenuItemDetailScr
               name: widget.item.name,
               unitPrice: widget.item.price,
               quantity: _quantity,
+              takeawayBoxPrice: widget.item.takeawayBoxPrice,
               imageUrl: widget.item.imageUrl,
               currency: widget.item.currency,
               subtitle: widget.item.description.length > 48
@@ -159,13 +160,27 @@ class _CustomerMenuItemDetailScreenState extends State<CustomerMenuItemDetailScr
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        _formatPrice(item),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: CustomerCheckoutTokens.primaryMaroon,
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          Text(
+                            _formatPrice(item),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                              color: CustomerCheckoutTokens.primaryMaroon,
+                            ),
+                          ),
+                          if ((double.tryParse(item.takeawayBoxPrice) ?? 0) > 0)
+                            Text(
+                              '+ ${item.takeawayBoxPrice} ${item.currency} box',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: Color(0xFF6B5E58),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),

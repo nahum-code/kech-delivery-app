@@ -78,6 +78,17 @@ class CustomerRestaurantMenuItemTile extends StatelessWidget {
                         color: CustomerHomeTokens.primaryMaroon,
                       ),
                     ),
+                    if ((double.tryParse(item.takeawayBoxPrice) ?? 0) > 0) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text(
+                        '+ ${item.takeawayBoxPrice} ${item.currency} box',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: CustomerHomeTokens.labelGray,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

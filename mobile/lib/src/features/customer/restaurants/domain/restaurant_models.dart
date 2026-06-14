@@ -103,6 +103,7 @@ final class PublicMenuItem {
     required this.description,
     required this.price,
     required this.currency,
+    this.takeawayBoxPrice = '0',
     this.imageUrl,
   });
 
@@ -111,6 +112,7 @@ final class PublicMenuItem {
   final String description;
   final String price;
   final String currency;
+  final String takeawayBoxPrice;
   final String? imageUrl;
 }
 
@@ -125,6 +127,7 @@ final class CatalogMenuItem {
     required this.currency,
     required this.restaurantId,
     required this.restaurantName,
+    this.takeawayBoxPrice = '0',
     this.categoryName = '',
     this.imageUrl,
   });
@@ -136,6 +139,7 @@ final class CatalogMenuItem {
   final String currency;
   final int restaurantId;
   final String restaurantName;
+  final String takeawayBoxPrice;
   final String categoryName;
   final String? imageUrl;
 }

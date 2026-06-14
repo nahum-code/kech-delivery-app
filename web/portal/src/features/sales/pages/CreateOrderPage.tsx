@@ -77,6 +77,7 @@ type OrderItem = {
   id: string;
   name: string;
   price: number;
+  takeawayBoxPrice: number;
   quantity: number;
   notes: string;
 };
@@ -325,6 +326,7 @@ export function CreateOrderPage() {
   const handleAddItem = (item: CatalogMenuRow) => {
     const itemId = String(item.id);
     const price = Number.parseFloat(item.price) || 0;
+    const takeawayBoxPrice = Number.parseFloat(item.takeaway_box_price) || 0;
     const existing = orderItems.find((oi) => oi.id === itemId);
     if (existing) {
       setOrderItems(
@@ -335,7 +337,7 @@ export function CreateOrderPage() {
     } else {
       setOrderItems([
         ...orderItems,
-        { id: itemId, name: item.name, price, quantity: 1, notes: "" },
+        { id: itemId, name: item.name, price, takeawayBoxPrice, quantity: 1, notes: "" },
       ]);
     }
   };
@@ -354,7 +356,7 @@ export function CreateOrderPage() {
 
   const calculateTotals = () => {
     const subtotal = orderItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) => sum + (item.price + item.takeawayBoxPrice) * item.quantity,
       0
     );
     // Use the live quote when we have one; otherwise fall back to the
@@ -924,6 +926,11 @@ export function CreateOrderPage() {
                             <p className="font-medium">
                               {item.price} {item.currency}
                           </p>
+                            {Number(item.takeaway_box_price) > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                + {item.takeaway_box_price} {item.currency} box
+                              </p>
+                            )}
                         </div>
                       </div>
                     </Card>
@@ -948,9 +955,16 @@ export function CreateOrderPage() {
                       <Card key={item.id} className="p-4">
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium">{item.name}</p>
+                            <div>
+                              <p className="font-medium">{item.name}</p>
+                              {item.takeawayBoxPrice > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  + {item.takeawayBoxPrice} ETB box / unit
+                                </p>
+                              )}
+                            </div>
                             <p className="font-medium">
-                              {item.price * item.quantity} ETB
+                              {(item.price + item.takeawayBoxPrice) * item.quantity} ETB
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1059,8 +1073,16 @@ export function CreateOrderPage() {
                     >
                       <span>
                         {item.quantity}x {item.name}
+                        {item.takeawayBoxPrice > 0 && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            (+{item.takeawayBoxPrice} box)
+                          </span>
+                        )}
                       </span>
-                      <span>{item.price * item.quantity} ETB</span>
+                      <span>
+                        {(item.price + item.takeawayBoxPrice) * item.quantity} ETB
+                      </span>
                     </div>
                   ))}
                 </div>
