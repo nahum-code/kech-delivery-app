@@ -25,7 +25,10 @@ except ImportError:
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-if load_dotenv and (BASE_DIR / ".env").exists():
+IS_RENDER = os.getenv("RENDER", "").strip().lower() == "true"
+IS_MANAGED_RUNTIME = IS_RENDER or bool(os.getenv("PORT"))
+
+if load_dotenv and not IS_MANAGED_RUNTIME and (BASE_DIR / ".env").exists():
     load_dotenv(BASE_DIR / ".env")
 
 
@@ -132,6 +135,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASE_URL = os.getenv("DATABASE_URL")
 DB_SSL_REQUIRE = env_bool("DB_SSL_REQUIRE", default=not DEBUG)
 
+if IS_MANAGED_RUNTIME and DATABASE_URL and "@db:" in DATABASE_URL:
+    raise ImproperlyConfigured(
+        "DATABASE_URL points to Docker host 'db'. Set DATABASE_URL to your managed Postgres URL."
+    )
+
 if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.parse(
@@ -165,13 +173,21 @@ if any(arg == "test" for arg in sys.argv):
         }
     }
 else:
-    _redis_cache_url = os.getenv("REDIS_CACHE_URL", "redis://127.0.0.1:6379/2")
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": _redis_cache_url,
+    _redis_cache_url = (os.getenv("REDIS_CACHE_URL") or "").strip()
+    if _redis_cache_url:
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": _redis_cache_url,
+            }
         }
-    }
+    else:
+        # Fallback avoids 500s on throttled endpoints when Redis is not provisioned.
+        CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            }
+        }
 
 
 # Password validation
@@ -222,12 +238,22 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "core.User"
 
 # CORS (Next.js dashboard + mobile web; architecture: explicit origins in production)
+def _ensure_scheme(origin: str) -> str:
+    """Add http:// or https:// scheme if missing."""
+    origin = origin.strip()
+    if not origin:
+        return origin
+    if origin.startswith(("http://", "https://")):
+        return origin
+    return f"https://{origin}" if not DEBUG else f"http://{origin}"
+
 _cors_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_raw.split(",") if origin.strip()]
+CORS_ALLOWED_ORIGINS = [_ensure_scheme(o) for o in _cors_raw.split(",") if o.strip()]
 if DEBUG and not CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
         "http://127.0.0.1:3000",
         "http://localhost:3000",
+        "https://backendproviderkech.onrender.com"
     ]
 
 CORS_ALLOW_CREDENTIALS = env_bool("CORS_ALLOW_CREDENTIALS", default=True)
