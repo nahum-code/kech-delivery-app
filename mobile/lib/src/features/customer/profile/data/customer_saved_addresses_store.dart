@@ -60,6 +60,17 @@ final class CustomerSavedAddressesStore {
     await _save(next);
   }
 
+  /// Removes the entry matching [label] (case-insensitive), if any.
+  Future<void> remove(String label) async {
+    final List<CustomerSavedAddress> all = await loadAll();
+    final String key = label.trim().toUpperCase();
+    await _save(
+      all
+          .where((CustomerSavedAddress a) => a.label.trim().toUpperCase() != key)
+          .toList(growable: false),
+    );
+  }
+
   Future<void> _save(List<CustomerSavedAddress> entries) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     if (entries.isEmpty) {

@@ -1,6 +1,7 @@
 export const ORDER_STATUS_OPTIONS = [
   "all",
   "pending",
+  "awaiting_confirmation",
   "confirmed",
   "preparing",
   "ready_for_pickup",
@@ -42,6 +43,8 @@ export function statusBadgeClass(status: string): string {
       return "bg-orange-100 text-orange-900 border-orange-200";
     case "pending":
       return "bg-gray-100 text-gray-800 border-gray-200";
+    case "awaiting_confirmation":
+      return "bg-purple-100 text-purple-800 border-purple-200";
     case "assigned":
     case "picked_up":
     case "delivering":

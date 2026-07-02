@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../auth/data/auth_repository.dart';
 import '../../../../../core/http/api_error_message.dart';
@@ -84,6 +85,24 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
     }
   }
 
+  /// Opens the phone dialer pre-filled with the customer's number.
+  Future<void> _callCustomer(String phone) async {
+    final String number = phone.trim();
+    if (number.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No phone number available for this order.')),
+      );
+      return;
+    }
+    final Uri uri = Uri(scheme: 'tel', path: number);
+    final bool launched = await launchUrl(uri);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the dialer.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final DriverOrderDetail? order = _order;
@@ -156,6 +175,8 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
                                 ? order.deliveryAddress.landmark
                                 : order.deliveryAddress.phone,
                           ),
+                          const SizedBox(height: 12),
+                          _callButton(order),
                           const SizedBox(height: 24),
                           ..._actionButtons(order),
                         ],
@@ -201,6 +222,31 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
     }
 
     return buttons;
+  }
+
+  /// "Call customer" action for the dropoff contact. Prefers the delivery
+  /// address phone, falling back to the customer account phone.
+  Widget _callButton(DriverOrderDetail order) {
+    final String phone = order.deliveryAddress.phone.trim().isNotEmpty
+        ? order.deliveryAddress.phone.trim()
+        : order.customerPhone.trim();
+    if (phone.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return OutlinedButton.icon(
+      onPressed: () => _callCustomer(phone),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: DriverShellNavigationTokens.primary,
+        side: const BorderSide(color: DriverShellNavigationTokens.primary),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      icon: const Icon(Icons.call_rounded),
+      label: Text(
+        'CALL CUSTOMER ($phone)',
+        style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.3),
+      ),
+    );
   }
 }
 

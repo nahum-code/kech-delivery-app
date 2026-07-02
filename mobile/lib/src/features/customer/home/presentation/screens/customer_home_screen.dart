@@ -24,7 +24,7 @@ import '../../../restaurants/presentation/widgets/customer_restaurants_list_tile
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({
     super.key,
-    this.deliverAddressLine = 'Home',
+    this.deliverAddressLine = 'Set your address',
     this.embeddedInShell = false,
     this.onViewAllOrders,
   });

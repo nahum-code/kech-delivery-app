@@ -19,6 +19,7 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
   static const List<String> _progressOrder = <String>[
     'placed', // synthetic — order exists at all
     'paid', // payment confirmed
+    'confirming', // awaiting admin/agent confirmation
     'searching_driver',
     'assigned',
     'on_the_way',
@@ -34,6 +35,7 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
     }
     if (order.status == 'assigned') return _progressOrder.indexOf('assigned');
     if (order.status == 'searching_driver') return _progressOrder.indexOf('searching_driver');
+    if (order.status == 'awaiting_confirmation') return _progressOrder.indexOf('confirming');
     if (order.isPaymentPaid) return _progressOrder.indexOf('paid');
     return _progressOrder.indexOf('placed');
   }
@@ -73,6 +75,10 @@ class CustomerOrderJourneyStepper extends StatelessWidget {
             ? (order.isPaymentPaid ? 'Paid on delivery' : 'Pay on delivery')
             : 'Payment confirmed',
         time: order.isPaymentPaid ? placedTime : '',
+      ),
+      const _StepSpec(
+        icon: Icons.fact_check_outlined,
+        title: 'Confirming order',
       ),
       const _StepSpec(
         icon: Icons.search_rounded,

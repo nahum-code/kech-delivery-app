@@ -198,6 +198,16 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
     await _load();
   }
 
+  Future<void> _openEditAddress(CustomerSavedAddress address) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomerAddAddressScreen(existing: address),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
+  }
+
   Future<void> _signOut() async {
     await context.read<AuthRepository>().signOut();
     if (!mounted) return;
@@ -241,6 +251,7 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
           addressLine: a.displayLine,
           chipBackground: colors.bg,
           chipForeground: colors.fg,
+          onEdit: () => _openEditAddress(a),
         );
       }),
       _addAddressLink(),

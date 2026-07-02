@@ -165,12 +165,14 @@ class CustomerProfileAddressEntryRow extends StatelessWidget {
     required this.addressLine,
     required this.chipBackground,
     required this.chipForeground,
+    this.onEdit,
   });
 
   final String label;
   final String addressLine;
   final Color chipBackground;
   final Color chipForeground;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +198,19 @@ class CustomerProfileAddressEntryRow extends StatelessWidget {
               ),
             ),
           ),
+          if (onEdit != null)
+            GestureDetector(
+              onTap: onEdit,
+              behavior: HitTestBehavior.opaque,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: CustomerProfileTokens.primaryMaroon,
+                ),
+              ),
+            ),
         ],
       ),
     );

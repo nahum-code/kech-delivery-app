@@ -7,14 +7,21 @@ import 'package:provider/provider.dart';
 import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
+import '../../../auth/login/navigation/driver_auth_navigation.dart';
 import '../../../data/driver_onboarding_repository.dart';
 import '../../../onboarding/navigation/driver_onboarding_exit.dart';
-import '../../../otp/navigation/driver_otp_navigation.dart';
+import '../../../registration/domain/driver_registration_draft.dart';
 import '../widgets/driver_document_upload_card.dart';
 
-/// Upload required driver verification documents before OTP.
+/// Final driver onboarding step: upload required verification documents, then
+/// create the account. The account is registered here (not on the detail step),
+/// and approval is done by an admin afterwards.
 class DriverDocumentsScreen extends StatefulWidget {
-  const DriverDocumentsScreen({super.key});
+  const DriverDocumentsScreen({super.key, required this.draft});
+
+  /// Details collected on the previous screen; the account is registered with
+  /// these only when the driver taps "Create account".
+  final DriverRegistrationDraft draft;
 
   @override
   State<DriverDocumentsScreen> createState() => _DriverDocumentsScreenState();
@@ -31,6 +38,10 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
 
   bool _submitting = false;
   String? _uploadingType;
+
+  /// Guards against re-registering if a retry happens after the account was
+  /// created but a document upload failed.
+  bool _accountCreated = false;
 
   static const List<(_DocMeta type, String title, IconData icon)> _docs = <(_DocMeta, String, IconData)>[
     ('license', 'Driver license', Icons.badge_outlined),
@@ -60,6 +71,27 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
     final DriverOnboardingRepository repo = context.read<DriverOnboardingRepository>();
 
     try {
+      // Register the account now (not on the detail step). Skip if a previous
+      // attempt already created it but failed partway through uploads.
+      if (!_accountCreated) {
+        final DriverRegistrationDraft d = widget.draft;
+        final LoginResult reg = await repo.registerDriver(
+          fullName: d.fullName,
+          email: d.email,
+          phoneRaw: d.phoneRaw,
+          password: d.password,
+          confirmPassword: d.confirmPassword,
+          vehicleType: d.vehicleType,
+        );
+        if (reg is LoginFailure) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(reg.message)));
+          }
+          return;
+        }
+        _accountCreated = true;
+      }
+
       for (final (_DocMeta type, _, _) in _docs) {
         setState(() => _uploadingType = type);
         final String path = _paths[type]!;
@@ -77,7 +109,15 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
         }
       }
       if (mounted) {
-        DriverOtpNavigation.open(context);
+        await _showAccountCreatedDialog();
+        if (!mounted) {
+          return;
+        }
+        await repo.clearOnboarding();
+        if (!mounted) {
+          return;
+        }
+        DriverAuthNavigation.replaceWithDriverLogin(context);
       }
     } finally {
       if (mounted) {
@@ -87,6 +127,33 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _showAccountCreatedDialog() {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text(
+          'Account created',
+          style: TextStyle(fontWeight: FontWeight.w800, color: DriverAppTokens.ink),
+        ),
+        content: const Text(
+          'Your documents have been submitted for review. You can sign in to '
+          'your account once an admin verifies your documents.',
+          style: TextStyle(color: DriverAppTokens.bodyGray, height: 1.4),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text(
+              'Got it',
+              style: TextStyle(color: DriverAppTokens.primary, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -198,7 +265,7 @@ class _DriverDocumentsScreenState extends State<DriverDocumentsScreen> {
                 ),
               ),
               RegistrationSolidPrimaryButton(
-                label: 'CONTINUE',
+                label: 'CREATE ACCOUNT',
                 loading: _submitting,
                 onPressed: _submitting ? null : _submit,
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../shared/contracts/customer_main_tab.dart';
 import '../../../../../shared/theme/customer_home_tokens.dart';
+import '../../../profile/data/customer_saved_addresses_store.dart';
 import '../../../home/presentation/screens/customer_home_screen.dart';
 import '../../../inbox/presentation/screens/customer_inbox_screen.dart';
 import '../../../orders/presentation/screens/customer_orders_list_screen.dart';
@@ -12,7 +13,7 @@ import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
 class CustomerShellScreen extends StatefulWidget {
   const CustomerShellScreen({
     super.key,
-    this.deliverAddressLine = 'Home',
+    this.deliverAddressLine = 'Set your address',
     this.initialTab = CustomerMainTab.home,
   });
 
@@ -25,6 +26,7 @@ class CustomerShellScreen extends StatefulWidget {
 
 class _CustomerShellScreenState extends State<CustomerShellScreen> {
   late CustomerMainTab _tab;
+  late String _deliverAddressLine;
   final GlobalKey<CustomerOrdersListScreenState> _ordersKey =
       GlobalKey<CustomerOrdersListScreenState>();
 
@@ -32,6 +34,23 @@ class _CustomerShellScreenState extends State<CustomerShellScreen> {
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+    _deliverAddressLine = widget.deliverAddressLine;
+    _loadSavedAddress();
+  }
+
+  /// Show the customer's saved delivery address (Home if set) in the header.
+  /// Set during location onboarding from the device's current location.
+  Future<void> _loadSavedAddress() async {
+    final List<CustomerSavedAddress> all =
+        await CustomerSavedAddressesStore().loadAll();
+    if (all.isEmpty || !mounted) {
+      return;
+    }
+    final CustomerSavedAddress pick = all.firstWhere(
+      (CustomerSavedAddress a) => a.label.trim().toUpperCase() == 'HOME',
+      orElse: () => all.first,
+    );
+    setState(() => _deliverAddressLine = pick.displayLine);
   }
 
   void _onTabSelected(CustomerMainTab tab) {
@@ -49,7 +68,7 @@ class _CustomerShellScreenState extends State<CustomerShellScreen> {
         index: _tab.index,
         children: <Widget>[
           CustomerHomeScreen(
-            deliverAddressLine: widget.deliverAddressLine,
+            deliverAddressLine: _deliverAddressLine,
             embeddedInShell: true,
             onViewAllOrders: () => _onTabSelected(CustomerMainTab.orders),
           ),

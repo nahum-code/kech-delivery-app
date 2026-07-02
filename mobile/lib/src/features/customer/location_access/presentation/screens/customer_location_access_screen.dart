@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../../core/geocoding/reverse_geocode.dart';
+import '../../../profile/data/customer_saved_addresses_store.dart';
 import '../../../../../shared/theme/customer_location_access_tokens.dart';
 import '../../../../../shared/widgets/location_access/location_access_bottom_card.dart';
 import '../../../../../shared/widgets/location_access/location_access_brand_header.dart';
@@ -68,26 +72,55 @@ class _CustomerLocationAccessScreenState extends State<CustomerLocationAccessScr
     if (!mounted) {
       return;
     }
-    setState(() => _allowLocationBusy = false);
 
     switch (outcome) {
       case CustomerLocationWhenInUseOutcome.granted:
+        // Capture the device's current location and save it as the Home
+        // address so the home screen shows "Deliver to" their real address.
+        await _captureCurrentAddress();
+        if (!mounted) {
+          return;
+        }
         await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.denied:
+        setState(() => _allowLocationBusy = false);
         _toast(context, 'Location is off. You can enable it in settings or pick an address manually.');
         await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.permanentlyDenied:
+        setState(() => _allowLocationBusy = false);
         await _offerOpenSettings(context);
         return;
       case CustomerLocationWhenInUseOutcome.restricted:
+        setState(() => _allowLocationBusy = false);
         _toast(context, 'Location is restricted on this device. Try selecting an address manually.');
         await _finishToHome();
         return;
       case CustomerLocationWhenInUseOutcome.serviceError:
+        setState(() => _allowLocationBusy = false);
         _toast(context, 'We could not request location access. Please try again or select manually.');
         return;
+    }
+  }
+
+  /// Reads the device's current GPS position, reverse-geocodes it, and saves it
+  /// as the customer's Home address. Best-effort: silently does nothing if the
+  /// location service is off, times out, or geocoding yields no result.
+  Future<void> _captureCurrentAddress() async {
+    try {
+      final Position pos = await Geolocator.getCurrentPosition()
+          .timeout(const Duration(seconds: 12));
+      final String? address =
+          await reverseGeocode(LatLng(pos.latitude, pos.longitude));
+      if (address == null || address.trim().isEmpty) {
+        return;
+      }
+      await CustomerSavedAddressesStore().upsert(
+        CustomerSavedAddress(label: 'HOME', addressLine: address.trim()),
+      );
+    } on Object catch (e) {
+      debugPrint('captureCurrentAddress: $e');
     }
   }
 

@@ -107,7 +107,11 @@ class _CustomerOrderTrackingScreenState extends State<CustomerOrderTrackingScree
   }
 
   Widget _buildBody(OrderDetail order) {
+    // Only "searching" once the order has actually been broadcast — an order
+    // still awaiting admin/agent confirmation has not reached drivers yet.
     final bool searchingDriver = order.isPaymentPaid &&
+        order.status != 'pending' &&
+        order.status != 'awaiting_confirmation' &&
         !<String>['assigned', 'picked_up', 'delivering', 'delivered'].contains(order.status);
 
     return RefreshIndicator(

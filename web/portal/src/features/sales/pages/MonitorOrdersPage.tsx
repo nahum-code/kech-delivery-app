@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import {
   assignDriver,
+  confirmOrder,
   fetchApprovedDrivers,
   fetchOrder,
   fetchOrders,
@@ -167,6 +168,21 @@ export function MonitorOrdersPage() {
       setDetail(await fetchOrder(selectedId));
     } catch (e) {
       toast.error(parseApiError(e, "Update failed"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (selectedId == null) return;
+    setSubmitting(true);
+    try {
+      await confirmOrder(selectedId);
+      toast.success("Order confirmed — searching for a driver");
+      await load();
+      setDetail(await fetchOrder(selectedId));
+    } catch (e) {
+      toast.error(parseApiError(e, "Confirm failed"));
     } finally {
       setSubmitting(false);
     }
@@ -445,6 +461,24 @@ export function MonitorOrdersPage() {
                     <p className="mt-1 whitespace-pre-line text-sm text-amber-900">
                       {detail.customer_note}
                     </p>
+                  </div>
+                )}
+                {detail.status === "awaiting_confirmation" && (
+                  <div className="rounded-md border border-purple-200 bg-purple-50 p-3">
+                    <p className="text-sm font-medium text-purple-900">
+                      Waiting for confirmation
+                    </p>
+                    <p className="mt-0.5 text-xs text-purple-700">
+                      Drivers won&apos;t see this order until it&apos;s confirmed.
+                    </p>
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full bg-[#800020] hover:bg-[#600018]"
+                      disabled={submitting}
+                      onClick={() => void handleConfirm()}
+                    >
+                      Confirm &amp; broadcast to drivers
+                    </Button>
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 border-t pt-4">

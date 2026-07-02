@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import {
   assignDriver,
+  confirmOrder,
   fetchApprovedDrivers,
   fetchOrder,
   fetchOrders,
@@ -55,6 +56,7 @@ import { OrderModifyDialog } from "../components/OrderModifyDialog";
 const STATUS_OPTIONS = [
   "all",
   "pending",
+  "awaiting_confirmation",
   "confirmed",
   "preparing",
   "ready_for_pickup",
@@ -80,6 +82,8 @@ function statusBadgeClass(status: string): string {
       return "bg-orange-100 text-orange-900 border-orange-200";
     case "pending":
       return "bg-gray-100 text-gray-800 border-gray-200";
+    case "awaiting_confirmation":
+      return "bg-purple-100 text-purple-800 border-purple-200";
     default:
       return "bg-amber-100 text-amber-800 border-amber-200";
   }
@@ -238,6 +242,25 @@ export function OrdersMonitor() {
       setCancelDialogOpen(false);
     }
   };
+
+  const confirmAndBroadcast = async () => {
+    if (selectedId == null) return;
+    setStatusUpdating(true);
+    try {
+      await confirmOrder(selectedId);
+      toast.success("Order confirmed — searching for a driver");
+      await load();
+      const refreshed = await fetchOrder(selectedId);
+      setDetail(refreshed);
+      setPendingStatus(refreshed.status);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Confirm failed");
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const canConfirm = detail != null && detail.status === "awaiting_confirmation";
 
   const canCancel =
     detail != null && detail.status !== "cancelled" && detail.status !== "delivered";
@@ -526,6 +549,23 @@ export function OrdersMonitor() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    {canConfirm && (
+                      <div className="rounded-md border border-purple-200 bg-purple-50 p-3">
+                        <p className="text-sm font-medium text-purple-900">
+                          Waiting for confirmation
+                        </p>
+                        <p className="mt-0.5 text-xs text-purple-700">
+                          This order won&apos;t be shown to drivers until you confirm it.
+                        </p>
+                        <Button
+                          className="mt-2 w-full bg-[#800020] hover:bg-[#600018]"
+                          disabled={statusUpdating}
+                          onClick={() => void confirmAndBroadcast()}
+                        >
+                          {statusUpdating ? "Confirming…" : "Confirm & broadcast to drivers"}
+                        </Button>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-gray-600">Update order status</p>
                       <div className="flex gap-2">

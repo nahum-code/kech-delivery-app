@@ -5,7 +5,6 @@ import '../../../../../shared/contracts/customer_address_save_as.dart';
 import '../../../../../shared/contracts/customer_main_tab.dart';
 import '../../../../../shared/theme/customer_add_address_tokens.dart';
 import '../../../../../shared/widgets/add_address/add_address_labeled_text_field.dart';
-import '../../../../../shared/widgets/add_address/add_address_map_preview_card.dart';
 import '../../../../../shared/widgets/add_address/add_address_save_as_selector.dart';
 import '../../../../../shared/widgets/add_address/add_address_save_button.dart';
 import '../../../../../shared/widgets/add_address/add_address_screen_top_bar.dart';
@@ -16,7 +15,11 @@ import '../../../shared/widgets/navigation/customer_main_bottom_nav_bar.dart';
 import '../../../shell/presentation/screens/customer_shell_screen.dart';
 
 class CustomerAddAddressScreen extends StatefulWidget {
-  const CustomerAddAddressScreen({super.key});
+  const CustomerAddAddressScreen({super.key, this.existing});
+
+  /// When provided, the screen edits this saved address (pre-filled) and
+  /// returns to the caller on save instead of finishing the onboarding flow.
+  final CustomerSavedAddress? existing;
 
   @override
   State<CustomerAddAddressScreen> createState() =>
@@ -29,6 +32,30 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
 
   CustomerAddressSaveAs _saveAs = CustomerAddressSaveAs.home;
   bool _saving = false;
+
+  bool get _isEditing => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final CustomerSavedAddress? existing = widget.existing;
+    if (existing != null) {
+      _streetController.text = existing.addressLine;
+      _unitController.text = existing.unit;
+      _saveAs = _saveAsFromLabel(existing.label);
+    }
+  }
+
+  CustomerAddressSaveAs _saveAsFromLabel(String label) {
+    switch (label.trim().toUpperCase()) {
+      case 'WORK':
+        return CustomerAddressSaveAs.work;
+      case 'OTHER':
+        return CustomerAddressSaveAs.other;
+      default:
+        return CustomerAddressSaveAs.home;
+    }
+  }
 
   @override
   void dispose() {
@@ -46,28 +73,6 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
       return;
     }
     messenger.showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  Future<void> _onRecenterMap() async {
-    try {
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) {
-        return;
-      }
-      _toast('Map will follow your device location when search is connected.');
-    } catch (error, stackTrace) {
-      FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
-          library: 'customer_add_address',
-          context: ErrorDescription('while handling map recenter'),
-        ),
-      );
-      if (mounted) {
-        _toast('Could not refresh the map preview.');
-      }
-    }
   }
 
   String _saveAsLabel() {
@@ -104,8 +109,20 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
     }
     setState(() => _saving = true);
     try {
+      final CustomerSavedAddress? existing = widget.existing;
+      // If the label changed while editing, drop the old entry to avoid
+      // leaving an orphaned address under the previous label.
+      if (existing != null &&
+          existing.label.trim().toUpperCase() != _saveAsLabel()) {
+        await CustomerSavedAddressesStore().remove(existing.label);
+      }
       await _persistAddressDraft();
       if (!mounted) {
+        return;
+      }
+      // Editing from the profile: just return to the caller.
+      if (existing != null) {
+        Navigator.of(context).pop(true);
         return;
       }
       await context.read<AuthRepository>().markCustomerLocationOnboardingComplete();
@@ -145,9 +162,6 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Size size = MediaQuery.sizeOf(context);
-    final double mapHeight = (size.width * 0.46).clamp(170, 260);
-
     return Scaffold(
       backgroundColor: CustomerAddAddressTokens.canvas,
       bottomNavigationBar: SafeArea(
@@ -183,14 +197,9 @@ class _CustomerAddAddressScreenState extends State<CustomerAddAddressScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    AddAddressMapPreviewCard(
-                      height: mapHeight,
-                      onRecenterPressed: _onRecenterMap,
-                    ),
-                    const SizedBox(height: 22),
-                    const Text(
-                      'Where should we deliver?',
-                      style: TextStyle(
+                    Text(
+                      _isEditing ? 'Edit your address' : 'Where should we deliver?',
+                      style: const TextStyle(
                         color: CustomerAddAddressTokens.ink,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,

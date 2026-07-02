@@ -107,6 +107,13 @@ export async function updateOrderStatus(
   });
 }
 
+/** Admin/agent confirms a customer order awaiting confirmation → broadcasts to drivers. */
+export async function confirmOrder(id: number): Promise<OrderDetail> {
+  return requestJson<OrderDetail>(`/api/v1/orders/${id}/confirm/`, {
+    method: "POST",
+  });
+}
+
 export type OrderModifyPayload = {
   items?: Array<{ menu_item_id: number; quantity: number }>;
   delivery_address?: {

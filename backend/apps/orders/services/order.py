@@ -25,6 +25,7 @@ MAX_ACTIVE_DRIVER_ORDERS = 2
 ADMIN_MODIFIABLE_STATUSES = frozenset(
     {
         Order.Status.PENDING,
+        Order.Status.AWAITING_CONFIRMATION,
         Order.Status.CONFIRMED,
         Order.Status.PREPARING,
         Order.Status.READY_FOR_PICKUP,
@@ -36,7 +37,15 @@ ADMIN_MODIFIABLE_STATUSES = frozenset(
 )
 
 ALLOWED_STATUS_TRANSITIONS: dict[str, set[str]] = {
-    Order.Status.PENDING: {Order.Status.CONFIRMED, Order.Status.CANCELLED},
+    Order.Status.PENDING: {
+        Order.Status.AWAITING_CONFIRMATION,
+        Order.Status.CONFIRMED,
+        Order.Status.CANCELLED,
+    },
+    Order.Status.AWAITING_CONFIRMATION: {
+        Order.Status.CONFIRMED,
+        Order.Status.CANCELLED,
+    },
     Order.Status.CONFIRMED: {
         Order.Status.SEARCHING_DRIVER,
         Order.Status.PREPARING,
@@ -313,8 +322,47 @@ def transition_order_status(order: Order, new_status: str) -> Order:
 
 
 @transaction.atomic
-def mark_order_paid_from_payment(order: Order) -> Order:
-    """Mark order paid after Chapa verification (webhook or verify API)."""
+def broadcast_order(order: Order) -> Order:
+    """Confirm an order and broadcast it to drivers (CONFIRMED -> SEARCHING_DRIVER).
+
+    Accepts orders still in the intake stage (pending / awaiting confirmation);
+    orders already past intake are returned unchanged.
+    """
+    if order.status not in (Order.Status.PENDING, Order.Status.AWAITING_CONFIRMATION):
+        return order
+    order = transition_order_status(order, Order.Status.CONFIRMED)
+    if order.assigned_driver_id is None:
+        order = transition_order_status(order, Order.Status.SEARCHING_DRIVER)
+    return order
+
+
+@transaction.atomic
+def request_confirmation(order: Order) -> Order:
+    """Hold a freshly-placed customer order in the admin/agent confirmation gate."""
+    if order.status == Order.Status.PENDING:
+        order = transition_order_status(order, Order.Status.AWAITING_CONFIRMATION)
+    return order
+
+
+@transaction.atomic
+def confirm_order(order: Order) -> Order:
+    """Admin/agent confirms an awaiting order, releasing it to drivers."""
+    if order.status != Order.Status.AWAITING_CONFIRMATION:
+        raise OrderServiceError(
+            "Only orders awaiting confirmation can be confirmed.",
+            status_code=409,
+        )
+    return broadcast_order(order)
+
+
+@transaction.atomic
+def mark_order_paid_from_payment(order: Order, *, gate_for_confirmation: bool = True) -> Order:
+    """Mark order paid after Chapa verification (webhook or verify API).
+
+    Customer orders ([gate_for_confirmation]=True) move into the admin/agent
+    confirmation gate instead of broadcasting. Sales-created orders pass
+    [gate_for_confirmation]=False to broadcast immediately.
+    """
     order.refresh_from_db()
     if order.payment_status == Order.PaymentStatus.PAID:
         return order
@@ -325,13 +373,9 @@ def mark_order_paid_from_payment(order: Order) -> Order:
     order.updated_at = timezone.now()
     order.save(update_fields=["payment_status", "updated_at"])
 
-    if order.status == Order.Status.PENDING:
-        order = transition_order_status(order, Order.Status.CONFIRMED)
-    # Auto-broadcast: a confirmed, unassigned order should be visible to
-    # online approved drivers so the first-accept-wins flow can run.
-    if order.status == Order.Status.CONFIRMED and order.assigned_driver_id is None:
-        order = transition_order_status(order, Order.Status.SEARCHING_DRIVER)
-    return order
+    if gate_for_confirmation:
+        return request_confirmation(order)
+    return broadcast_order(order)
 
 
 ACTIVE_DRIVER_STATUSES = (

@@ -47,9 +47,12 @@ from apps.orders.services.assignment import assign_driver_to_order
 from apps.orders.services.order import (
     OrderServiceError,
     accept_order,
+    broadcast_order,
+    confirm_order,
     create_order,
     mark_order_paid_from_payment,
     modify_order,
+    request_confirmation,
     transition_order_status,
 )
 from apps.payments.services.payment import PaymentServiceError, verify_payment_for_order
@@ -146,12 +149,20 @@ class OrderListCreateView(APIView):
             requested_payment = data.get("payment_status")
             if requested_payment == Order.PaymentStatus.PAID:
                 try:
-                    order = mark_order_paid_from_payment(order)
+                    # Sales-created orders skip the confirmation gate and broadcast now.
+                    order = mark_order_paid_from_payment(order, gate_for_confirmation=False)
                 except OrderServiceError as exc:
                     return Response({"detail": exc.message}, status=exc.status_code)
             elif requested_payment == Order.PaymentStatus.FAILED:
                 order.payment_status = Order.PaymentStatus.FAILED
                 order.save(update_fields=["payment_status", "updated_at"])
+            # Pay-on-delivery sales orders aren't "paid" but still broadcast
+            # immediately — an agent created them, so no confirmation gate.
+            if order.status == Order.Status.PENDING and order.payment_method == Order.PaymentMethod.POD:
+                try:
+                    order = broadcast_order(order)
+                except OrderServiceError as exc:
+                    return Response({"detail": exc.message}, status=exc.status_code)
         else:
             body = OrderCreateSerializer(data=request.data)
             body.is_valid(raise_exception=True)
@@ -169,12 +180,12 @@ class OrderListCreateView(APIView):
             except OrderServiceError as exc:
                 return Response({"detail": exc.message}, status=exc.status_code)
 
-            # POD orders skip the Chapa payment step — broadcast immediately.
+            # Customer orders wait for admin/agent confirmation before drivers
+            # see them. POD orders move into the gate at creation; Chapa orders
+            # enter it after payment is verified (see mark_order_paid_from_payment).
             if order.payment_method == Order.PaymentMethod.POD:
                 try:
-                    order = transition_order_status(order, Order.Status.CONFIRMED)
-                    if order.assigned_driver_id is None:
-                        order = transition_order_status(order, Order.Status.SEARCHING_DRIVER)
+                    order = request_confirmation(order)
                 except OrderServiceError as exc:
                     return Response({"detail": exc.message}, status=exc.status_code)
 
@@ -289,6 +300,27 @@ class OrderStatusUpdateView(APIView):
         body.is_valid(raise_exception=True)
         try:
             order = transition_order_status(order, body.validated_data["status"])
+        except OrderServiceError as exc:
+            return Response({"detail": exc.message}, status=exc.status_code)
+
+        order = _order_queryset().get(pk=order.pk)
+        return Response(OrderDetailSerializer(order, context={"request": request}).data)
+
+
+class OrderConfirmView(APIView):
+    """POST /api/v1/orders/{id}/confirm/ — admin/agent confirms a customer order
+    awaiting confirmation, broadcasting it to drivers."""
+
+    permission_classes = [IsAuthenticated, CanUpdateOrderStatus]
+
+    def post(self, request, order_id: int, *args, **kwargs):
+        try:
+            order = Order.objects.get(pk=order_id)
+        except Order.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            order = confirm_order(order)
         except OrderServiceError as exc:
             return Response({"detail": exc.message}, status=exc.status_code)
 

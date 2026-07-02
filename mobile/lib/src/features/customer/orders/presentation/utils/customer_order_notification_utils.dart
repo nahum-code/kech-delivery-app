@@ -19,6 +19,7 @@ abstract final class CustomerOrderNotificationUtils {
     }
     return switch (order.status) {
       'pending' => 'Order received',
+      'awaiting_confirmation' => 'Awaiting confirmation',
       'confirmed' => 'Order confirmed',
       'preparing' => 'Preparing your order',
       'ready_for_pickup' => 'Ready for pickup',

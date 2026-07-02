@@ -9,6 +9,7 @@ from django.db import models
 class Order(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        AWAITING_CONFIRMATION = "awaiting_confirmation", "Awaiting confirmation"
         CONFIRMED = "confirmed", "Confirmed"
         SEARCHING_DRIVER = "searching_driver", "Searching driver"
         PREPARING = "preparing", "Preparing"

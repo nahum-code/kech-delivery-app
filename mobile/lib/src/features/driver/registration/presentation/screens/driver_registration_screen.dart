@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
-import '../../../../../shared/contracts/login_result.dart';
 import '../../../../../shared/theme/customer_registration_tokens.dart';
 import '../../../../../shared/theme/driver_app_tokens.dart';
 import '../../../../../shared/widgets/registration/registration_labeled_text_field.dart';
 import '../../../../../shared/widgets/registration/registration_solid_primary_button.dart';
-import '../../../../driver/data/driver_onboarding_repository.dart';
+import '../../domain/driver_registration_draft.dart';
 import '../../navigation/driver_registration_navigation.dart';
 import '../validators/driver_registration_validators.dart';
 
@@ -28,7 +26,6 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   final TextEditingController _confirmPassword = TextEditingController();
 
   String _vehicleType = 'sedan';
-  bool _submitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
 
@@ -42,34 +39,23 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     super.dispose();
   }
 
-  Future<void> _onSubmit() async {
+  /// Validate and carry the details to the documents step. The account is NOT
+  /// registered here — it is created only after documents are uploaded.
+  void _onSubmit() {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    setState(() => _submitting = true);
-    try {
-      final DriverOnboardingRepository repo = context.read<DriverOnboardingRepository>();
-      final LoginResult result = await repo.registerDriver(
+    DriverRegistrationNavigation.openDocuments(
+      context,
+      draft: DriverRegistrationDraft(
         fullName: _fullName.text,
         email: _email.text,
         phoneRaw: _phone.text,
         password: _password.text,
         confirmPassword: _confirmPassword.text,
         vehicleType: _vehicleType,
-      );
-      if (!mounted) {
-        return;
-      }
-      if (result is LoginFailure) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
-        return;
-      }
-      DriverRegistrationNavigation.openDocuments(context);
-    } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
-    }
+      ),
+    );
   }
 
   @override
@@ -238,9 +224,8 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
                         ),
                         const SizedBox(height: 28),
                         RegistrationSolidPrimaryButton(
-                          label: 'CREATE ACCOUNT',
-                          loading: _submitting,
-                          onPressed: _submitting ? null : _onSubmit,
+                          label: 'CONTINUE',
+                          onPressed: _onSubmit,
                         ),
                         const SizedBox(height: 24),
                       ],
