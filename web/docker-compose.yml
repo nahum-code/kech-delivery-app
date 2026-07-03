@@ -1,0 +1,33 @@
+
+services:
+  portal:
+    build:
+      context: ./portal
+      dockerfile: ../Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL in web/.env}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+  # The admin and sales apps are separate Next projects. Enable them only if you
+  # actually serve them — on a 1 vCPU / 4 GB VPS each adds ~150–250 MB of RAM.
+  # admin:
+  #   build:
+  #     context: ./admin
+  #     dockerfile: ../Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3001:3000"
+  #
+  # sales:
+  #   build:
+  #     context: ./sales
+  #     dockerfile: ../Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3002:3000"

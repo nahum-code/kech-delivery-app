@@ -1,0 +1,25 @@
+# Local development overrides — layer on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Adds live source bind-mounts + Django autoreload; not used in production.
+services:
+  migrate:
+    volumes:
+      - .:/app
+
+  web:
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    volumes:
+      - .:/app
+      - media_data:/app/media
+
+  worker:
+    # solo pool is convenient for local dev (single process, easy to debug)
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--pool=solo"]
+    volumes:
+      - .:/app
+      - media_data:/app/media
+
+  beat:
+    volumes:
+      - .:/app

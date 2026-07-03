@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 
@@ -25,4 +25,6 @@ RUN chown -R appuser:appuser /app
 # Entrypoint runs as root to chown mounted volumes, then gosu → appuser.
 USER root
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["sh", "-c", "python manage.py runserver 0.0.0.0:${PORT:-8000}"]
+# Production WSGI server. Worker count follows WEB_CONCURRENCY (Render sets it to
+# 1 on the free tier); the VPS compose overrides this command with more workers.
+CMD ["sh", "-c", "gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-3} --timeout 120"]
