@@ -63,6 +63,10 @@ services:
   # container and only one process ever migrates.
   migrate:
     build: .
+    # Inject the full backend/.env (CORS, Chapa, DJANGO_SUPERUSER_*, throttles).
+    # The explicit `environment:` block below still overrides DB/Redis wiring.
+    env_file:
+      - .env
     init: true
     restart: "no"
     security_opt:
@@ -78,6 +82,8 @@ services:
 
   web:
     build: .
+    env_file:
+      - .env
     restart: unless-stopped
     init: true
     security_opt:
@@ -110,6 +116,8 @@ services:
 
   worker:
     build: .
+    env_file:
+      - .env
     restart: unless-stopped
     init: true
     security_opt:
@@ -135,6 +143,8 @@ services:
 
   beat:
     build: .
+    env_file:
+      - .env
     restart: unless-stopped
     init: true
     security_opt:
