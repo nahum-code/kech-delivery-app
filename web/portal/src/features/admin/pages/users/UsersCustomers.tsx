@@ -46,7 +46,6 @@ export function UsersCustomers({ searchQuery, users = [] }: UsersCustomersProps)
               <TableHead>Phone Number</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -67,7 +66,6 @@ export function UsersCustomers({ searchQuery, users = [] }: UsersCustomersProps)
                     year: "numeric",
                   })}
                 </TableCell>
-                <TableCell className="text-right text-sm text-gray-500">--</TableCell>
               </TableRow>
             ))}
           </TableBody>

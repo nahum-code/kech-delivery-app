@@ -99,7 +99,7 @@ export function Users() {
         </TabsContent>
 
         <TabsContent value="sales">
-          {loading ? <p className="text-sm text-gray-600">Loading users...</p> : <UsersSalesAgents searchQuery={searchQuery} users={salesUsers} />}
+          {loading ? <p className="text-sm text-gray-600">Loading users...</p> : <UsersSalesAgents searchQuery={searchQuery} users={salesUsers} showActions={false} />}
         </TabsContent>
       </Tabs>
 

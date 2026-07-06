@@ -20,12 +20,15 @@ interface UsersSalesAgentsProps {
   searchQuery: string;
   users?: AdminUser[];
   onUserUpdated?: (updated: AdminUser) => void;
+  /** Show the per-row Edit action. Off within /admin/users. */
+  showActions?: boolean;
 }
 
 export function UsersSalesAgents({
   searchQuery,
   users = [],
   onUserUpdated,
+  showActions = true,
 }: UsersSalesAgentsProps) {
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -56,7 +59,9 @@ export function UsersSalesAgents({
               <TableHead>Phone Number</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              {showActions && (
+                <TableHead className="text-right">Actions</TableHead>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -77,19 +82,21 @@ export function UsersSalesAgents({
                     year: "numeric",
                   })}
                 </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setEditing(user);
-                      setEditOpen(true);
-                    }}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" />
-                    Edit
-                  </Button>
-                </TableCell>
+                {showActions && (
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditing(user);
+                        setEditOpen(true);
+                      }}
+                    >
+                      <Pencil className="mr-1 h-4 w-4" />
+                      Edit
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
